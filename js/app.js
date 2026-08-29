@@ -840,7 +840,16 @@ const App = (function () {
         if (app && confirm(`确定要删除「${app.name}」吗？`)) {
           Store.deleteApp(id);
           Store.deleteAppFile(id).catch((err) => console.error('删除文件失败:', err));
-          showToast('已删除', 'success');
+          if (isAdmin()) {
+            try {
+              await Store.deleteOfficialApp(id);
+              showToast('已删除（含官方目录）', 'success');
+            } catch (e) {
+              showToast('本地已删除；官方目录删除失败：' + (e.message || '未知错误'), 'error');
+            }
+          } else {
+            showToast('已删除', 'success');
+          }
           renderApps();
         }
         return;
@@ -971,21 +980,6 @@ const App = (function () {
       uploadBtn.textContent = '添加中...';
 
       try {
-        Store.saveApp({
-          name: name,
-          description: desc,
-          link: link,
-          email: email,
-          wechat: wechat,
-          introHtml: introHtml,
-          introFileName: introFileName,
-          icon: '📦',
-          uploadDate: new Date().toISOString().slice(0, 10),
-          hasFile: false,
-          price: price,
-          chargeMode: chargeMode,
-        });
-
         const adminKey = (typeof localStorage !== 'undefined') ? (localStorage.getItem('adminKey') || '') : '';
         if (adminKey) {
           try {
@@ -993,13 +987,31 @@ const App = (function () {
               name: name, description: desc, link: link,
               email: email, wechat: wechat,
               introHtml: introHtml, introFileName: introFileName,
+              icon: '📦',
               price: price, chargeMode: chargeMode,
             });
             showToast('应用添加成功，并已发布到官方目录（全员实时可见）！', 'success');
           } catch (e) {
-            showToast('本地已保存；发布官方目录失败：' + (e.message || '未知错误'), 'error');
+            showToast('发布官方目录失败：' + (e.message || '未知错误'), 'error');
+            uploadBtn.disabled = false;
+            uploadBtn.textContent = '添加应用';
+            return;
           }
         } else {
+          Store.saveApp({
+            name: name,
+            description: desc,
+            link: link,
+            email: email,
+            wechat: wechat,
+            introHtml: introHtml,
+            introFileName: introFileName,
+            icon: '📦',
+            uploadDate: new Date().toISOString().slice(0, 10),
+            hasFile: false,
+            price: price,
+            chargeMode: chargeMode,
+          });
           showToast('应用添加成功！', 'success');
         }
         renderApps();

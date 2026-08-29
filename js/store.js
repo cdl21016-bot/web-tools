@@ -209,6 +209,24 @@ const Store = (function () {
       const msg = await res.text().catch(() => '');
       throw new Error((msg || '发布失败') + ' (' + res.status + ')');
     }
+    const result = await res.json();
+    if (result && result.app) officialApps.unshift(result.app);
+    return result;
+  }
+
+  // 管理员通过后台「删除应用」从官方目录移除（边缘函数 -> KV），对所有人实时可见
+  async function deleteOfficialApp(id) {
+    const key = (typeof localStorage !== 'undefined') ? (localStorage.getItem('adminKey') || '') : '';
+    const res = await fetch('/api/apps', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': key },
+      body: JSON.stringify({ id }),
+    });
+    if (!res.ok) {
+      const msg = await res.text().catch(() => '');
+      throw new Error((msg || '删除失败') + ' (' + res.status + ')');
+    }
+    officialApps = officialApps.filter((a) => a.id !== id);
     return res.json();
   }
 
@@ -615,6 +633,7 @@ const Store = (function () {
     getApp,
     saveApp,
     addOfficialApp,
+    deleteOfficialApp,
     deleteApp,
     getAppCategories,
     ready,

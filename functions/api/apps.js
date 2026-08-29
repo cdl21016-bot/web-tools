@@ -56,3 +56,26 @@ export async function onRequestPost(context) {
   await env[KV].put("apps", JSON.stringify(apps));
   return Response.json({ ok: true, app });
 }
+
+export async function onRequestDelete(context) {
+  const { env, request } = context;
+  const key = request.headers.get("x-admin-key");
+  if (!key || key !== env.ADMIN_KEY) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+  let body;
+  try { body = await request.json(); } catch (e) {
+    return new Response("Bad Request", { status: 400 });
+  }
+  const { id } = body || {};
+  if (!id) {
+    return new Response("id required", { status: 400 });
+  }
+  const apps = await readApps(env, request);
+  const filtered = apps.filter((a) => a.id !== id);
+  if (filtered.length === apps.length) {
+    return new Response("Not Found", { status: 404 });
+  }
+  await env[KV].put("apps", JSON.stringify(filtered));
+  return Response.json({ ok: true });
+}
