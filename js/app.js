@@ -651,6 +651,63 @@ const App = (function () {
     return (typeof localStorage !== 'undefined') && !!localStorage.getItem('adminKey');
   }
 
+  function updateAdminBadge() {
+    const badge = document.getElementById('adminModeBadge');
+    const has = (typeof localStorage !== 'undefined') && !!localStorage.getItem('adminKey');
+    if (badge) badge.style.display = has ? 'inline' : 'none';
+  }
+
+  function showAdminKeyModal() {
+    const cur = (typeof localStorage !== 'undefined') ? (localStorage.getItem('adminKey') || '') : '';
+    const overlay = document.createElement('div');
+    overlay.className = 'tool-modal-overlay';
+    overlay.innerHTML = `
+      <div class="tool-modal" style="max-width:420px;width:92%;height:auto;">
+        <div class="tool-modal-head">
+          <span class="tool-modal-title">${cur ? '修改/关闭管理员密钥' : '输入管理员密钥'}</span>
+          <div class="tool-modal-tools">
+            <button class="tool-modal-close" id="adminKeyClose" title="关闭">✕</button>
+          </div>
+        </div>
+        <div style="padding:20px;">
+          <p style="color:var(--text-secondary);font-size:13px;margin:0 0 12px 0;">
+            ${cur ? '输入新密钥覆盖当前密钥；留空并确认可关闭管理员模式。' : '输入与 Cloudflare 环境变量 ADMIN_KEY 一致的密钥，可发布/管理应用。'}
+          </p>
+          <div class="form-group">
+            <input type="password" class="form-input" id="adminKeyInput" value="${escapeHtml(cur)}" placeholder="管理密钥（留空则关闭）">
+          </div>
+          <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
+            <button class="btn btn-primary" id="adminKeySave">${cur ? '保存/关闭' : '开启'}</button>
+            <button class="btn btn-outline" id="adminKeyCancel">取消</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+
+    const close = () => {
+      overlay.remove();
+      document.body.style.overflow = '';
+    };
+
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    overlay.querySelector('#adminKeyClose').addEventListener('click', close);
+    overlay.querySelector('#adminKeyCancel').addEventListener('click', close);
+    overlay.querySelector('#adminKeySave').addEventListener('click', () => {
+      const input = overlay.querySelector('#adminKeyInput').value || '';
+      if (input.trim() === '') {
+        if (typeof localStorage !== 'undefined') localStorage.removeItem('adminKey');
+        showToast('已关闭管理员模式', 'success');
+      } else {
+        if (typeof localStorage !== 'undefined') localStorage.setItem('adminKey', input.trim());
+        showToast('管理员模式已开启', 'success');
+      }
+      close();
+      updateAdminBadge();
+      renderApps();
+    });
+  }
+
   function renderApps() {
     const apps = Store.getApps();
     const categories = Store.getAppCategories();
@@ -955,29 +1012,10 @@ const App = (function () {
     });
 
     // 管理员密钥：开启后「添加应用」会同时写回官方目录（KV），对所有人实时可见
+    updateAdminBadge();
     const adminKeyBtn = document.getElementById('adminKeyBtn');
     if (adminKeyBtn) {
-      const updateBadge = () => {
-        const badge = document.getElementById('adminModeBadge');
-        const has = (typeof localStorage !== 'undefined') && !!localStorage.getItem('adminKey');
-        if (badge) badge.style.display = has ? 'inline' : 'none';
-      };
-      updateBadge();
-      adminKeyBtn.addEventListener('click', () => {
-        const cur = (typeof localStorage !== 'undefined') ? (localStorage.getItem('adminKey') || '') : '';
-        const input = prompt(cur ? '当前已开启管理员模式，输入新密钥覆盖；留空则关闭：' : '输入管理员密钥以开启「发布到官方目录」（需与 Cloudflare 环境变量 ADMIN_KEY 一致）：', cur);
-        if (input === null) return;
-        if (input.trim() === '') {
-          if (typeof localStorage !== 'undefined') localStorage.removeItem('adminKey');
-          showToast('已关闭管理员模式', 'success');
-        } else {
-          if (typeof localStorage !== 'undefined') localStorage.setItem('adminKey', input.trim());
-          showToast('管理员模式已开启', 'success');
-        }
-        updateBadge();
-        // 切换管理员模式后重渲染，使添加表单 / 删除按钮立即出现或消失
-        renderApps();
-      });
+      adminKeyBtn.addEventListener('click', showAdminKeyModal);
     }
 
     // 下载、跳转、介绍、删除
