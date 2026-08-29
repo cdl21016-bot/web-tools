@@ -1,5 +1,6 @@
 User-agent: *
 Allow: /
 
-# 上线后把这行改成你的真实 Gitee Pages 地址（仓库名为 web-tools 时形如下方）
-Sitemap: https://你的Gitee用户名.gitee.io/web-tools/sitemap.xml
+# 上线后把这行改成你的真实 Cloudflare Pages 地址
+# Cloudflare Pages 默认地址形如：https://你的项目名.pages.dev/sitemap.xml
+Sitemap: https://你的项目名.pages.dev/sitemap.xml
