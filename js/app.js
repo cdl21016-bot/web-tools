@@ -388,7 +388,7 @@ const App = (function () {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               ${escapeHtml(article.author || '效率工坊')}
             </span>
-            ${Store.isLoggedIn() ? `
+            ${isAdmin() ? `
               <button class="btn btn-outline btn-sm" id="editDateBtn" title="手动修改本文的更新日期">🗓 修改日期</button>
             ` : ''}
           </div>
@@ -648,6 +648,11 @@ const App = (function () {
     return Store.getApps();
   }
 
+  // 管理员判定：localStorage 中存有 adminKey（与 Cloudflare 环境变量 ADMIN_KEY 一致）即为管理员
+  function isAdmin() {
+    return (typeof localStorage !== 'undefined') && !!localStorage.getItem('adminKey');
+  }
+
   function renderApps() {
     const apps = Store.getApps();
     const categories = Store.getAppCategories();
@@ -658,8 +663,14 @@ const App = (function () {
           <h2 class="section-title">应用中心</h2>
         </div>
 
-        <!-- 上传/编辑区域 -->
-        ${Store.isLoggedIn() ? `
+        <!-- 管理员控制条：始终可见，用于进入 / 退出管理员模式 -->
+        <div class="admin-bar" style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin-bottom:20px;">
+          <button type="button" id="adminKeyBtn" style="border:1px solid var(--border-color);background:var(--bg-hover);color:var(--text-secondary);border-radius:var(--radius-md);padding:8px 12px;cursor:pointer;font-size:13px;">🔑 管理员</button>
+          <span id="adminModeBadge" style="display:none;font-size:12px;color:var(--accent);font-weight:600;">管理员模式已开启</span>
+          <span id="adminHint" style="font-size:12px;color:var(--text-secondary);">点击「管理员」并输入密钥，可发布 / 管理应用</span>
+        </div>
+
+        ${isAdmin() ? `
           <div class="app-upload-form" id="uploadForm">
             <h3 style="font-size:18px;font-weight:700;margin-bottom:20px;">添加应用</h3>
             <div class="form-group">
@@ -710,15 +721,13 @@ const App = (function () {
             </div>
             <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
               <button class="btn btn-primary" id="uploadBtn">添加应用</button>
-              <button type="button" id="adminKeyBtn" style="border:1px solid var(--border-color);background:var(--bg-hover);color:var(--text-secondary);border-radius:var(--radius-md);padding:8px 12px;cursor:pointer;font-size:13px;">🔑 管理员</button>
-              <span id="adminModeBadge" style="display:none;font-size:12px;color:var(--accent);font-weight:600;">管理员模式已开启</span>
             </div>
           </div>
         ` : `
           <div class="apps-upload-zone" id="uploadZone">
             <div class="upload-icon">🔒</div>
-            <h3>登录后可添加应用</h3>
-            <p><a href="#/login">点击登录</a> 或 <a href="#/register">注册新账号</a></p>
+            <h3>仅管理员可发布应用</h3>
+            <p>如需发布应用，请点击上方「🔑 管理员」并输入管理密钥。</p>
           </div>
         `}
 
@@ -727,7 +736,7 @@ const App = (function () {
           <h2 class="section-title">应用列表</h2>
         </div>
         <div class="app-grid" id="appGrid">
-          ${renderAppCards(currentFilteredApps())}
+          ${renderAppCards(currentFilteredApps(), isAdmin())}
         </div>
       </div>
     `;
@@ -968,6 +977,8 @@ const App = (function () {
           showToast('管理员模式已开启', 'success');
         }
         updateBadge();
+        // 切换管理员模式后重渲染，使添加表单 / 删除按钮立即出现或消失
+        renderApps();
       });
     }
 
@@ -983,8 +994,10 @@ const App = (function () {
   const TOOL_PER_PAGE = 6;
 
   // 仅渲染当前页的 6 个格子（工具按存储顺序填充，空位为「上传」占位）
+  // 编辑 / 删除 / 排序 / 上传入口仅管理员可见
   function renderToolsGridInner() {
     const tools = Store.getHomeTools();
+    const admin = isAdmin();
     const start = (homeToolPage - 1) * TOOL_PER_PAGE;
     const slots = [];
     for (let i = start; i < start + TOOL_PER_PAGE; i++) {
@@ -999,20 +1012,28 @@ const App = (function () {
             <h3 class="tool-card-name">${escapeHtml(t.name)}</h3>
             <p class="tool-card-desc">${escapeHtml(t.description || '')}</p>
             <div class="tool-card-actions">
-              <button class="btn btn-outline btn-sm tool-move-btn" data-move-tool="${t.id}" data-dir="-1" ${i === 0 ? 'disabled' : ''} title="上移">↑</button>
-              <button class="btn btn-outline btn-sm tool-move-btn" data-move-tool="${t.id}" data-dir="1" ${i === tools.length - 1 ? 'disabled' : ''} title="下移">↓</button>
+              ${admin ? `<button class="btn btn-outline btn-sm tool-move-btn" data-move-tool="${t.id}" data-dir="-1" ${i === 0 ? 'disabled' : ''} title="上移">↑</button>` : ''}
+              ${admin ? `<button class="btn btn-outline btn-sm tool-move-btn" data-move-tool="${t.id}" data-dir="1" ${i === tools.length - 1 ? 'disabled' : ''} title="下移">↓</button>` : ''}
               <button class="btn btn-primary btn-sm" data-open="${t.id}">打开</button>
-              <button class="btn btn-outline btn-sm" data-edit="${t.id}">✏️ 编辑</button>
-              ${t.builtin ? '' : `<button class="btn btn-danger btn-sm" data-del-tool="${t.id}">删除</button>`}
+              ${admin ? `<button class="btn btn-outline btn-sm" data-edit="${t.id}">✏️ 编辑</button>` : ''}
+              ${admin && !t.builtin ? `<button class="btn btn-danger btn-sm" data-del-tool="${t.id}">删除</button>` : ''}
             </div>
           </div>
         `);
-      } else {
+      } else if (admin) {
         slots.push(`
           <div class="tool-card tool-upload">
             <div class="tool-upload-icon">＋</div>
             <h3 class="tool-card-name">上传在线工具</h3>
             <p class="tool-card-desc">点击上传一个 .html 文件</p>
+          </div>
+        `);
+      } else {
+        slots.push(`
+          <div class="tool-card tool-empty">
+            <div class="tool-upload-icon">·</div>
+            <h3 class="tool-card-name"> </h3>
+            <p class="tool-card-desc"> </p>
           </div>
         `);
       }
@@ -1350,151 +1371,6 @@ const App = (function () {
     });
   }
 
-  // ============================================
-  // 页面渲染：登录
-  // ============================================
-  function renderLogin() {
-    app.innerHTML = `
-      <div class="auth-page">
-        <div class="auth-card">
-          <div class="auth-icon">🔐</div>
-          <h2>登录</h2>
-          <div class="auth-form">
-            <div class="form-group">
-              <label class="form-label">账号</label>
-              <input type="text" class="form-input" id="loginUsername" placeholder="请输入账号">
-            </div>
-            <div class="form-group">
-              <label class="form-label">密码</label>
-              <input type="password" class="form-input" id="loginPassword" placeholder="请输入密码">
-            </div>
-            <button class="btn btn-primary" id="loginSubmit" style="width:100%;">登录</button>
-            <p class="auth-link">还没有账号？<a href="#/register">立即注册</a></p>
-          </div>
-        </div>
-      </div>
-    `;
-
-    document.getElementById('loginSubmit').addEventListener('click', () => {
-      const username = document.getElementById('loginUsername').value.trim();
-      const password = document.getElementById('loginPassword').value;
-      if (!username || !password) {
-        showToast('请填写账号和密码', 'error');
-        return;
-      }
-      const result = Store.loginUser(username, password);
-      if (result.success) {
-        showToast('登录成功，欢迎回来！', 'success');
-        updateUserNav();
-        Router.navigate('/');
-      } else {
-        showToast(result.error, 'error');
-      }
-    });
-
-    document.getElementById('loginPassword').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') document.getElementById('loginSubmit').click();
-    });
-
-    scrollToTop();
-  }
-
-  // ============================================
-  // 页面渲染：注册
-  // ============================================
-  function renderRegister() {
-    app.innerHTML = `
-      <div class="auth-page">
-        <div class="auth-card">
-          <div class="auth-icon">✨</div>
-          <h2>注册账号</h2>
-          <div class="auth-form">
-            <div class="form-group">
-              <label class="form-label">账号 *</label>
-              <input type="text" class="form-input" id="regUsername" placeholder="3-20个字符">
-            </div>
-            <div class="form-group">
-              <label class="form-label">密码 *</label>
-              <input type="password" class="form-input" id="regPassword" placeholder="至少6位">
-            </div>
-            <div class="form-group">
-              <label class="form-label">邮箱 *</label>
-              <input type="email" class="form-input" id="regEmail" placeholder="your@email.com">
-            </div>
-            <button class="btn btn-primary" id="regSubmit" style="width:100%;">注册</button>
-            <p class="auth-link">已有账号？<a href="#/login">去登录</a></p>
-          </div>
-        </div>
-      </div>
-    `;
-
-    document.getElementById('regSubmit').addEventListener('click', () => {
-      const username = document.getElementById('regUsername').value.trim();
-      const password = document.getElementById('regPassword').value;
-      const email = document.getElementById('regEmail').value.trim();
-
-      if (!username || !password || !email) {
-        showToast('请填写所有必填项', 'error');
-        return;
-      }
-      if (username.length < 3 || username.length > 20) {
-        showToast('账号长度需 3-20 个字符', 'error');
-        return;
-      }
-      if (password.length < 6) {
-        showToast('密码至少 6 位', 'error');
-        return;
-      }
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        showToast('邮箱格式不正确', 'error');
-        return;
-      }
-
-      const result = Store.registerUser(username, password, email);
-      if (result.success) {
-        Store.loginUser(username, password);
-        showToast('注册成功，已自动登录！', 'success');
-        updateUserNav();
-        Router.navigate('/');
-      } else {
-        showToast(result.error, 'error');
-      }
-    });
-
-    document.getElementById('regEmail').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') document.getElementById('regSubmit').click();
-    });
-
-    scrollToTop();
-  }
-
-  // ============================================
-  // 用户导航状态
-  // ============================================
-  function updateUserNav() {
-    const navUser = document.getElementById('navUser');
-    if (!navUser) return;
-    const user = Store.getCurrentUser();
-    if (user) {
-      navUser.innerHTML = `
-        <span class="nav-user-name">👤 ${escapeHtml(user.username)}</span>
-        <button class="btn btn-outline btn-sm" id="logoutBtn">退出</button>
-      `;
-      document.getElementById('logoutBtn').addEventListener('click', () => {
-        Store.logoutUser();
-        showToast('已退出登录', 'success');
-        updateUserNav();
-        Router.navigate('/');
-      });
-    } else {
-      navUser.innerHTML = `
-        <button class="btn btn-outline btn-sm" id="navLoginBtn">登录</button>
-        <button class="btn btn-primary btn-sm" id="navRegisterBtn">注册</button>
-      `;
-      document.getElementById('navLoginBtn').addEventListener('click', () => Router.navigate('/login'));
-      document.getElementById('navRegisterBtn').addEventListener('click', () => Router.navigate('/register'));
-    }
-  }
 
   // ============================================
   // 404 页面
@@ -1603,20 +1479,6 @@ const App = (function () {
       closeMobileMenu();
     });
 
-    Router.register('/login', () => {
-      removeReadingProgress();
-      renderLogin();
-      updateActiveNav('');
-      closeMobileMenu();
-    });
-
-    Router.register('/register', () => {
-      removeReadingProgress();
-      renderRegister();
-      updateActiveNav('');
-      closeMobileMenu();
-    });
-
     Router.notFound(() => {
       removeReadingProgress();
       renderNotFound();
@@ -1634,7 +1496,6 @@ const App = (function () {
     initTheme();
     initScrollEffects();
     initMobileMenu();
-    updateUserNav();
     // 等待官方应用目录（data/official-apps.json）加载完成，确保首屏应用列表完整
     if (typeof Store.ready === 'function') {
       try { await Store.ready(); } catch (e) { /* 加载失败则回退内置示例 */ }

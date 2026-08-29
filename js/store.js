@@ -9,8 +9,6 @@ const Store = (function () {
     articles: 'blog_articles',
     apps: 'blog_apps',
     theme: 'blog_theme',
-    users: 'blog_users',
-    currentUser: 'blog_current_user',
     downloadCounts: 'blog_download_counts',
     homeTools: 'blog_home_tools',
   };
@@ -573,53 +571,9 @@ const Store = (function () {
   }
 
   // ============================================
-  // 用户管理
+  // 用户管理（已移除：账号仅存于本机 localStorage，无法跨设备保存，
+  // 改为「管理员密钥」模式 —— 见 app.js 的 isAdmin() 与 adminKey）
   // ============================================
-  function registerUser(username, password, email) {
-    const users = getJSON(STORAGE_KEYS.users, []);
-    if (users.find((u) => u.username === username)) {
-      return { success: false, error: '该账号已被注册' };
-    }
-    const user = {
-      id: generateId('user'),
-      username,
-      password,
-      email,
-      registerDate: new Date().toISOString().slice(0, 10),
-    };
-    users.push(user);
-    setJSON(STORAGE_KEYS.users, users);
-    return { success: true, user };
-  }
-
-  function loginUser(username, password) {
-    const users = getJSON(STORAGE_KEYS.users, []);
-    const user = users.find(
-      (u) => u.username === username && u.password === password
-    );
-    if (!user) {
-      return { success: false, error: '账号或密码错误' };
-    }
-    const session = {
-      id: user.id,
-      username: user.username,
-      email: user.email,
-    };
-    setJSON(STORAGE_KEYS.currentUser, session);
-    return { success: true, user: session };
-  }
-
-  function getCurrentUser() {
-    return getJSON(STORAGE_KEYS.currentUser, null);
-  }
-
-  function logoutUser() {
-    localStorage.removeItem(STORAGE_KEYS.currentUser);
-  }
-
-  function isLoggedIn() {
-    return getCurrentUser() !== null;
-  }
 
   // ============================================
   // 下载量统计
@@ -674,12 +628,6 @@ const Store = (function () {
     // 主题
     getTheme,
     setTheme,
-    // 用户
-    registerUser,
-    loginUser,
-    getCurrentUser,
-    logoutUser,
-    isLoggedIn,
     // 下载量统计
     incrementDownloadCount,
     getDownloadCount,
