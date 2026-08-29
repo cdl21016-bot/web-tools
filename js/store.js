@@ -183,11 +183,35 @@ const Store = (function () {
   }
 
   function loadOfficialApps() {
-    fetch('data/official-apps.json')
-      .then((r) => (r.ok ? r.json() : []))
-      .then((arr) => { officialApps = Array.isArray(arr) ? arr : []; })
-      .catch(() => { officialApps = []; })
+    // 优先读边缘函数（KV，支持管理员实时写回）；失败或为空则回退到随站打包的官方目录
+    fetch('/api/apps', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((arr) => {
+        if (Array.isArray(arr) && arr.length) { officialApps = arr; return; }
+        throw new Error('empty');
+      })
+      .catch(() => {
+        return fetch('data/official-apps.json')
+          .then((r) => (r.ok ? r.json() : []))
+          .then((arr) => { officialApps = Array.isArray(arr) ? arr : []; })
+          .catch(() => { officialApps = []; });
+      })
       .then(() => { migrateLegacyApps(); _markReady(); });
+  }
+
+  // 管理员通过后台「添加应用」写回官方目录（边缘函数 -> KV），对所有人实时可见
+  async function addOfficialApp(appData) {
+    const key = (typeof localStorage !== 'undefined') ? (localStorage.getItem('adminKey') || '') : '';
+    const res = await fetch('/api/apps', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': key },
+      body: JSON.stringify(appData || {}),
+    });
+    if (!res.ok) {
+      const msg = await res.text().catch(() => '');
+      throw new Error((msg || '发布失败') + ' (' + res.status + ')');
+    }
+    return res.json();
   }
 
   // 旧版曾把内置示例写进 localStorage（个人层），这里移除与官方目录重复的示例，避免重复展示
@@ -636,6 +660,7 @@ const Store = (function () {
     getApps,
     getApp,
     saveApp,
+    addOfficialApp,
     deleteApp,
     getAppCategories,
     ready,

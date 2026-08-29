@@ -708,8 +708,10 @@ const App = (function () {
               <label class="form-label">微信 · 选填</label>
               <input type="text" class="form-input" id="appWechat" placeholder="如：wxid_abc123 或 手机号">
             </div>
-            <div style="display:flex;gap:12px;">
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
               <button class="btn btn-primary" id="uploadBtn">添加应用</button>
+              <button type="button" id="adminKeyBtn" style="border:1px solid var(--border-color);background:var(--bg-hover);color:var(--text-secondary);border-radius:var(--radius-md);padding:8px 12px;cursor:pointer;font-size:13px;">🔑 管理员</button>
+              <span id="adminModeBadge" style="display:none;font-size:12px;color:var(--accent);font-weight:600;">管理员模式已开启</span>
             </div>
           </div>
         ` : `
@@ -920,7 +922,22 @@ const App = (function () {
           chargeMode: chargeMode,
         });
 
-        showToast('应用添加成功！', 'success');
+        const adminKey = (typeof localStorage !== 'undefined') ? (localStorage.getItem('adminKey') || '') : '';
+        if (adminKey) {
+          try {
+            await Store.addOfficialApp({
+              name: name, description: desc, link: link,
+              email: email, wechat: wechat,
+              introHtml: introHtml, introFileName: introFileName,
+              price: price, chargeMode: chargeMode,
+            });
+            showToast('应用添加成功，并已发布到官方目录（全员实时可见）！', 'success');
+          } catch (e) {
+            showToast('本地已保存；发布官方目录失败：' + (e.message || '未知错误'), 'error');
+          }
+        } else {
+          showToast('应用添加成功！', 'success');
+        }
         renderApps();
       } catch (err) {
         showToast('添加失败：' + (err.message || '未知错误'), 'error');
@@ -929,6 +946,30 @@ const App = (function () {
         uploadBtn.textContent = '添加应用';
       }
     });
+
+    // 管理员密钥：开启后「添加应用」会同时写回官方目录（KV），对所有人实时可见
+    const adminKeyBtn = document.getElementById('adminKeyBtn');
+    if (adminKeyBtn) {
+      const updateBadge = () => {
+        const badge = document.getElementById('adminModeBadge');
+        const has = (typeof localStorage !== 'undefined') && !!localStorage.getItem('adminKey');
+        if (badge) badge.style.display = has ? 'inline' : 'none';
+      };
+      updateBadge();
+      adminKeyBtn.addEventListener('click', () => {
+        const cur = (typeof localStorage !== 'undefined') ? (localStorage.getItem('adminKey') || '') : '';
+        const input = prompt(cur ? '当前已开启管理员模式，输入新密钥覆盖；留空则关闭：' : '输入管理员密钥以开启「发布到官方目录」（需与 Cloudflare 环境变量 ADMIN_KEY 一致）：', cur);
+        if (input === null) return;
+        if (input.trim() === '') {
+          if (typeof localStorage !== 'undefined') localStorage.removeItem('adminKey');
+          showToast('已关闭管理员模式', 'success');
+        } else {
+          if (typeof localStorage !== 'undefined') localStorage.setItem('adminKey', input.trim());
+          showToast('管理员模式已开启', 'success');
+        }
+        updateBadge();
+      });
+    }
 
     // 下载、跳转、介绍、删除
     bindAppGridEvents(appGrid);
