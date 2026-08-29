@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDF 拆分 · 合并 · 手写签名</title>
+<script src="lib/pdf-lib.min.js"></script>
+<script src="lib/pdfjs/pdf.min.js"></script>
+<style>
+  :root{
+    --primary:#6366f1; --primary-d:#4f46e5; --bg:#f5f6fb; --card:#fff;
+    --text:#1f2330; --muted:#6b7280; --border:#e5e7eb; --ok:#16a34a; --err:#dc2626;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--text);line-height:1.6;padding:20px;}
+  .wrap{max-width:860px;margin:0 auto;background:var(--card);border-radius:14px;
+    box-shadow:0 8px 30px rgba(0,0,0,.06);overflow:hidden;}
+  header{padding:22px 24px;background:linear-gradient(135deg,var(--primary),#8b5cf6);color:#fff;}
+  header h1{margin:0 0 4px;font-size:20px;}
+  header p{margin:0;opacity:.92;font-size:13px;}
+  .tabs{display:flex;gap:4px;padding:12px 16px 0;background:var(--card);border-bottom:1px solid var(--border);}
+  .tab{padding:10px 16px;cursor:pointer;border:none;background:none;font-size:14px;font-weight:600;
+    color:var(--muted);border-bottom:2px solid transparent;}
+  .tab.active{color:var(--primary);border-bottom-color:var(--primary);}
+  .panel{padding:20px 24px 28px;display:none;}
+  .panel.active{display:block;}
+  .field{margin-bottom:16px;}
+  label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;color:#374151;}
+  .hint{font-size:12px;color:var(--muted);margin-top:4px;}
+  input[type=file]{font-size:13px;}
+  input[type=text],input[type=number],select{
+    width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#fff;}
+  .row{display:flex;gap:14px;flex-wrap:wrap;}
+  .row>.field{flex:1;min-width:140px;}
+  .btn{display:inline-block;padding:10px 20px;border:none;border-radius:9px;font-size:14px;font-weight:700;
+    cursor:pointer;background:var(--primary);color:#fff;transition:.15s;}
+  .btn:hover{background:var(--primary-d);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn.ghost{background:#eef2ff;color:var(--primary-d);}
+  .btn.sm{padding:6px 12px;font-size:12px;}
+  .filelist{list-style:none;padding:0;margin:10px 0 0;font-size:13px;}
+  .filelist li{display:flex;justify-content:space-between;padding:7px 11px;background:#f8fafc;
+    border:1px solid var(--border);border-radius:8px;margin-bottom:6px;}
+  .filelist .x{color:var(--err);cursor:pointer;font-weight:700;}
+  .status{margin-top:14px;font-size:13px;padding:10px 12px;border-radius:8px;display:none;}
+  .status.show{display:block;}
+  .status.ok{background:#ecfdf5;color:var(--ok);border:1px solid #bbf7d0;}
+  .status.err{background:#fef2f2;color:var(--err);border:1px solid #fecaca;}
+  .status.run{background:#eef2ff;color:var(--primary-d);border:1px solid #c7d2fe;}
+  .radio{display:flex;gap:18px;font-size:13px;font-weight:500;}
+  .radio label{font-weight:500;display:flex;align-items:center;gap:6px;cursor:pointer;margin:0;}
+  .pad-wrap{border:1px dashed var(--border);border-radius:10px;background:#fff;padding:10px;max-width:100%;}
+  .sign-pad{width:100%;height:180px;background:#fff;border-radius:6px;touch-action:none;cursor:crosshair;display:block;}
+  .pad-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;}
+  .pad-bar input[type=color]{width:38px;height:34px;border:1px solid var(--border);border-radius:6px;padding:2px;background:#fff;}
+  .pill{font-size:12px;color:var(--muted);background:#f1f5f9;padding:4px 10px;border-radius:20px;}
+  .seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+  .seg button{border:none;background:#fff;padding:8px 12px;font-size:13px;cursor:pointer;color:var(--muted);}
+  .seg button.active{background:var(--primary);color:#fff;font-weight:600;}
+  footer{padding:14px 24px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);background:#fafafa;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>📄 PDF 工具箱</h1>
+    <p>拆分 · 合并 · 手写签名 —— 全程在浏览器本地处理，文件不上传任何服务器</p>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="merge">合并</button>
+    <button class="tab" data-tab="split">拆分</button>
+    <button class="tab" data-tab="sign">手写签名</button>
+  </div>
+
+  <!-- 合并 -->
+  <div class="panel active" id="p-merge">
+    <div class="field">
+      <label>选择要合并的 PDF（可多选，按选择顺序合并）</label>
+      <input type="file" id="mergeFiles" accept="application/pdf,.pdf" multiple>
+      <div class="hint">支持多个文件，合并后保持原页面顺序与内容。</div>
+    </div>
+    <ul class="filelist" id="mergeList"></ul>
+    <button class="btn" id="mergeBtn">合并并下载</button>
+    <div class="status" id="mergeStatus"></div>
+  </div>
+
+  <!-- 拆分 -->
+  <div class="panel" id="p-split">
+    <div class="field">
+      <label>选择要拆分的 PDF</label>
+      <input type="file" id="splitFile" accept="application/pdf,.pdf">
+      <div class="hint" id="splitInfo">未选择文件</div>
+    </div>
+    <div class="field">
+      <label>拆分方式</label>
+      <div class="radio">
+        <label><input type="radio" name="splitMode" value="each" checked> 每页拆分为独立 PDF（逐个下载）</label>
+        <label><input type="radio" name="splitMode" value="range"> 按页码范围提取到一个 PDF</label>
+      </div>
+    </div>
+    <div class="field" id="rangeField" style="display:none;">
+      <label>页码范围</label>
+      <input type="text" id="splitRange" placeholder="例如：1-3,5,8-10">
+      <div class="hint">逗号分隔，连字符表示区间，从 1 开始计数。</div>
+    </div>
+    <button class="btn" id="splitBtn">开始拆分</button>
+    <div class="status" id="splitStatus"></div>
+  </div>
+
+  <!-- 签名 -->
+  <div class="panel" id="p-sign">
+    <div class="field">
+      <label>选择要签名的 PDF</label>
+      <input type="file" id="signFile" accept="application/pdf,.pdf">
+      <div class="hint" id="signInfo">未选择文件</div>
+    </div>
+
+    <div class="field" id="previewField" style="display:none;">
+      <label>PDF 预览（点击页面选择签名位置）</label>
+      <div class="pad-wrap" style="position:relative;cursor:crosshair;">
+        <canvas id="pdfPreview" style="max-width:100%;height:auto;display:block;"></canvas>
+        <div id="signMarker" style="display:none;position:absolute;border:2px dashed #ef4444;background:rgba(239,68,68,.15);pointer-events:none;"></div>
+      </div>
+      <div class="pad-bar">
+        <button class="btn ghost sm" id="pagePrev">上一页</button>
+        <span class="pill" id="pageInfo">第 1 / 1 页</span>
+        <button class="btn ghost sm" id="pageNext">下一页</button>
+        <button class="btn ghost sm" id="fitPage">适应宽度</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>手写签名（在下方框内用笔 / 手指或鼠标书写）</label>
+      <div class="pad-wrap">
+        <canvas class="sign-pad" id="signPad"></canvas>
+      </div>
+      <div class="pad-bar">
+        <input type="color" id="signColor" value="#1f2937" title="签名颜色">
+        <label style="margin:0;font-weight:500;">粗细
+          <input type="range" id="signWidth" min="1" max="8" value="3" style="vertical-align:middle;">
+        </label>
+        <button class="btn ghost sm" id="signUndo">撤销</button>
+        <button class="btn ghost sm" id="signClear">清除</button>
+        <span class="pill" id="signSize">画布 600×180</span>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label>签名页码（从 1 开始）</label>
+        <input type="number" id="signPage" min="1" value="1">
+      </div>
+      <div class="field">
+        <label>应用范围</label>
+        <select id="signScope">
+          <option value="one">仅该页</option>
+          <option value="all">所有页</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>水平位置 X (%)</label>
+        <input type="number" id="signX" min="0" max="100" value="68">
+      </div>
+      <div class="field">
+        <label>垂直位置 Y (%)</label>
+        <input type="number" id="signY" min="0" max="100" value="78">
+      </div>
+      <div class="field">
+        <label>签名宽度 (%)</label>
+        <input type="number" id="signW" min="5" max="100" value="26">
+      </div>
+    </div>
+    <div class="hint">也可直接在 PDF 预览上点击放置签名；X / Y 为签名框左上角相对页面左上角的百分比位置；宽度按页面宽度百分比，高度按比例自动计算。</div>
+    <button class="btn" id="signBtn">生成并下载</button>
+    <div class="status" id="signStatus"></div>
+  </div>
+
+  <footer>提示：过大的 PDF 处理较慢，请耐心等待；本工具依赖本地 pdf-lib / PDF.js，全程在浏览器本地处理，文件不上传任何服务器。</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const { PDFDocument } = PDFLib;
+  const $ = (id) => document.getElementById(id);
+
+  /* ---------- 通用工具 ---------- */
+  function setStatus(el, msg, type){
+    el.textContent = msg;
+    el.className = 'status show ' + (type || 'run');
+  }
+  function downloadBlob(blob, name){
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+  }
+  function dataURLtoBytes(url){
+    const b64 = url.split(',')[1];
+    const bin = atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return arr;
+  }
+  function parseRange(str, count){
+    const set = new Set();
+    const parts = str.split(',').map(s => s.trim()).filter(Boolean);
+    for (const part of parts){
+      if (part.includes('-')){
+        const [a, b] = part.split('-').map(n => parseInt(n, 10));
+        if (!a || !b || a < 1 || b > count || a > b) throw new Error('页码范围无效：' + part);
+        for (let i = a; i <= b; i++) set.add(i - 1);
+      } else {
+        const n = parseInt(part, 10);
+        if (!n || n < 1 || n > count) throw new Error('页码无效：' + part);
+        set.add(n - 1);
+      }
+    }
+    return Array.from(set).sort((x, y) => x - y);
+  }
+  async function readPdf(file){
+    return PDFDocument.load(new Uint8Array(await file.arrayBuffer()));
+  }
+
+  /* ---------- 标签切换 ---------- */
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      $('p-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  /* ---------- 合并 ---------- */
+  const mergeInput = $('mergeFiles');
+  const mergeFiles = [];
+  mergeInput.addEventListener('change', () => {
+    for (const f of mergeInput.files) mergeFiles.push(f);
+    renderMergeList();
+  });
+  function renderMergeList(){
+    const ul = $('mergeList');
+    ul.innerHTML = mergeFiles.map((f, i) =>
+      `<li><span>${i + 1}. ${escapeHtml(f.name)}（${fmtSize(f.size)}）</span>
+       <span class="x" data-i="${i}">✕</span></li>`).join('');
+    ul.querySelectorAll('.x').forEach(x => x.addEventListener('click', () => {
+      mergeFiles.splice(parseInt(x.dataset.i, 10), 1);
+      renderMergeList();
+    }));
+  }
+  function escapeHtml(s){return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+  function fmtSize(n){if(n<1024)return n+'B';if(n<1048576)return (n/1024).toFixed(1)+'KB';return (n/1048576).toFixed(1)+'MB';}
+
+  $('mergeBtn').addEventListener('click', async () => {
+    if (mergeFiles.length < 2){ setStatus($('mergeStatus'), '请至少选择 2 个 PDF 进行合并', 'err'); return; }
+    setStatus($('mergeStatus'), '正在合并 ' + mergeFiles.length + ' 个文件…', 'run');
+    $('mergeBtn').disabled = true;
+    try {
+      const merged = await PDFDocument.create();
+      for (const f of mergeFiles){
+        const src = await readPdf(f);
+        const pages = await merged.copyPages(src, src.getPageIndices());
+        pages.forEach(p => merged.addPage(p));
+      }
+      const out = await merged.save();
+      downloadBlob(new Blob([out], { type: 'application/pdf' }), 'merged.pdf');
+      setStatus($('mergeStatus'), '合并完成，已下载 merged.pdf（共 ' + merged.getPageCount() + ' 页）', 'ok');
+    } catch(e){
+      setStatus($('mergeStatus'), '合并失败：' + e.message, 'err');
+    } finally {
+      $('mergeBtn').disabled = false;
+    }
+  });
+
+  /* ---------- 拆分 ---------- */
+  const splitInput = $('splitFile');
+  let splitPdf = null, splitCount = 0;
+  splitInput.addEventListener('change', async () => {
+    if (!splitInput.files.length) return;
+    setStatus($('splitStatus'), '正在读取 PDF…', 'run');
+    try {
+      splitPdf = await readPdf(splitInput.files[0]);
+      splitCount = splitPdf.getPageCount();
+      $('splitInfo').textContent = `已选择：${splitInput.files[0].name}（共 ${splitCount} 页）`;
+      setStatus($('splitStatus'), '', 'run'); $('splitStatus').className = 'status';
+    } catch(e){
+      setStatus($('splitStatus'), '读取失败：' + e.message, 'err');
+    }
+  });
+  document.querySelectorAll('input[name=splitMode]').forEach(r => r.addEventListener('change', () => {
+    $('rangeField').style.display = r.value === 'range' ? 'block' : 'none';
+  }));
+  $('splitBtn').addEventListener('click', async () => {
+    if (!splitPdf){ setStatus($('splitStatus'), '请先选择 PDF 文件', 'err'); return; }
+    const mode = document.querySelector('input[name=splitMode]:checked').value;
+    $('splitBtn').disabled = true;
+    try {
+      if (mode === 'each'){
+        setStatus($('splitStatus'), `开始拆分 ${splitCount} 页，逐个下载…`, 'run');
+        for (let i = 0; i < splitCount; i++){
+          const one = await PDFDocument.create();
+          const [p] = await one.copyPages(splitPdf, [i]);
+          one.addPage(p);
+          const out = await one.save();
+          downloadBlob(new Blob([out], { type: 'application/pdf' }), `page_${i + 1}.pdf`);
+          setStatus($('splitStatus'), `已下载 page_${i + 1}.pdf（${i + 1}/${splitCount}）`, 'run');
+          await new Promise(r => setTimeout(r, 250)); // 避免下载并发被浏览器拦截
+        }
+        setStatus($('splitStatus'), `拆分完成，已下载 ${splitCount} 个独立 PDF`, 'ok');
+      } else {
+        const idx = parseRange($('splitRange').value, splitCount);
+        if (!idx.length){ setStatus($('splitStatus'), '请输入有效的页码范围', 'err'); return; }
+        setStatus($('splitStatus'), '正在提取指定页码…', 'run');
+        const one = await PDFDocument.create();
+        const pages = await one.copyPages(splitPdf, idx);
+        pages.forEach(p => one.addPage(p));
+        const out = await one.save();
+        downloadBlob(new Blob([out], { type: 'application/pdf' }), 'extracted.pdf');
+        setStatus($('splitStatus'), `提取完成，已下载 extracted.pdf（${idx.length} 页）`, 'ok');
+      }
+    } catch(e){
+      setStatus($('splitStatus'), '拆分失败：' + e.message, 'err');
+    } finally {
+      $('splitBtn').disabled = false;
+    }
+  });
+
+  /* ---------- 手写签名 ---------- */
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'lib/pdfjs/pdf.worker.min.js';
+
+  const canvas = $('signPad');
+  const ctx = canvas.getContext('2d');
+  const CW = 600, CH = 180;
+  canvas.width = CW; canvas.height = CH;
+  let drawing = false, lastX = 0, lastY = 0;
+  const history = [];
+
+  function snapshot(){ history.push(canvas.toDataURL()); if (history.length > 20) history.shift(); }
+  snapshot();
+
+  function pos(e){
+    const r = canvas.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return { x: (t.clientX - r.left) * (CW / r.width), y: (t.clientY - r.top) * (CH / r.height) };
+  }
+  function start(e){ e.preventDefault(); drawing = true; const p = pos(e); lastX = p.x; lastY = p.y; snapshot(); }
+  function move(e){
+    if (!drawing) return; e.preventDefault();
+    const p = pos(e);
+    ctx.strokeStyle = $('signColor').value;
+    ctx.lineWidth = parseInt($('signWidth').value, 10);
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke();
+    lastX = p.x; lastY = p.y;
+  }
+  function end(){ drawing = false; }
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  window.addEventListener('mouseup', end);
+  canvas.addEventListener('touchstart', start, { passive: false });
+  canvas.addEventListener('touchmove', move, { passive: false });
+  canvas.addEventListener('touchend', end);
+
+  $('signUndo').addEventListener('click', () => {
+    if (history.length <= 1) return;
+    history.pop();
+    const img = new Image();
+    img.onload = () => { ctx.clearRect(0, 0, CW, CH); ctx.drawImage(img, 0, 0); };
+    img.src = history[history.length - 1];
+  });
+  $('signClear').addEventListener('click', () => {
+    ctx.clearRect(0, 0, CW, CH); snapshot();
+  });
+
+  /* PDF 预览与点击定位 */
+  const previewCanvas = $('pdfPreview');
+  const previewCtx = previewCanvas.getContext('2d');
+  const marker = $('signMarker');
+  let pdfjsDoc = null;
+  let currentPage = 1;
+  let previewScale = 1.5;
+  let pdfPageSize = { width: 0, height: 0 };
+
+  async function renderPdfPage(pageNum) {
+    if (!pdfjsDoc) return;
+    const page = await pdfjsDoc.getPage(pageNum);
+    const viewport = page.getViewport({ scale: previewScale });
+    previewCanvas.width = viewport.width;
+    previewCanvas.height = viewport.height;
+    previewCanvas.style.width = viewport.width + 'px';
+    previewCanvas.style.height = viewport.height + 'px';
+    await page.render({ canvasContext: previewCtx, viewport }).promise;
+    pdfPageSize = { width: page.view[2], height: page.view[3] };
+    $('pageInfo').textContent = `第 ${pageNum} / ${pdfjsDoc.numPages} 页`;
+    updateMarker();
+  }
+
+  function updateMarker() {
+    const xPct = clamp(parseFloat($('signX').value), 0, 100);
+    const yPct = clamp(parseFloat($('signY').value), 0, 100);
+    const wPct = clamp(parseFloat($('signW').value), 5, 100);
+    const rect = previewCanvas.getBoundingClientRect();
+    const pw = rect.width, ph = rect.height;
+    const mw = pw * (wPct / 100);
+    const mh = mw * (CH / CW); // 按签名画布的宽高比
+    const mx = pw * (xPct / 100);
+    const my = ph * (yPct / 100);
+    marker.style.display = 'block';
+    marker.style.left = mx + 'px';
+    marker.style.top = my + 'px';
+    marker.style.width = mw + 'px';
+    marker.style.height = mh + 'px';
+  }
+
+  previewCanvas.parentElement.addEventListener('click', (e) => {
+    if (!pdfjsDoc || e.target === marker) return;
+    const rect = previewCanvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const xPct = clamp((x / rect.width) * 100, 0, 100);
+    const yPct = clamp((y / rect.height) * 100, 0, 100);
+    $('signX').value = xPct.toFixed(1);
+    $('signY').value = yPct.toFixed(1);
+    updateMarker();
+  });
+
+  $('pagePrev').addEventListener('click', () => {
+    if (!pdfjsDoc || currentPage <= 1) return;
+    currentPage--;
+    $('signPage').value = currentPage;
+    renderPdfPage(currentPage);
+  });
+  $('pageNext').addEventListener('click', () => {
+    if (!pdfjsDoc || currentPage >= pdfjsDoc.numPages) return;
+    currentPage++;
+    $('signPage').value = currentPage;
+    renderPdfPage(currentPage);
+  });
+  $('fitPage').addEventListener('click', () => {
+    if (!pdfPageSize.width) return;
+    const wrapW = previewCanvas.parentElement.clientWidth - 20;
+    previewScale = wrapW / pdfPageSize.width;
+    renderPdfPage(currentPage);
+  });
+  ['signX','signY','signW','signPage'].forEach(id => {
+    $(id).addEventListener('input', () => {
+      if (id === 'signPage' && pdfjsDoc) {
+        const p = clamp(parseInt($('signPage').value, 10), 1, pdfjsDoc.numPages) || 1;
+        currentPage = p;
+        renderPdfPage(p);
+      } else {
+        updateMarker();
+      }
+    });
+  });
+
+  const signInput = $('signFile');
+  let signPdf = null, signCount = 0;
+  signInput.addEventListener('change', async () => {
+    if (!signInput.files.length) return;
+    setStatus($('signStatus'), '正在读取 PDF…', 'run');
+    try {
+      const file = signInput.files[0];
+      signPdf = await readPdf(file);
+      signCount = signPdf.getPageCount();
+      $('signInfo').textContent = `已选择：${file.name}（共 ${signCount} 页）`;
+
+      // 同时用 PDF.js 加载以预览
+      const arrayBuffer = await file.arrayBuffer();
+      pdfjsDoc = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      currentPage = 1;
+      $('signPage').value = 1;
+      $('previewField').style.display = 'block';
+      // 默认以容器宽度渲染
+      setTimeout(() => $('fitPage').click(), 0);
+      setStatus($('signStatus'), '', 'run'); $('signStatus').className = 'status';
+    } catch(e){
+      setStatus($('signStatus'), '读取失败：' + e.message, 'err');
+      pdfjsDoc = null;
+      $('previewField').style.display = 'none';
+    }
+  });
+
+  $('signBtn').addEventListener('click', async () => {
+    if (!signPdf){ setStatus($('signStatus'), '请先选择要签名的 PDF', 'err'); return; }
+    if (history.length <= 1 && isBlank()){ setStatus($('signStatus'), '请先在签名框内书写', 'err'); return; }
+    const page = parseInt($('signPage').value, 10);
+    if (!page || page < 1 || page > signCount){ setStatus($('signStatus'), `页码需在 1 ~ ${signCount} 之间`, 'err'); return; }
+    const scope = $('signScope').value;
+    const xPct = clamp(parseFloat($('signX').value), 0, 100);
+    const yPct = clamp(parseFloat($('signY').value), 0, 100);
+    const wPct = clamp(parseFloat($('signW').value), 5, 100);
+    $('signBtn').disabled = true;
+    try {
+      setStatus($('signStatus'), '正在嵌入签名…', 'run');
+      const pngBytes = dataURLtoBytes(canvas.toDataURL('image/png'));
+      const png = await signPdf.embedPng(pngBytes);
+      const targets = scope === 'all' ? signPdf.getPages() : [signPdf.getPages()[page - 1]];
+      const aspect = png.height / png.width;
+      targets.forEach(pageObj => {
+        const pw = pageObj.getWidth(), ph = pageObj.getHeight();
+        const drawW = pw * (wPct / 100);
+        const drawH = drawW * aspect;
+        const x = pw * (xPct / 100);
+        const y = ph - ph * (yPct / 100) - drawH; // Y 从页面顶部算
+        pageObj.drawImage(png, { x, y, width: drawW, height: drawH });
+      });
+      const out = await signPdf.save();
+      downloadBlob(new Blob([out], { type: 'application/pdf' }), 'signed.pdf');
+      setStatus($('signStatus'), `签名完成，已下载 signed.pdf（${scope === 'all' ? signCount + ' 页均已签名' : '第 ' + page + ' 页'}）`, 'ok');
+    } catch(e){
+      setStatus($('signStatus'), '签名失败：' + e.message, 'err');
+    } finally {
+      $('signBtn').disabled = false;
+    }
+  });
+
+  function clamp(v, lo, hi){ v = isNaN(v) ? lo : v; return Math.max(lo, Math.min(hi, v)); }
+  function isBlank(){
+    const d = ctx.getImageData(0, 0, CW, CH).data;
+    for (let i = 3; i < d.length; i += 4) if (d[i] !== 0) return false;
+    return true;
+  }
+})();
+</script>
+</body>
+</html>

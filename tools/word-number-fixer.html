@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>word编号修改器</title>
+<style>
+:root{
+  --primary:#1f9d6b; --primary-dark:#157a52;
+  --bg:#f1f7f4; --card:#ffffff; --text:#1f2a37; --muted:#6b7785; --border:#e0ece7;
+}
+*{box-sizing:border-box;}
+body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); line-height:1.6;}
+header{background:linear-gradient(135deg,#1f9d6b,#157a52); color:#fff; padding:22px 16px; text-align:center;}
+header h1{margin:0; font-size:22px;}
+header p{margin:4px 0 0; font-size:13px; opacity:.92;}
+.wrap{max-width:840px; margin:0 auto; padding:18px 16px 50px;}
+.card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px 18px; margin-bottom:14px;}
+label{font-size:13px; color:var(--muted); display:block; margin:10px 0 6px;}
+select,textarea{width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:11px; font-size:14px; background:#fff; color:var(--text); font-family:inherit;}
+textarea:focus,select:focus{outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(31,157,107,.15);}
+.opts{display:flex; flex-wrap:wrap; gap:14px; margin:10px 0 4px;}
+.opt{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text); cursor:pointer;}
+.opt input{width:16px; height:16px; accent-color:var(--primary);}
+.btnrow{display:flex; gap:10px; margin-top:14px; flex-wrap:wrap;}
+.btn{border:none; border-radius:10px; padding:10px 20px; font-size:14px; font-weight:600; cursor:pointer; font-family:inherit; transition:.12s;}
+.btn.primary{background:var(--primary); color:#fff;}
+.btn.primary:hover{background:var(--primary-dark);}
+.btn:disabled{opacity:.5; cursor:not-allowed;}
+.stat{font-size:13px; color:var(--primary-dark); margin:10px 2px 2px; font-weight:600;}
+.hint{font-size:12px; color:var(--muted); margin-top:8px;}
+.note{font-size:12px; color:var(--muted); background:#eaf4ef; border:1px solid #d4ebe1; border-radius:10px; padding:10px 12px; margin-top:10px;}
+.filebox{border:2px dashed var(--border); border-radius:12px; padding:18px; text-align:center; color:var(--muted); font-size:14px;}
+.filebox.drag{background:#eaf4ef; border-color:var(--primary);}
+input[type=file]{font-family:inherit; font-size:14px;}
+#fileInfo{font-size:13px; color:var(--text); margin-top:8px; word-break:break-all;}
+.bar{height:8px; background:#e6efeb; border-radius:999px; overflow:hidden; margin-top:10px; display:none;}
+.bar > i{display:block; height:100%; width:0; background:var(--primary); transition:width .2s;}
+.samples{margin-top:12px; border:1px solid var(--border); border-radius:10px; overflow:hidden;}
+.samples .row{display:flex; font-size:12.5px; border-bottom:1px solid var(--border);}
+.samples .row:last-child{border-bottom:none;}
+.samples .row .c{padding:7px 10px;}
+.samples .row .old{flex:1; color:var(--muted);}
+.samples .row .ar{width:24px; text-align:center; color:var(--primary);}
+.samples .row .new{flex:1; color:var(--primary-dark); font-weight:600;}
+.samples .head{background:#f4faf7; color:var(--muted); font-weight:600;}
+@media(max-width:520px){ .wrap{padding:12px 10px 40px;} header h1{font-size:19px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🔢 word编号修改器</h1>
+    <p>把手工编写的散乱/跳号编号重新规范为连续自动编号 · 支持 .docx / .doc（Word / WPS）</p>
+  </header>
+
+  <div class="card">
+    <div class="filebox" id="drop">
+      点击选择或拖拽文件到此处<br>
+      <small>支持 Word / WPS 文档（.docx / .doc），单文件 ≤ 10MB</small><br><br>
+      <input type="file" id="fileInput" accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword">
+    </div>
+    <div id="fileInfo"></div>
+
+    <label for="scheme">编号体系（按文档实际使用的层级结构选择）</label>
+    <select id="scheme">
+      <option value="en-multi">阿拉伯多级：1 → 1.1 → 1.1.1（最常用）</option>
+      <option value="cn-multi">中文公文多级：一、→（一）→1.→（1）</option>
+      <option value="article">条款：第X条（一/二/三… 或 1/2/3…）</option>
+      <option value="cn-single">中文单级：一、二、三、</option>
+      <option value="en-single">阿拉伯单级：1. 2. 3.</option>
+    </select>
+
+    <label for="mode">输出方式</label>
+    <select id="mode">
+      <option value="autonum">转换为 Word 自动编号（列表由 Word 维护，推荐）</option>
+      <option value="rewrite">仅重写文本编号（保留为文字，不改动 Word 列表样式）</option>
+    </select>
+
+    <div class="opts">
+      <label class="opt"><input type="checkbox" id="optSkipAuto"> 跳过 Word 原生自动编号段落（仅在确认编号是 Word 自动生成时勾选）</label>
+      <label class="opt"><input type="checkbox" id="optPreview" checked> 生成前预览前 40 条编号映射</label>
+    </div>
+
+    <div class="btnrow">
+      <button class="btn primary" id="runBtn" disabled>开始重排并生成文件</button>
+    </div>
+    <div class="bar" id="bar"><i></i></div>
+    <div class="stat" id="stat"></div>
+    <div class="hint" id="hint"></div>
+    <div class="samples" id="samples" style="display:none"></div>
+  </div>
+
+  <div class="note">
+    💡 <b>使用说明</b>：本工具只改正文里「手工写死的段落序号」（如第 6 章后的 6.1 / 6.1.1 / 6.1.2…），不会动 Word 自动生成的目录。<br>
+    · <b>转换为 Word 自动编号（默认）</b>：删除段落里手工敲的数字，改用 Word 原生的列表编号（numPr + numbering.xml）。打开后序号由 Word 维护——增删条目会自动重排，不再是死文本。起始章号取文档首个顶层编号（如 6），后续自动递增（6 → 7…）。<br>
+    · <b>仅重写文本编号</b>：仍把数字当作文字，仅纠正跳号/重复/全角点，保留为文本（不联动 Word 列表）。<br>
+    · 编号层级按「阿拉伯多级」最稳（自动编号统一以 1 / 1.1 / 1.1.1 格式生成；其他体系选「仅重写文本编号」可保留中文样式）。<br>
+    · 编号可能被拆到多个文字框，工具会跨框合并识别。<br>
+    · 支持 <b>.docx</b> 与旧版 <b>.doc</b>：.docx 会保留原文档格式；.doc 会提取段落文本并生成新的 .docx（复杂排版/图片/表格可能无法保留，建议重要文档先另存为 .docx 再处理）。<br>
+    · 所有处理均在浏览器本地完成，不上传任何内容。
+  </div>
+</div>
+
+<script src="lib/fflate.min.js"></script>
+<script>
+// ===================== 中文数字工具 =====================
+function numToCn(n){
+  if(n===0) return '零';
+  if(n<10) return '一二三四五六七八九'[n-1];
+  if(n===10) return '十';
+  if(n<20) return '十'+'一二三四五六七八九'[n-11];
+  if(n<100){ const t=Math.floor(n/10), o=n%10; return '一二三四五六七八九'[t-1]+'十'+(o?'一二三四五六七八九'[o-1]:''); }
+  if(n<1000){
+    const h=Math.floor(n/100), t=Math.floor((n%100)/10), o=n%10;
+    let s='一二三四五六七八九'[h-1]+'百';
+    if(t) s+='一二三四五六七八九'[t-1]+'十'; else if(o) s+='零';
+    if(o) s+='一二三四五六七八九'[o-1];
+    return s;
+  }
+  if(n<10000){
+    const k=Math.floor(n/1000), rest=n%1000;
+    let s='一二三四五六七八九'[k-1]+'千';
+    if(rest) s+=numToCn(rest);
+    return s;
+  }
+  return String(n);
+}
+function cnToNum(s){
+  const d={'零':0,'一':1,'二':2,'两':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9};
+  const u={'十':10,'百':100,'千':1000};
+  let total=0, num=0;
+  for(const ch of s){
+    if(d[ch]!==undefined) num=d[ch];
+    else if(u[ch]!==undefined){ if(num===0) num=1; total+=num*u[ch]; num=0; }
+  }
+  total+=num;
+  return total;
+}
+function unescapeXml(s){ return s.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&'); }
+function escapeXml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;'); }
+
+// ===================== 重排引擎 =====================
+const CN = '一二三四五六七八九十百千零两';
+function makeRenumberer(scheme, skipAuto, samples){
+  const counters = new Array(8).fill(0); // 层级 1..7
+  let matched = 0;
+  function bump(level){
+    counters[level]++;
+    for(let j=level+1;j<counters.length;j++) counters[j]=0;
+  }
+  function applyToTextDetailed(u){
+    const trimmed=u.replace(/^\s+/,'');
+    const lead=u.length - trimmed.length;
+    const r=matchNumber(trimmed);
+    if(!r) return null;
+    matched++;
+    if(samples && samples.length<40){
+      samples.push({old: trimmed.slice(0, r.len), new: r.pfx});
+    }
+    return {
+      fullText: u.slice(0,lead) + r.pfx + u.slice(lead+r.len),
+      lead: lead,
+      oldLen: r.len,
+      pfx: r.pfx
+    };
+  }
+  function applyToText(u){
+    const d=applyToTextDetailed(u);
+    return d ? d.fullText : null;
+  }
+  function matchNumber(s){
+    let m;
+    if(scheme==='cn-multi'){
+      // L2 （一）
+      if((m=/^（([一二三四五六七八九十百千零两]+)）/.exec(s))){ bump(2); return {len:m[0].length, pfx:'（'+numToCn(counters[2])+'）'}; }
+      // L4 （1）
+      if((m=/^（(\d+)）/.exec(s))){ bump(4); return {len:m[0].length, pfx:'（'+counters[4]+'）'}; }
+      // L1 一、
+      if((m=/^([一二三四五六七八九十百千零两]+)[、.．]/.exec(s))){ bump(1); return {len:m[0].length, pfx:numToCn(counters[1])+'、'}; }
+      // L3 1.
+      if((m=/^(\d+)[.．、]/.exec(s))){ bump(3); return {len:m[0].length, pfx:counters[3]+'.'}; }
+    } else if(scheme==='en-multi'){
+      const mm=/^(\d+(?:[.．]\d+)*)([.．、\s]*)/.exec(s);
+      if(mm){
+        const parts=mm[1].split(/[.．]/).map(Number);
+        const level=parts.length;
+        const sep=mm[2];
+        while(counters.length<=level) counters.push(0);
+        for(let j=1;j<=level;j++){
+          if(j===1){
+            // 顶层章号：原文保留；章号切换时把子层级归零
+            if(counters[1]!==parts[0]){
+              for(let k=2;k<counters.length;k++) counters[k]=0;
+              counters[1]=parts[0];
+            }
+          } else if(j===level){
+            // 当前层级：按出现顺序连续递增（修正跳号/重复）
+            counters[j]++;
+          } else {
+            // 父层级变化时更新并归零更深层
+            if(counters[j]!==parts[j-1]){
+              counters[j]=parts[j-1];
+              for(let k=j+1;k<counters.length;k++) counters[k]=0;
+            }
+          }
+        }
+        for(let j=level+1;j<counters.length;j++) counters[j]=0; // 更深层归零
+        const np=[]; for(let j=1;j<=level;j++) np.push(counters[j]);
+        return {len:mm[0].length, pfx:np.join('.')+sep}; // 保留原分隔符（点/空格/无）
+      }
+    } else if(scheme==='article'){
+      if((m=/^第([一二三四五六七八九十百千零两\d]+)条/.exec(s))){
+        const isCn=/[一二三四五六七八九十百千零两]/.test(m[1]);
+        const cur = isCn ? cnToNum(m[1]) : parseInt(m[1],10);
+        counters[1] = cur + 1;
+        const np = isCn ? ('第'+numToCn(counters[1])+'条') : ('第'+counters[1]+'条');
+        return {len:m[0].length, pfx:np};
+      }
+    } else if(scheme==='cn-single'){
+      if((m=/^([一二三四五六七八九十百千零两]+)[、.．]/.exec(s))){ counters[1]++; return {len:m[0].length, pfx:numToCn(counters[1])+'、'}; }
+    } else if(scheme==='en-single'){
+      if((m=/^(\d+)[.．、]/.exec(s))){ counters[1]++; return {len:m[0].length, pfx:counters[1]+'.'}; }
+    }
+    return null;
+  }
+  function process(p){
+    if(skipAuto && /w:numPr/.test(p)) return p;
+    // 收集段落开头连续的文本 run（编号可能被拆到多个 <w:r>/<w:t> 中）
+    const runs=[];
+    const runRe=/<w:r(?:\s[^>]*)?>([\s\S]*?)<\/w:r>/g;
+    let rm;
+    while((rm=runRe.exec(p))!==null){
+      const tMatch=/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/.exec(rm[1]);
+      if(tMatch){
+        runs.push({raw:rm[0], text:unescapeXml(tMatch[1]), tRaw:tMatch[0], tInner:tMatch[1]});
+      } else {
+        break; // 非文本 run，停止收集
+      }
+    }
+    if(runs.length===0) return p;
+
+    const acc=runs.map(r=>r.text).join('');
+    const d=applyToTextDetailed(acc);
+    if(!d) return p;
+
+    const numStart=d.lead;
+    const numEnd=d.lead+d.oldLen;
+    let off=0;
+    for(const r of runs){ r.start=off; r.end=off+r.text.length; off=r.end; }
+
+    let newP=p;
+    for(let i=runs.length-1;i>=0;i--){
+      const run=runs[i];
+      const os=Math.max(run.start,numStart);
+      const oe=Math.min(run.end,numEnd);
+      if(os>=oe) continue;
+      const before=acc.slice(run.start,os);
+      const after=acc.slice(oe,run.end);
+      const newText=(i===0 ? before+d.pfx+after : before+after);
+      if(newText==='' && i!==0){
+        newP=newP.replace(run.raw,'');
+        continue;
+      }
+      let newT=run.tRaw.replace(run.tInner, escapeXml(newText));
+      const needsSpace=/^\s|\s$/.test(newText);
+      const hasSpaceAttr=/<w:t[^>]*\s+xml:space/.test(newT);
+      if(needsSpace && !hasSpaceAttr) newT=newT.replace(/<w:t/, '<w:t xml:space="preserve"');
+      const newR=run.raw.replace(run.tRaw,newT);
+      newP=newP.replace(run.raw,newR);
+    }
+    return newP;
+  }
+  return {process, processText:applyToText, matched:()=>matched};
+}
+
+// ===================== 自动编号辅助 =====================
+// 纯探测：返回 {level, len, topVal}（不改动计数器），用于自动编号模式确定层级与起始章号
+function peekNumber(scheme, s){
+  let m;
+  if(scheme==='en-multi'){
+    m=/^(\d+(?:[.．]\d+)*)([.．、\s]*)(?![.\d/])/.exec(s);
+    if(m){ const parts=m[1].split(/[.．]/); return {level:parts.length, len:m[0].length, topVal:parseInt(parts[0],10)}; }
+  } else if(scheme==='cn-multi'){
+    if((m=/^（([一二三四五六七八九十百千零两]+)）/.exec(s))) return {level:2, len:m[0].length, topVal:cnToNum(m[1])};
+    if((m=/^（(\d+)）/.exec(s))) return {level:4, len:m[0].length, topVal:parseInt(m[1],10)};
+    if((m=/^([一二三四五六七八九十百千零两]+)[、.．]/.exec(s))) return {level:1, len:m[0].length, topVal:cnToNum(m[1])};
+    if((m=/^(\d+)[.．、]/.exec(s))) return {level:3, len:m[0].length, topVal:parseInt(m[1],10)};
+  } else if(scheme==='article'){
+    if((m=/^第([一二三四五六七八九十百千零两\d]+)条/.exec(s))){
+      const v=/[一二三四五六七八九十百千零两]/.test(m[1])?cnToNum(m[1]):parseInt(m[1],10);
+      return {level:1, len:m[0].length, topVal:v};
+    }
+  } else if(scheme==='cn-single'){
+    if((m=/^([一二三四五六七八九十百千零两]+)[、.．]/.exec(s))) return {level:1, len:m[0].length, topVal:cnToNum(m[1])};
+  } else if(scheme==='en-single'){
+    if((m=/^(\d+)[.．、]/.exec(s))) return {level:1, len:m[0].length, topVal:parseInt(m[1],10)};
+  }
+  return null;
+}
+// 收集段落开头连续文本 run，并标好每个 run 在拼接文本中的区间
+function collectLeadingRuns(p){
+  const runs=[];
+  const runRe=/<w:r(?:\s[^>]*)?>([\s\S]*?)<\/w:r>/g;
+  let rm;
+  while((rm=runRe.exec(p))!==null){
+    const tMatch=/<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>/.exec(rm[1]);
+    if(tMatch){ runs.push({raw:rm[0], text:unescapeXml(tMatch[1]), tRaw:tMatch[0], tInner:tMatch[1]}); }
+    else break;
+  }
+  if(runs.length===0) return null;
+  const acc=runs.map(r=>r.text).join('');
+  let off=0; for(const r of runs){ r.start=off; r.end=off+r.text.length; off=r.end; }
+  return {runs, acc};
+}
+// 探测段落是否以手工编号开头，返回编号层级/区间/原文
+function detectNumber(p, scheme){
+  const cr=collectLeadingRuns(p);
+  if(!cr) return null;
+  const {acc, runs}=cr;
+  const d=peekNumber(scheme, acc);
+  if(!d) return null;
+  const trimmed=acc.replace(/^\s+/,'');
+  const lead=acc.length-trimmed.length;
+  const numStart=lead, numEnd=lead+d.len;
+  let off=0; for(const r of runs){ r.start=off; r.end=off+r.text.length; off=r.end; }
+  return {level:d.level, topVal:d.topVal, numStart, numEnd, oldText: acc.slice(numStart,numEnd)};
+}
+// 删除段落开头的编号文本（跨 run 拆分处理），保留其余文本
+function stripLeadingSpan(p, numStart, numEnd){
+  const cr=collectLeadingRuns(p);
+  if(!cr) return p;
+  const {runs, acc}=cr;
+  let newP=p;
+  for(let i=runs.length-1;i>=0;i--){
+    const run=runs[i];
+    const os=Math.max(run.start,numStart), oe=Math.min(run.end,numEnd);
+    if(os>=oe) continue;
+    const before=acc.slice(run.start,os), after=acc.slice(oe,run.end);
+    const newText=before+after;
+    if(newText==='' && i!==0){ newP=newP.replace(run.raw,''); continue; }
+    let newT=run.tRaw.replace(run.tInner, escapeXml(newText));
+    const needsSpace=/^\s|\s$/.test(newText);
+    const hasSpaceAttr=/<w:t[^>]*\s+xml:space/.test(newT);
+    if(needsSpace && !hasSpaceAttr) newT=newT.replace(/<w:t/, '<w:t xml:space="preserve"');
+    const newR=run.raw.replace(run.tRaw,newT);
+    newP=newP.replace(run.raw,newR);
+  }
+  return newP;
+}
+// 给段落挂上 Word 自动编号（numPr）
+function addNumPr(p, ilvl, numId){
+  numId=numId||1;
+  const numPr='<w:numPr><w:ilvl w:val="'+ilvl+'"/><w:numId w:val="'+numId+'"/></w:numPr>';
+  const ppRe=/<w:pPr([\s\S]*?)>([\s\S]*?)<\/w:pPr>/;
+  const mm=ppRe.exec(p);
+  if(mm){
+    if(/w:numPr/.test(mm[2])) return p;
+    return p.replace(mm[0], '<w:pPr'+mm[1]+'>'+mm[2]+numPr+'</w:pPr>');
+  }
+  return p.replace(/<w:p(\s[^>]*)?>/, function(full, attrs){ return '<w:p'+(attrs||'')+'><w:pPr>'+numPr+'</w:pPr>'; });
+}
+// 生成多级自动编号定义（阿拉伯多级：1 / 1.1 / 1.1.1 …）
+// 每个章号分配一个独立 numId，并用 startOverride 把该章号固定下来，
+// 这样既能由 Word 维护子级自动递增，又不会把 6 章误改成 5 章。
+function buildNumberingXmlChapters(maxLevel, chapters){
+  maxLevel=Math.max(maxLevel,3);
+  let levels='';
+  for(let L=0; L<=maxLevel; L++){
+    const parts=[]; for(let k=1;k<=L+1;k++) parts.push('%'+k);
+    const lvlText=parts.join('.');
+    const ind=(L+1)*360;
+    levels+='<w:lvl w:ilvl="'+L+'"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="'+lvlText+'"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="'+ind+'" w:hanging="360"/></w:pPr></w:lvl>';
+  }
+  let nums='';
+  const map={};
+  let nid=1;
+  (chapters||[]).forEach(c=>{
+    map[c]=nid;
+    nums+='<w:num w:numId="'+nid+'"><w:abstractNumId w:val="0"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="'+c+'"/></w:lvlOverride></w:num>';
+    nid++;
+  });
+  if(!nums) nums='<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>';
+  const xml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
+    '<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'+
+    '<w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="hybridMultilevel"/>'+levels+'</w:abstractNum>'+
+    nums+
+    '</w:numbering>';
+  return {xml, map};
+}
+// 在 docx 包里登记 numbering.xml（关系 + 内容类型）
+function addNumberingRelationship(files){
+  const relsPath='word/_rels/document.xml.rels';
+  let relsXml = files[relsPath] ? fflate.strFromU8(files[relsPath])
+    : '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
+  if(/numbering\.xml/.test(relsXml)) return;
+  const idMatch = relsXml.match(/Id="rId(\d+)"/g);
+  let maxId=0;
+  if(idMatch){ idMatch.forEach(m=>{ const n=parseInt(m.replace(/[^\d]/g,''),10); if(n>maxId) maxId=n; }); }
+  const newId='rId'+(maxId+1);
+  const rel='<Relationship Id="'+newId+'" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>';
+  if(/<\/Relationships>/.test(relsXml)) relsXml=relsXml.replace(/<\/Relationships>/, rel+'</Relationships>');
+  else relsXml=relsXml.replace(/\/>/, '>'+rel+'</Relationships>');
+  files[relsPath]=fflate.strToU8(relsXml);
+
+  let ct=files['[Content_Types].xml']?fflate.strFromU8(files['[Content_Types].xml']):'';
+  if(!/numbering\.xml/.test(ct)){
+    const override='<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>';
+    if(/<\/Types>/.test(ct)) ct=ct.replace(/<\/Types>/, override+'</Types>');
+    else ct='<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+override+'</Types>';
+    files['[Content_Types].xml']=fflate.strToU8(ct);
+  }
+}
+
+// ===================== DOCX 处理 =====================
+// mode: 'rewrite' = 仅重写文本编号（保留为文字）；'autonum' = 转为 Word 原生自动编号
+function processDocx(u8, scheme, skipAuto, mode){
+  return new Promise((resolve,reject)=>{
+    fflate.unzip(u8,(err,files)=>{
+      if(err){ reject(err); return; }
+      const samples=[];
+      let paras=0, changed=0;
+      let maxLevel=0, firstTopVal=null;
+      const renum=makeRenumberer(scheme, skipAuto, samples);
+
+      if(mode==='autonum'){
+        const key='word/document.xml';
+        if(!files[key]){ reject(new Error('找不到 word/document.xml')); return; }
+        const xml=fflate.strFromU8(files[key]);
+        const paraRe=/(<w:tbl[\s\S]*?<\/w:tbl>)|(<w:p[ >][\s\S]*?<\/w:p>)/g;
+        // 第一遍：收集层级与章号（跳过表格 / 跳过已有自动编号），章号按出现顺序去重
+        const chapterOrder=[];
+        [...xml.matchAll(paraRe)].forEach(m=>{
+          if(m[1]) return; // 表格（含目录）整段不动
+          const p=m[2];
+          paras++;
+          if(skipAuto && /w:numPr/.test(p)) return;
+          const info=detectNumber(p, scheme);
+          if(info){
+            if(info.level>maxLevel) maxLevel=info.level;
+            if(chapterOrder.indexOf(info.topVal)<0) chapterOrder.push(info.topVal);
+          }
+        });
+        // 每个章号一个 numId，startOverride 固定为原章号（6 不会变成 5）
+        const nb=buildNumberingXmlChapters(maxLevel, chapterOrder);
+        // 第二遍：删除文本编号 + 按章号引用对应 numId 挂 numPr
+        const newXml=xml.replace(paraRe,(m,tbl,p)=>{
+          if(tbl) return tbl;
+          if(skipAuto && /w:numPr/.test(p)) return p;
+          const info=detectNumber(p, scheme);
+          if(!info) return p;
+          let np=stripLeadingSpan(p, info.numStart, info.numEnd);
+          const numId=nb.map[info.topVal]||1;
+          np=addNumPr(np, info.level-1, numId);
+          changed++;
+          if(samples.length<40) samples.push({old: info.oldText, new:'（Word 自动编号 '+info.level+' 级）'});
+          return np;
+        });
+        files[key]=fflate.strToU8(newXml);
+        files['word/numbering.xml']=fflate.strToU8(nb.xml);
+        addNumberingRelationship(files);
+        fflate.zip(files,{},(zerr,zbuf)=>{
+          if(zerr){ reject(zerr); return; }
+          resolve({buf:zbuf, paras, changed, matched:changed, samples});
+        });
+        return;
+      }
+
+      // 重写文本模式（原逻辑，跳过表格/目录）
+      const paraRe2=/(<w:tbl[\s\S]*?<\/w:tbl>)|(<w:p[ >][\s\S]*?<\/w:p>)/g;
+      Object.keys(files).forEach(k=>{
+        if(/^word\/(document\.xml|header\d*\.xml|footer\d*\.xml)$/.test(k)){
+          const xml=fflate.strFromU8(files[k]);
+          const newXml=xml.replace(paraRe2,(m,tbl,p)=>{
+            if(tbl) return tbl;
+            paras++;
+            const np=renum.process(p);
+            if(np!==p) changed++;
+            return np!==null?np:p;
+          });
+          files[k]=fflate.strToU8(newXml);
+        }
+      });
+      fflate.zip(files,{},(zerr,zbuf)=>{
+        if(zerr){ reject(zerr); return; }
+        resolve({buf:zbuf, paras, changed, matched:renum.matched(), samples});
+      });
+    });
+  });
+}
+
+// ===================== DOC 旧格式支持 =====================
+function concatU8(arrays){
+  let total=0; for(const a of arrays) total+=a.length;
+  const out=new Uint8Array(total); let off=0;
+  for(const a of arrays){ out.set(a,off); off+=a.length; }
+  return out;
+}
+function decodeUtf16le(bytes){ return new TextDecoder('utf-16le').decode(bytes); }
+function splitDocParas(text){
+  return text.split(/\r|\n/)
+    .map(p=>p.replace(/\x00/g,'').trim())
+    .filter(p=>p.length>0 && /[\u4e00-\u9fa5a-zA-Z0-9]/.test(p));
+}
+
+function readOleStream(buf, streamName){
+  const dv=new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  const sig=[0xD0,0xCF,0x11,0xE0,0xA1,0xB1,0x1A,0xE1];
+  for(let i=0;i<8;i++) if(buf[i]!==sig[i]) throw new Error('不是有效的 Word .DOC 文件（OLE 签名不匹配）');
+  const sectorShift=dv.getUint16(0x1E,true);
+  const miniSectorShift=dv.getUint16(0x20,true);
+  const sectorSize=1<<sectorShift;
+  const miniSectorSize=1<<miniSectorShift;
+  const sectDirStart=dv.getUint32(0x30,true);
+  const miniStreamCutoff=dv.getUint32(0x38,true);
+  const sectMiniFatStart=dv.getUint32(0x3C,true);
+
+  const fatSectors=[];
+  for(let i=0;i<109;i++){
+    const s=dv.getUint32(0x4C+i*4,true);
+    if(s===0xFFFFFFFF) break;
+    fatSectors.push(s);
+  }
+
+  const fat=[];
+  for(const fsid of fatSectors){
+    const off=512+fsid*sectorSize;
+    const fatDv=new DataView(buf.buffer, buf.byteOffset+off, sectorSize);
+    for(let i=0;i<sectorSize;i+=4) fat.push(fatDv.getUint32(i,true));
+  }
+
+  function readSectorChain(startSector){
+    const out=[]; let sid=startSector;
+    while(sid!==0xFFFFFFFE && sid!==0xFFFFFFFF){
+      const off=512+sid*sectorSize;
+      out.push(buf.subarray(off, off+sectorSize));
+      sid=fat[sid];
+    }
+    return out;
+  }
+
+  const dirSectors=readSectorChain(sectDirStart);
+  const dirBytes=concatU8(dirSectors);
+
+  const entries=[];
+  for(let i=0;i<dirBytes.length;i+=128){
+    const nameLen=new DataView(dirBytes.buffer, dirBytes.byteOffset+i+64,2).getUint16(0,true);
+    const nameBytes=dirBytes.subarray(i, i+nameLen);
+    const name=decodeUtf16le(nameBytes).replace(/\x00/g,'');
+    const type=dirBytes[i+66];
+    const sectStart=new DataView(dirBytes.buffer, dirBytes.byteOffset+i+116,4).getUint32(0,true);
+    const size=new DataView(dirBytes.buffer, dirBytes.byteOffset+i+120,4).getUint32(0,true);
+    entries.push({name,type,sectStart,size});
+  }
+
+  const target=entries.find(e=>e.name===streamName);
+  if(!target) throw new Error('在 .DOC 中找不到 "'+streamName+'" 数据流');
+
+  if(target.size<miniStreamCutoff){
+    const root=entries[0];
+    if(!root || root.name!=='Root Entry') throw new Error('找不到 Root Entry');
+    const miniStream=concatU8(readSectorChain(root.sectStart)).subarray(0,root.size);
+
+    const miniFatSectors=readSectorChain(sectMiniFatStart);
+    const miniFatBytes=concatU8(miniFatSectors);
+    const miniFat=[];
+    const miniFatDv=new DataView(miniFatBytes.buffer, miniFatBytes.byteOffset, miniFatBytes.byteLength);
+    for(let i=0;i<miniFatBytes.length;i+=4) miniFat.push(miniFatDv.getUint32(i,true));
+
+    const out=[]; let sid=target.sectStart; let remaining=target.size;
+    while(sid!==0xFFFFFFFE && sid!==0xFFFFFFFF && remaining>0){
+      const off=sid*miniSectorSize;
+      const chunk=miniStream.subarray(off, off+Math.min(miniSectorSize,remaining));
+      out.push(chunk); remaining-=chunk.length;
+      sid=miniFat[sid];
+    }
+    return concatU8(out);
+  }
+
+  return concatU8(readSectorChain(target.sectStart)).subarray(0,target.size);
+}
+
+function extractDocParas(stream){
+  if(stream.length<32) throw new Error('WordDocument 流过小');
+  const dv=new DataView(stream.buffer, stream.byteOffset, stream.byteLength);
+  const wIdent=dv.getUint16(0,true);
+  if(wIdent!==0xA5EC) throw new Error('WordDocument 流签名异常');
+  const nFib=dv.getUint16(2,true);
+
+  let ccpTextOff;
+  if(nFib>=0x0112) ccpTextOff=0x5C;      // Word 2003
+  else if(nFib>=0x010C) ccpTextOff=0x58; // Word XP
+  else if(nFib>=0x0101) ccpTextOff=0x50; // Word 2000
+  else if(nFib>=0x00D9) ccpTextOff=0x4C; // Word 97
+  else ccpTextOff=0x1C;                  // Word 6/7
+
+  const fcMin=dv.getUint32(0x18,true);
+  const ccpText=dv.getUint32(ccpTextOff,true);
+  if(fcMin>stream.length || ccpText>stream.length) throw new Error('FIB 文本偏移/长度异常');
+
+  // 优先按 Unicode（UTF-16LE）读取；若 CJK 字符过少则回退 ANSI
+  const uniSlice=stream.subarray(fcMin, fcMin+ccpText*2);
+  const uniText=new TextDecoder('utf-16le').decode(uniSlice);
+  const uniParas=splitDocParas(uniText);
+  const cjkCount=uniParas.reduce((n,p)=>n+(p.match(/[\u4e00-\u9fa5]/g)||[]).length,0);
+  if(cjkCount>10) return uniParas;
+
+  const ansiSlice=stream.subarray(fcMin, fcMin+ccpText);
+  let ansiText;
+  try{ ansiText=new TextDecoder('gbk').decode(ansiSlice); }
+  catch(e){ ansiText=new TextDecoder('windows-1252').decode(ansiSlice); }
+  return splitDocParas(ansiText);
+}
+
+function buildMinimalDocx(paras, opts){
+  opts=opts||{};
+  const bodyXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
+    '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">\n'+
+    '<w:body>\n'+
+    paras.join('\n')+
+    '\n<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1800" w:bottom="1440" w:left="1800" w:header="720" w:footer="720" w:gutter="0"/><w:cols w:space="720"/></w:sectPr>\n'+
+    '</w:body></w:document>';
+  const relsXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'+
+    '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>'+
+    '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/>'+
+    '</Relationships>';
+  let docRelsXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
+  if(opts.numbering){
+    docRelsXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
+      '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+      '<Relationship Id="rId10" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>'+
+      '</Relationships>';
+  }
+  let ctXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'+
+    '<Default Extension="xml" ContentType="application/xml"/>'+
+    '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'+
+    '<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'+
+    '<Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>'+
+    '</Types>';
+  if(opts.numbering){
+    ctXml=ctXml.replace(/<\/Types>/, '<Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/></Types>');
+  }
+  const coreXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
+    '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'+
+    '<dc:title>修正后文档</dc:title><dc:creator>word编号修改器</dc:creator><cp:lastModifiedBy>word编号修改器</cp:lastModifiedBy><cp:revision>1</cp:revision>'+
+    '<dcterms:created xsi:type="dcterms:W3CDTF">2026-08-26T00:00:00Z</dcterms:created>'+
+    '<dcterms:modified xsi:type="dcterms:W3CDTF">2026-08-26T00:00:00Z</dcterms:modified>'+
+    '</cp:coreProperties>';
+  const appXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+
+    '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"><Application>word编号修改器</Application></Properties>';
+
+  const files={
+    '[Content_Types].xml': fflate.strToU8(ctXml),
+    '_rels/.rels': fflate.strToU8(relsXml),
+    'word/_rels/document.xml.rels': fflate.strToU8(docRelsXml),
+    'word/document.xml': fflate.strToU8(bodyXml),
+    'docProps/core.xml': fflate.strToU8(coreXml),
+    'docProps/app.xml': fflate.strToU8(appXml),
+  };
+  if(opts.numbering){
+    files['word/numbering.xml']=fflate.strToU8(opts.numberingXml||'');
+  }
+  return files;
+}
+
+function processDoc(u8, scheme, mode){
+  return new Promise((resolve,reject)=>{
+    try{
+      const stream=readOleStream(u8,'WordDocument');
+      const paras=extractDocParas(stream);
+      const samples=[];
+      let maxLevel=0, changed=0;
+      const chapterOrder=[];
+      const renum=makeRenumberer(scheme, false, samples);
+      const outItems=[]; // {type:'num',rest,ilvl,chapter} | {type:'text',text}
+      for(const p of paras){
+        if(mode==='autonum'){
+          const d=peekNumber(scheme, p);
+          if(d){
+            const trimmed=p.replace(/^\s+/,'');
+            const lead=p.length-trimmed.length;
+            const numStart=lead, numEnd=lead+d.len;
+            const rest=p.slice(0,numStart)+p.slice(numEnd);
+            if(d.level>maxLevel) maxLevel=d.level;
+            if(chapterOrder.indexOf(d.topVal)<0) chapterOrder.push(d.topVal);
+            outItems.push({type:'num', rest, ilvl:d.level-1, chapter:d.topVal});
+            changed++;
+            if(samples.length<40) samples.push({old: p.slice(numStart,numEnd), new:'（Word 自动编号 '+d.level+' 级）'});
+            continue;
+          }
+          outItems.push({type:'text', text:p});
+        } else {
+          const np=renum.processText(p);
+          if(np!==null && np!==p){ outItems.push({type:'text', text:np}); changed++; }
+          else outItems.push({type:'text', text:np!==null?np:p});
+        }
+      }
+      let opts={};
+      if(mode==='autonum'){
+        const nb=buildNumberingXmlChapters(maxLevel, chapterOrder);
+        outItems.forEach(it=>{
+          if(it.type==='num'){ it.numId=nb.map[it.chapter]||1; }
+        });
+        opts={numbering:true, numberingXml:nb.xml};
+      }
+      const outParas=outItems.map(it=>{
+        if(it.type==='num'){
+          return '<w:p><w:pPr><w:numPr><w:ilvl w:val="'+it.ilvl+'"/><w:numId w:val="'+it.numId+'"/></w:numPr></w:pPr><w:r><w:t xml:space="preserve">'+escapeXml(it.rest)+'</w:t></w:r></w:p>';
+        }
+        return '<w:p><w:r><w:t xml:space="preserve">'+escapeXml(it.text)+'</w:t></w:r></w:p>';
+      });
+      fflate.zip(buildMinimalDocx(outParas, opts),{},(err,zbuf)=>{
+        if(err){ reject(err); return; }
+        resolve({buf:zbuf, paras:paras.length, changed, matched:changed, samples});
+      });
+    }catch(e){ reject(e); }
+  });
+}
+
+function isDocx(u8){ return u8[0]===0x50 && u8[1]===0x4B && u8[2]===0x03 && u8[3]===0x04; }
+function isDoc(u8){ return u8[0]===0xD0 && u8[1]===0xCF && u8[2]===0x11 && u8[3]===0xE0; }
+
+// ===================== UI =====================
+const drop=document.getElementById('drop');
+const fileInput=document.getElementById('fileInput');
+const fileInfo=document.getElementById('fileInfo');
+const schemeEl=document.getElementById('scheme');
+const modeEl=document.getElementById('mode');
+const optSkipAuto=document.getElementById('optSkipAuto');
+const optPreview=document.getElementById('optPreview');
+const runBtn=document.getElementById('runBtn');
+const bar=document.getElementById('bar'); const barI=bar.querySelector('i');
+const stat=document.getElementById('stat');
+const hint=document.getElementById('hint');
+const samplesEl=document.getElementById('samples');
+let picked=null;
+
+function setFile(f){
+  picked=null; fileInfo.textContent=''; runBtn.disabled=true; stat.textContent=''; hint.textContent=''; samplesEl.style.display='none';
+  if(!f){ return; }
+  const ext=/\.docx?$/i.test(f.name);
+  if(!ext){ fileInfo.textContent='❌ 仅支持 Word / WPS 文档（.docx 或 .doc）'; return; }
+  if(f.size > 10*1024*1024){ fileInfo.textContent='❌ 文件超过 10MB 限制（当前 '+(f.size/1024/1024).toFixed(2)+'MB）'; return; }
+  picked=f;
+  fileInfo.textContent='📄 '+f.name+'（'+(f.size/1024).toFixed(1)+' KB）';
+  runBtn.disabled=false;
+}
+fileInput.addEventListener('change', e=> setFile(e.target.files[0]));
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('drag'); }));
+drop.addEventListener('drop', e=>{ if(e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); });
+
+function download(blob,name){ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(url); a.remove();},1000); }
+
+function renderSamples(samples){
+  if(!samples || !samples.length){ samplesEl.style.display='none'; return; }
+  let html='<div class="row head"><div class="c old">原编号</div><div class="c ar"></div><div class="c new">重排为</div></div>';
+  samples.forEach(s=>{
+    html+='<div class="row"><div class="c old">'+escapeHtml(s.old)+'</div><div class="c ar">→</div><div class="c new">'+escapeHtml(s.new)+'</div></div>';
+  });
+  samplesEl.innerHTML=html;
+  samplesEl.style.display='block';
+}
+function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+runBtn.addEventListener('click', async ()=>{
+  if(!picked) return;
+  const scheme=schemeEl.value;
+  const mode=modeEl.value;
+  const skipAuto=optSkipAuto.checked;
+  runBtn.disabled=true; bar.style.display='block'; barI.style.width='15%';
+  stat.textContent='⏳ 正在读取并重排…'; hint.textContent='';
+  try{
+    const u8=new Uint8Array(await picked.arrayBuffer());
+    barI.style.width='55%';
+    let r;
+    if(isDocx(u8)){
+      r=await processDocx(u8, scheme, skipAuto, mode);
+    }else if(isDoc(u8)){
+      r=await processDoc(u8, scheme, mode);
+    }else{
+      throw new Error('文件格式无法识别，请上传 .docx 或 .doc');
+    }
+    barI.style.width='100%';
+    const outName=picked.name.replace(/(\.[^.]+)?$/,'')+'_修正.docx';
+    download(new Blob([r.buf]), outName);
+    if(mode==='autonum'){
+      stat.textContent='✅ 完成：扫描 '+r.paras+' 个段落，将 '+r.changed+' 处手工编号转换为 Word 自动编号（打开后由 Word 维护序号）';
+    }else{
+      stat.textContent='✅ 完成：扫描 '+r.paras+' 个段落，识别编号 '+r.matched+' 处，实际改写 '+r.changed+' 处';
+    }
+    hint.textContent='下载已自动开始（'+outName+'）；若未弹出，请检查浏览器是否拦截了下载。';
+    if(optPreview.checked) renderSamples(r.samples);
+  }catch(e){
+    stat.textContent='❌ 处理失败：'+(e&&e.message?e.message:e);
+  }finally{
+    runBtn.disabled=false;
+  }
+});
+</script>
+</body>
+</html>

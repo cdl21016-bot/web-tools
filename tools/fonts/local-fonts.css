@@ -1,0 +1,23 @@
+/* 本地化书法字体（原 Google Fonts，已下载完整 woff2 到本目录）
+   font-family 名称保持与原 Google Fonts 一致，calligraphy-generator.html 无需改字体名 */
+@font-face {
+  font-family: 'Zhi Mang Xing';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./zhimangxing.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Ma Shan Zheng';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./mashanzheng.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Liu Jian Mao Cao';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./liujianmaocao.woff2') format('woff2');
+}

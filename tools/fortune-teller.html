@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🔮 运势预测 · 塔罗抽牌</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #ece9ff;
+    line-height: 1.6;
+    min-height: 100vh;
+    background: radial-gradient(1200px 600px at 20% -10%, #3b2a73 0%, transparent 60%),
+                radial-gradient(900px 500px at 110% 10%, #5b2a6b 0%, transparent 55%),
+                linear-gradient(160deg, #1a1230 0%, #120c24 100%);
+    background-attachment: fixed;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 28px 16px 56px; }
+  header { text-align: center; margin-bottom: 22px; }
+  header h1 { font-size: 28px; margin: 0 0 6px; letter-spacing: 2px;
+    background: linear-gradient(90deg,#c4b5fd,#f0abfc,#a5b4fc);
+    -webkit-background-clip: text; background-clip: text; color: transparent; }
+  header .sub { color: #a99fd6; font-size: 13px; margin: 0; }
+  .backlink { display:inline-block; margin-bottom:14px; color:#b8aee6; text-decoration:none; font-size:13px; }
+  .backlink:hover { color:#fff; }
+
+  .panel {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(167,139,250,0.28);
+    border-radius: 16px; padding: 20px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 18px 50px rgba(0,0,0,0.35);
+    margin-bottom: 18px;
+  }
+  .panel h2 { font-size: 15px; margin: 0 0 14px; display:flex; align-items:center; gap:8px; color:#ddd6ff; }
+
+  .field { margin-bottom: 14px; }
+  .field label { display:block; font-size: 13px; font-weight: 600; color:#c8c0f0; margin-bottom: 6px; }
+  .field .req { color:#f0abfc; }
+  select, input[type=date], input[type=text], textarea {
+    width: 100%; font-size: 14px; font-family: inherit; color: #ece9ff;
+    background: rgba(15,10,35,0.6); border: 1px solid rgba(167,139,250,0.35);
+    border-radius: 10px; padding: 10px 12px; outline: none;
+  }
+  select option { color:#1a1230; }
+  textarea { resize: vertical; min-height: 64px; }
+  select:focus, input:focus, textarea:focus { border-color:#a78bfa; box-shadow:0 0 0 3px rgba(167,139,250,0.2); }
+  .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width:560px){ .grid2 { grid-template-columns: 1fr; } }
+
+  .actions { display:flex; gap:10px; flex-wrap:wrap; margin-top: 4px; }
+  .btn {
+    border:none; border-radius: 10px; padding: 11px 20px; font-size: 14px; font-weight: 700;
+    cursor:pointer; font-family:inherit; transition: .18s; letter-spacing:1px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg,#8b5cf6,#d946ef);
+    color:#fff; box-shadow: 0 8px 22px rgba(139,92,246,0.45);
+  }
+  .btn-primary:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  .btn-primary:disabled { opacity:.55; cursor:not-allowed; transform:none; }
+  .btn-ghost { background: rgba(255,255,255,0.08); color:#d9d2ff; border:1px solid rgba(167,139,250,0.3); }
+  .btn-ghost:hover { background: rgba(255,255,255,0.14); }
+
+  /* 抽牌区 */
+  #result { display:none; }
+  #result.show { display:block; animation: fade .5s ease; }
+  @keyframes fade { from{opacity:0; transform:translateY(8px);} to{opacity:1; transform:none;} }
+  .tomorrow {
+    text-align:center; font-size: 14px; color:#c4b5fd; margin-bottom: 18px;
+    padding: 10px; border-radius: 12px; background: rgba(139,92,246,0.12);
+    border:1px solid rgba(167,139,250,0.25);
+  }
+  .tomorrow b { color:#f0abfc; font-size: 16px; }
+
+  .spread { display:grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+  @media (max-width:560px){ .spread { grid-template-columns: 1fr; } }
+  .slot { text-align:center; }
+  .slot .role { font-size: 12px; color:#a99fd6; margin-bottom: 8px; }
+
+  .card3d { perspective: 900px; margin: 0 auto; width: 100%; max-width: 180px; aspect-ratio: 3/4.4; }
+  .card3d .inner {
+    position: relative; width: 100%; height: 100%;
+    transform-style: preserve-3d; transition: transform .8s cubic-bezier(.4,.2,.2,1);
+  }
+  .card3d.flipped .inner { transform: rotateY(180deg); }
+  .face {
+    position:absolute; inset:0; border-radius: 14px; backface-visibility:hidden;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding: 12px; overflow:hidden;
+  }
+  .face.back {
+    background:
+      repeating-linear-gradient(45deg, rgba(167,139,250,.18) 0 8px, transparent 8px 16px),
+      linear-gradient(160deg,#4c2a8a,#2a1857);
+    border: 1px solid rgba(196,181,253,0.5);
+    color:#e9e2ff; font-size: 34px;
+    box-shadow: inset 0 0 30px rgba(0,0,0,.4);
+  }
+  .face.back .pat { position:absolute; inset:8px; border:1px dashed rgba(196,181,253,.45); border-radius:10px; }
+  .face.front {
+    transform: rotateY(180deg);
+    background: linear-gradient(165deg,#221546,#160e30);
+    border: 1px solid rgba(167,139,250,0.45);
+    color:#ece9ff; text-align:center;
+    box-shadow: 0 10px 30px rgba(0,0,0,.45);
+  }
+  .face.front .roman { font-size: 13px; letter-spacing: 2px; color:#f0abfc; margin-bottom: 6px; }
+  .face.front .cname { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+  .face.front .orient { font-size: 11px; padding: 2px 8px; border-radius: 999px; margin-bottom: 8px; }
+  .orient.up { background: rgba(34,197,94,0.18); color:#86efac; border:1px solid rgba(34,197,94,.4); }
+  .orient.rev { background: rgba(244,114,182,0.18); color:#fbcfe8; border:1px solid rgba(244,114,182,.4); }
+  .face.front .cmean { font-size: 11px; line-height:1.5; color:#cbbff5; }
+
+  .reading {
+    margin-top: 20px; background: rgba(15,10,35,0.55);
+    border:1px solid rgba(167,139,250,0.25); border-radius: 14px; padding: 18px;
+    font-size: 14px; color:#ddd6ff; white-space: pre-wrap;
+  }
+  .reading h3 { margin:0 0 10px; font-size:14px; color:#f0abfc; }
+  .toast {
+    position: fixed; left:50%; bottom: 30px; transform: translateX(-50%);
+    background:#1a1230; color:#fff; padding:10px 18px; border-radius: 10px; font-size: 14px;
+    border:1px solid rgba(167,139,250,.4); z-index: 60; opacity:0; transition: opacity .2s; pointer-events:none;
+  }
+  .toast.show { opacity:1; }
+  .foot { text-align:center; color:#7c72ad; font-size:12px; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="backlink" href="index.html">← 返回小工具箱</a>
+  <header>
+    <h1>🔮 运势预测</h1>
+    <p class="sub">输入星座与出生年月日，说出想测的事，塔罗牌为你揭示明日运势</p>
+  </header>
+
+  <div class="panel">
+    <h2>✨ 填写你的信息</h2>
+    <div class="grid2">
+      <div class="field">
+        <label>星座 <span class="req">*</span></label>
+        <select id="zodiac">
+          <option value="">请选择星座</option>
+          <option>白羊座</option><option>金牛座</option><option>双子座</option>
+          <option>巨蟹座</option><option>狮子座</option><option>处女座</option>
+          <option>天秤座</option><option>天蝎座</option><option>射手座</option>
+          <option>摩羯座</option><option>水瓶座</option><option>双鱼座</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>出生年月日 <span class="req">*</span></label>
+        <input type="date" id="birth">
+      </div>
+    </div>
+    <div class="field">
+      <label>想测的事件（如：明天的考试 / 工作面试 / 感情发展…）</label>
+      <input type="text" id="event" placeholder="留空则测算「整体运势」" maxlength="40">
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" id="draw">🃏 抽牌测明日运势</button>
+      <button class="btn btn-ghost" id="reroll" style="display:none;">🔄 重新抽牌</button>
+    </div>
+  </div>
+
+  <div id="result" class="panel">
+    <div class="tomorrow" id="tomorrow"></div>
+    <div class="spread" id="spread"></div>
+    <div class="reading" id="reading"></div>
+    <div class="actions" style="margin-top:16px;">
+      <button class="btn btn-ghost" id="copy">📋 复制解读</button>
+    </div>
+  </div>
+
+  <p class="foot">本工具为娱乐用途，塔罗解读由算法随机生成，结果仅供消遣，请勿过度依赖。</p>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ---------- 数据：22 张大阿尔克那塔罗牌 ---------- */
+var TAROT = [
+  {n:"0", name:"愚者", up:"崭新的开始与无限可能，带着纯真去冒险会带来惊喜。", rev:"冲动与逃避现实，缺乏计划容易半途而废。"},
+  {n:"I", name:"魔术师", up:"你具备实现目标的一切资源，行动力就是你的魔法。", rev:"潜能尚未发挥，或因自我怀疑而错失良机。"},
+  {n:"II", name:"女祭司", up:"直觉与秘密正在浮现，静心内省会给你答案。", rev:"被表象迷惑，忽略内心真实的声音。"},
+  {n:"III", name:"皇后", up:"丰盛与滋养环绕，人际与创意都将开花结果。", rev:"过度付出或自我忽视，需要好好照顾自己。"},
+  {n:"IV", name:"皇帝", up:"秩序与掌控带来稳固，按计划推进事半功倍。", rev:"固执与控制欲过强，或面临权威带来的压力。"},
+  {n:"V", name:"教皇", up:"传统与指引值得信赖，向有经验的人请教有益。", rev:"墨守成规令你受限，是时候倾听不同的声音。"},
+  {n:"VI", name:"恋人", up:"重要抉择临近，遵从内心会带来和谐的关系。", rev:"关系失衡或犹豫不决，需正视真实的需求。"},
+  {n:"VII", name:"战车", up:"凭借意志与专注，你将冲破阻碍抵达目标。", rev:"方向分散、情绪失控，先稳住再出发。"},
+  {n:"VIII", name:"力量", up:"温柔的勇气能驯服难题，耐心是你最大的优势。", rev:"自我怀疑削弱了你的底气，记得你本就足够强大。"},
+  {n:"IX", name:"隐士", up:"独处与反思带来智慧，答案在安静中显现。", rev:"孤立或逃避，适度求助并不等于软弱。"},
+  {n:"X", name:"命运之轮", up:"转机与好运降临，顺势而为把握周期。", rev:"变动带来不安，但低谷亦是轮转的一部分。"},
+  {n:"XI", name:"正义", up:"因果清晰，公平的结果会回到你手中。", rev:"需为过往选择承担后果，诚实面对更轻松。"},
+  {n:"XII", name:"倒吊人", up:"换个视角看问题，暂时的停顿孕育转机。", rev:"无谓的牺牲与拖延，别在旧模式里空耗。"},
+  {n:"XIII", name:"死神", up:"旧阶段的结束迎来新生，放手才能重生。", rev:"抗拒改变带来停滞，拥抱转化才见曙光。"},
+  {n:"XIV", name:"节制", up:"平衡与调和，循序渐进让一切归于和谐。", rev:"失衡与极端，需找回节奏与节制。"},
+  {n:"XV", name:"恶魔", up:"警惕束缚与执念，看清什么在限制你。", rev:"开始挣脱枷锁，逐步拿回属于自己的自由。"},
+  {n:"XVI", name:"塔", up:"突如其来的冲击打破假象，动荡后见真实。", rev:"内在的崩塌被压抑，直面危机才能重建。"},
+  {n:"XVII", name:"星星", up:"希望与疗愈之光，怀着信念前方渐明。", rev:"信心动摇或感到迷茫，先好好休息再前行。"},
+  {n:"XVIII", name:"月亮", up:"潜意识与迷雾笼罩，谨慎分辨真假。", rev:"迷雾渐散，恐惧退去，真相开始浮现。"},
+  {n:"XIX", name:"太阳", up:"光明与喜悦降临，事情将顺利明朗。", rev:"短暂的阴霾，回暖在即别失了热情。"},
+  {n:"XX", name:"审判", up:"觉醒与召唤，过去的积累迎来清算与升华。", rev:"自我批判过重或逃避召唤，听见内心的呼声。"},
+  {n:"XXI", name:"世界", up:"圆满与达成，一个循环完美收官。", rev:"尚未完满，还差临门一脚请坚持到底。"}
+];
+
+var ZODIAC_ELEMENT = {
+  "白羊座":"火", "狮子座":"火", "射手座":"火",
+  "金牛座":"土", "处女座":"土", "摩羯座":"土",
+  "双子座":"风", "天秤座":"风", "水瓶座":"风",
+  "巨蟹座":"水", "天蝎座":"水", "双鱼座":"水"
+};
+var ELEMENT_ADVICE = {
+  "火":"宜主动出击、保持热情，但注意别三分钟热度。",
+  "土":"宜稳扎稳打、脚踏实地，细节决定成败。",
+  "风":"宜沟通分享、打开思路，但想法别太多太散。",
+  "水":"宜以柔克刚、相信直觉，照顾好情绪最为关键。"
+};
+var WEEK = ["日","一","二","三","四","五","六"];
+
+/* ---------- 工具函数 ---------- */
+function hashStr(str){
+  var h = 2166136261 >>> 0;
+  for(var i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function mulberry32(a){
+  return function(){
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    var t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function tomorrowDate(){
+  var d = new Date(); d.setDate(d.getDate()+1);
+  return d;
+}
+function fmtDate(d){
+  return d.getFullYear()+"年"+(d.getMonth()+1)+"月"+d.getDate()+"日 星期"+WEEK[d.getDay()];
+}
+function autoZodiac(){
+  var v = document.getElementById('birth').value;
+  if(!v) return;
+  var m = parseInt(v.slice(5,7),10), day = parseInt(v.slice(8,10),10);
+  var z = zodiacByDate(m, day);
+  if(z) document.getElementById('zodiac').value = z;
+}
+function zodiacByDate(m, d){
+  var cut = [[1,20,"摩羯座"],[2,19,"水瓶座"],[3,21,"双鱼座"],[4,20,"白羊座"],
+             [5,21,"金牛座"],[6,22,"双子座"],[7,23,"巨蟹座"],[8,23,"狮子座"],
+             [9,23,"处女座"],[10,24,"天秤座"],[11,23,"天蝎座"],[12,22,"射手座"],[13,0,"摩羯座"]];
+  for(var i=0;i<cut.length;i++){ if(m < cut[i][0] || (m===cut[i][0] && d < cut[i][1])) return cut[i][2]; }
+  return "摩羯座";
+}
+
+/* ---------- 抽牌逻辑 ---------- */
+function drawCards(rng, count){
+  var pool = TAROT.slice();
+  var out = [];
+  for(var i=0;i<count;i++){
+    var j = Math.floor(rng() * pool.length);
+    var card = pool.splice(j,1)[0];
+    var upright = rng() < 0.55; // 约 55% 正位
+    out.push({ card: card, upright: upright });
+  }
+  return out;
+}
+
+function buildReading(zodiac, birth, event, cards, dateStr){
+  var element = ZODIAC_ELEMENT[zodiac] || "未知";
+  var ev = event && event.trim() ? event.trim() : "整体运势";
+  var roles = ["明日整体能量", "需要留意的挑战", "给您的建议"];
+  var lines = [];
+  lines.push("【明日运势 · "+dateStr+"】");
+  lines.push("");
+  lines.push("🌟 "+zodiac+"（"+element+"象）的你，明日运势围绕「"+ev+"」展开。");
+  lines.push("");
+  lines.push("🃏 三张塔罗牌揭示：");
+  for(var i=0;i<cards.length;i++){
+    var c = cards[i];
+    var o = c.upright ? "正位" : "逆位";
+    var mean = c.upright ? c.card.up : c.card.rev;
+    lines.push("  "+(i+1)+"️⃣ 《"+c.card.name+"》"+o+"（"+roles[i]+"）—— "+mean);
+  }
+  lines.push("");
+  lines.push("📜 综合解读：");
+  var c1=cards[0], c2=cards[1], c3=cards[2];
+  var t1 = c1.upright ? c1.card.up : c1.card.rev;
+  var t2 = c2.upright ? c2.card.up : c2.card.rev;
+  var t3 = c3.upright ? c3.card.up : c3.card.rev;
+  var para = "牌一《"+c1.card.name+"》透露，明日在「"+ev+"」上，"+t1+
+             " 牌二《"+c2.card.name+"》提醒你："+t2+
+             " 而牌三《"+c3.card.name+"》给出的指引是："+t3+
+             " 整体而言，作为"+element+"象星座的你，"+(ELEMENT_ADVICE[element]||"保持平常心最为重要。");
+  lines.push(para);
+  return lines.join("\n");
+}
+
+/* ---------- 渲染 ---------- */
+function renderCards(cards, animate){
+  var spread = document.getElementById('spread');
+  spread.innerHTML = '';
+  var roles = ["明日整体能量", "需要留意的挑战", "给您的建议"];
+  cards.forEach(function(c, i){
+    var slot = document.createElement('div'); slot.className='slot';
+    var o = c.upright ? 'up' : 'rev';
+    var olabel = c.upright ? '正位' : '逆位';
+    slot.innerHTML =
+      '<div class="role">'+roles[i]+'</div>'+
+      '<div class="card3d" id="c'+i+'"><div class="inner">'+
+        '<div class="face back"><div class="pat"></div>🔮</div>'+
+        '<div class="face front">'+
+          '<div class="roman">'+c.card.n+'</div>'+
+          '<div class="cname">'+c.card.name+'</div>'+
+          '<div class="orient '+o+'">'+olabel+'</div>'+
+          '<div class="cmean">'+(c.upright?c.card.up:c.card.rev)+'</div>'+
+        '</div>'+
+      '</div></div>';
+    spread.appendChild(slot);
+  });
+  if(animate){
+    cards.forEach(function(_, i){
+      setTimeout(function(){ document.getElementById('c'+i).classList.add('flipped'); }, 420 + i*320);
+    });
+  } else {
+    cards.forEach(function(_, i){ document.getElementById('c'+i).classList.add('flipped'); });
+  }
+}
+
+function toast(msg){
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, 1600);
+}
+
+/* ---------- 事件绑定 ---------- */
+var lastParams = null;
+document.getElementById('birth').addEventListener('change', autoZodiac);
+
+document.getElementById('draw').addEventListener('click', function(){
+  var zodiac = document.getElementById('zodiac').value;
+  var birth = document.getElementById('birth').value;
+  var event = document.getElementById('event').value;
+  if(!zodiac){ toast('请先选择星座'); return; }
+  if(!birth){ toast('请填写出生年月日'); return; }
+  var d = tomorrowDate();
+  var dateStr = fmtDate(d);
+  // 当日确定性种子：同一人同一天结果稳定
+  var seed = hashStr(zodiac + "|" + birth + "|" + (event.trim()||"整体运势") + "|" + dateStr);
+  var rng = mulberry32(seed);
+  var cards = drawCards(rng, 3);
+  lastParams = { zodiac:zodiac, birth:birth, event:event, cards:cards, dateStr:dateStr, seed:seed };
+
+  var reading = buildReading(zodiac, birth, event, cards, dateStr);
+  document.getElementById('tomorrow').innerHTML = "明日 · <b>"+dateStr+"</b>";
+  document.getElementById('reading').textContent = reading;
+  renderCards(cards, true);
+
+  var res = document.getElementById('result');
+  res.classList.add('show');
+  document.getElementById('reroll').style.display = 'inline-block';
+  res.scrollIntoView({behavior:'smooth', block:'start'});
+});
+
+document.getElementById('reroll').addEventListener('click', function(){
+  if(!lastParams) return;
+  // 重新抽牌：在确定性种子上叠加随机偏移
+  var rng = mulberry32((lastParams.seed ^ Math.floor(Math.random()*1e9)) >>> 0);
+  var cards = drawCards(rng, 3);
+  lastParams.cards = cards;
+  var reading = buildReading(lastParams.zodiac, lastParams.birth, lastParams.event, cards, lastParams.dateStr);
+  document.getElementById('reading').textContent = reading;
+  renderCards(cards, true);
+  document.getElementById('result').scrollIntoView({behavior:'smooth', block:'start'});
+});
+
+document.getElementById('copy').addEventListener('click', function(){
+  var text = document.getElementById('reading').textContent;
+  if(navigator.clipboard){ navigator.clipboard.writeText(text).then(function(){ toast('已复制解读 ✓'); }); }
+  else { var ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('已复制解读 ✓'); }
+});
+
+// 被首页小工具箱以 iframe 嵌入时，隐藏返回链接，避免嵌套重复
+if (window.self !== window.top) {
+  var bl = document.querySelector('.backlink'); if(bl) bl.style.display='none';
+}
+</script>
+</body>
+</html>

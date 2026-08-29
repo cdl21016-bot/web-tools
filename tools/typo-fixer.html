@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>标点符号修改器</title>
+<style>
+:root{
+  --primary:#1f9d6b; --primary-dark:#157a52;
+  --bg:#f1f7f4; --card:#ffffff; --text:#1f2a37; --muted:#6b7785; --border:#e0ece7;
+}
+*{box-sizing:border-box;}
+body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); line-height:1.6;}
+header{background:linear-gradient(135deg,#1f9d6b,#157a52); color:#fff; padding:22px 16px; text-align:center;}
+header h1{margin:0; font-size:22px;}
+header p{margin:4px 0 0; font-size:13px; opacity:.92;}
+.wrap{max-width:840px; margin:0 auto; padding:18px 16px 50px;}
+.card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px 18px; margin-bottom:14px;}
+.tabs{display:flex; gap:8px; margin-bottom:4px;}
+.tab{padding:9px 18px; border:1px solid var(--border); border-radius:10px; font-size:14px; background:#fff; color:var(--muted); cursor:pointer; font-family:inherit; transition:.12s;}
+.tab.active{background:var(--primary); border-color:var(--primary); color:#fff;}
+label{font-size:13px; color:var(--muted); display:block; margin:10px 0 6px;}
+textarea{width:100%; min-height:140px; padding:12px 14px; border:1px solid var(--border); border-radius:11px; font-size:15px; background:#fff; color:var(--text); font-family:inherit; resize:vertical; line-height:1.7;}
+textarea:focus{outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(31,157,107,.15);}
+textarea[readonly]{background:#f7faf9;}
+.counter{font-size:12px; color:var(--muted); text-align:right; margin-top:4px;}
+.opts{display:flex; flex-wrap:wrap; gap:14px; margin:10px 0 4px;}
+.opt{display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text); cursor:pointer;}
+.opt input{width:16px; height:16px; accent-color:var(--primary);}
+.btnrow{display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;}
+.btn{border:none; border-radius:10px; padding:10px 20px; font-size:14px; font-weight:600; cursor:pointer; font-family:inherit; transition:.12s;}
+.btn.primary{background:var(--primary); color:#fff;}
+.btn.primary:hover{background:var(--primary-dark);}
+.btn.ghost{background:#eaf4ef; color:var(--primary-dark);}
+.btn.ghost:hover{background:#dcefe6;}
+.btn:disabled{opacity:.5; cursor:not-allowed;}
+.stat{font-size:13px; color:var(--primary-dark); margin:10px 2px 2px; font-weight:600;}
+.hint{font-size:12px; color:var(--muted); margin-top:8px;}
+.note{font-size:12px; color:var(--muted); background:#eaf4ef; border:1px solid #d4ebe1; border-radius:10px; padding:10px 12px; margin-top:10px;}
+.filebox{border:2px dashed var(--border); border-radius:12px; padding:18px; text-align:center; color:var(--muted); font-size:14px;}
+.filebox.drag{background:#eaf4ef; border-color:var(--primary);}
+input[type=file]{font-family:inherit; font-size:14px;}
+#fileInfo{font-size:13px; color:var(--text); margin-top:8px; word-break:break-all;}
+.bar{height:8px; background:#e6efeb; border-radius:999px; overflow:hidden; margin-top:10px; display:none;}
+.bar > i{display:block; height:100%; width:0; background:var(--primary); transition:width .2s;}
+@media(max-width:520px){ .wrap{padding:12px 10px 40px;} header h1{font-size:19px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>📝 标点符号修改器</h1>
+    <p>自动规范中文标点 · 文本可直接复制 · 文档支持 TXT / Excel / Word</p>
+  </header>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" id="tabText">✍️ 文本粘贴</button>
+      <button class="tab" id="tabFile">📂 导入文档</button>
+    </div>
+
+    <!-- 文本模式 -->
+    <div id="paneText">
+      <label for="src">粘贴中文字段（限 500 字）</label>
+      <textarea id="src" maxlength="500" placeholder="在此粘贴需要校对的中文内容，例如：&#10;他按装了一套新软件，运行后发见界面松驰、脉博跳动的数据显的很精萃…"></textarea>
+      <div class="counter"><span id="cnt">0</span> / 500</div>
+
+      <div class="opts">
+        <label class="opt"><input type="checkbox" id="optDedup" checked> 合并重复标点</label>
+        <label class="opt"><input type="checkbox" id="optFull" checked> 半角标点转全角</label>
+        <label class="opt"><input type="checkbox" id="optSpace" checked> 去除多余空格</label>
+      </div>
+
+      <div class="btnrow">
+        <button class="btn primary" id="runBtn">开始修正</button>
+        <button class="btn ghost" id="copyBtn" disabled>复制结果</button>
+        <button class="btn ghost" id="clearBtn">清空</button>
+      </div>
+
+      <div class="stat" id="statText"></div>
+
+      <label for="out">修正结果（可直接复制）</label>
+      <textarea id="out" readonly placeholder="修正后的文本将显示在这里…"></textarea>
+    </div>
+
+    <!-- 文档模式 -->
+    <div id="paneFile" style="display:none">
+      <div class="filebox" id="drop">
+        点击选择或拖拽文件到此处<br>
+        <small>支持 TXT / Excel(.xlsx) / Word(.docx)，单文件 ≤ 3MB</small><br><br>
+        <input type="file" id="fileInput" accept=".txt,.xlsx,.docx,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+      </div>
+      <div id="fileInfo"></div>
+      <div class="opts">
+        <label class="opt"><input type="checkbox" id="fOptDedup" checked> 合并重复标点</label>
+        <label class="opt"><input type="checkbox" id="fOptFull" checked> 半角标点转全角</label>
+        <label class="opt"><input type="checkbox" id="fOptSpace" checked> 去除多余空格</label>
+      </div>
+      <div class="btnrow">
+        <button class="btn primary" id="fileRunBtn" disabled>开始修正并生成文件</button>
+      </div>
+      <div class="bar" id="fileBar"><i></i></div>
+      <div class="stat" id="statFile"></div>
+      <div class="hint" id="fileHint"></div>
+    </div>
+
+    <div class="note">
+      💡 本工具用于<b>自动规范中文标点</b>：合并连续重复的标点（如「。。」→「。」）、半角标点转全角（仅当相邻中文，避免误转小数）、去除中文标点前后及汉字之间多余空格等。
+      所有处理均在浏览器本地完成，不上传任何内容。
+    </div>
+  </div>
+</div>
+
+<script src="lib/fflate.min.js"></script>
+<script src="lib/exceljs.min.js"></script>
+<script>
+
+function isCJK(ch){ return ch && /[　-鿿豈-﫿]/.test(ch); }
+
+// 标点规范化
+function fixPunct(t, opt){
+  let n = 0;
+  if(opt.dedup){
+    // 合并连续相同的常用标点（不含 … 与 ——）
+    t = t.replace(/([。，！？；：、])\1+/g, m=>{ n += m.length-1; return m[0]; });
+    t = t.replace(/([.!?;:,])\1+/g, m=>{ n += m.length-1; return m[0]; });
+  }
+  if(opt.full){
+    const map = {',':'，','.':'。','!':'！','?':'？',':':'：',';':'；'};
+    let out = '';
+    for(let i=0;i<t.length;i++){
+      const ch = t[i];
+      if(map[ch]){
+        const prev = t[i-1], next = t[i+1];
+        if(isCJK(prev) || isCJK(next)){ out += map[ch]; n++; continue; }
+      }
+      out += ch;
+    }
+    t = out;
+  }
+  if(opt.space){
+    // 去除中文标点前后空格（保留标点本身）
+    t = t.replace(/\s*([，。！？；：、])\s*/g, (m, g)=>{ n += (m.length - g.length); return g; });
+    // 两个汉字之间的空格删除（链式空格需循环到稳定）
+    let prevS;
+    do { prevS = t; t = t.replace(/([　-鿿豈-﫿])\s+([　-鿿豈-﫿])/g, (m,a,b)=>{ n++; return a+b; }); } while (t !== prevS);
+    // 空格合并 + 首尾清理
+    const before = t.length;
+    t = t.replace(/[ \t]+/g,' ').replace(/\s+\n/g,'\n').trim();
+    if(t.length !== before) n++;
+  }
+  return {out:t, n};
+}
+
+// 总校正
+function correct(text, opt){
+  const pr = fixPunct(text, opt);
+  return {out: pr.out, punctN: pr.n};
+}
+
+function getOpt(prefix){
+  const g = id => document.getElementById(prefix+id).checked;
+  return {dedup:g('Dedup'), full:g('Full'), space:g('Space')};
+}
+
+// ===================== 文本模式 =====================
+const srcEl = document.getElementById('src');
+const outEl = document.getElementById('out');
+const cntEl = document.getElementById('cnt');
+const runBtn = document.getElementById('runBtn');
+const copyBtn = document.getElementById('copyBtn');
+const clearBtn = document.getElementById('clearBtn');
+const statText = document.getElementById('statText');
+
+srcEl.addEventListener('input', ()=>{ cntEl.textContent = srcEl.value.length; });
+
+runBtn.addEventListener('click', ()=>{
+  const opt = getOpt('opt');
+  const r = correct(srcEl.value, opt);
+  outEl.value = r.out;
+  statText.textContent = r.punctN>0
+    ? `✅ 共规范 ${r.punctN} 处标点`
+    : '✅ 未检测到明显标点问题';
+  copyBtn.disabled = !r.out;
+});
+
+copyBtn.addEventListener('click', async ()=>{
+  const txt = outEl.value;
+  if(!txt) return;
+  try{ await navigator.clipboard.writeText(txt); }
+  catch(e){
+    outEl.removeAttribute('readonly'); outEl.select(); document.execCommand('copy'); outEl.setAttribute('readonly','');
+  }
+  copyBtn.textContent = '已复制 ✓';
+  setTimeout(()=>{ copyBtn.textContent = '复制结果'; }, 1500);
+});
+
+clearBtn.addEventListener('click', ()=>{
+  srcEl.value=''; outEl.value=''; cntEl.textContent='0'; statText.textContent=''; copyBtn.disabled=true;
+});
+
+// ===================== 文档模式 =====================
+const tabText = document.getElementById('tabText');
+const tabFile = document.getElementById('tabFile');
+const paneText = document.getElementById('paneText');
+const paneFile = document.getElementById('paneFile');
+tabText.addEventListener('click', ()=>{ tabText.classList.add('active'); tabFile.classList.remove('active'); paneText.style.display=''; paneFile.style.display='none'; });
+tabFile.addEventListener('click', ()=>{ tabFile.classList.add('active'); tabText.classList.remove('active'); paneFile.style.display=''; paneText.style.display='none'; });
+
+const MAX_FILE = 3 * 1024 * 1024; // 3MB
+const drop = document.getElementById('drop');
+const fileInput = document.getElementById('fileInput');
+const fileInfo = document.getElementById('fileInfo');
+const fileRunBtn = document.getElementById('fileRunBtn');
+const fileBar = document.getElementById('fileBar');
+const fileBarI = fileBar.querySelector('i');
+const statFile = document.getElementById('statFile');
+const fileHint = document.getElementById('fileHint');
+let pickedFile = null;
+
+function setFile(f){
+  if(!f){ pickedFile=null; fileInfo.textContent=''; fileRunBtn.disabled=true; return; }
+  if(f.size > MAX_FILE){ fileInfo.textContent='❌ 文件超过 3MB 限制（当前 '+(f.size/1024/1024).toFixed(2)+'MB），请压缩后重试'; fileRunBtn.disabled=true; pickedFile=null; return; }
+  const okExt = /\.(txt|xlsx|docx)$/i.test(f.name);
+  if(!okExt){ fileInfo.textContent='❌ 仅支持 TXT / .xlsx / .docx 文件'; fileRunBtn.disabled=true; pickedFile=null; return; }
+  pickedFile = f;
+  fileInfo.textContent = '📄 '+f.name+'（'+(f.size/1024).toFixed(1)+' KB）';
+  fileRunBtn.disabled = false;
+  statFile.textContent=''; fileHint.textContent='';
+}
+fileInput.addEventListener('change', e=> setFile(e.target.files[0]));
+['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev=>drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('drag'); }));
+drop.addEventListener('drop', e=>{ if(e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); });
+
+function download(blob, name){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 1000);
+}
+function setBar(p){ fileBar.style.display='block'; fileBarI.style.width = Math.round(p*100)+'%'; }
+
+// TXT
+function processTxt(file, opt){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      const r = correct(String(reader.result||''), opt);
+      const blob = new Blob([r.out], {type:'text/plain;charset=utf-8'});
+      download(blob, file.name.replace(/(\.[^.]+)?$/, '')+'_修正.txt');
+      resolve(r);
+    };
+    reader.onerror = reject;
+    reader.readAsText(file, 'utf-8');
+  });
+}
+
+// XLSX / XLS / CSV（ExcelJS）
+async function processXlsx(file, opt){
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.read(file);
+  let changed = 0, cells = 0;
+  wb.eachSheet(sheet=>{
+    sheet.eachRow(row=>{
+      row.eachCell(cell=>{
+        if(typeof cell.value === 'string'){
+          cells++;
+          const r = correct(cell.value, opt);
+          if(r.out !== cell.value){ changed++; cell.value = r.out; }
+        }
+      });
+    });
+  });
+  const buf = await wb.xlsx.writeBuffer();
+  download(new Blob([buf]), file.name.replace(/(\.[^.]+)?$/, '')+'_修正.xlsx');
+  return {changed, cells};
+}
+
+// DOCX（fflate 直接改写 word/document.xml 等文本）
+function unescapeXml(s){ return s.replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&amp;/g,'&'); }
+function escapeXml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&apos;'); }
+function correctDocxXml(xml, opt){
+  return xml.replace(/<w:t[^>]*>([\s\S]*?)<\/w:t>/g, (m, inner)=>{
+    const txt = unescapeXml(inner);
+    const r = correct(txt, opt);
+    return m.replace(inner, escapeXml(r.out));
+  });
+}
+function processDocx(file, opt){
+  return new Promise((resolve,reject)=>{
+    const reader = new FileReader();
+    reader.onload = ()=>{
+      try{
+        const u8 = new Uint8Array(reader.result);
+        fflate.unzip(u8, (err, files)=>{
+          if(err){ reject(err); return; }
+          const targets = Object.keys(files).filter(k=>/^word\/(document\.xml|header\d*\.xml|footer\d*\.xml)$/.test(k));
+          let changed = 0;
+          targets.forEach(k=>{
+            const xml = fflate.strFromU8(files[k]);
+            const fixed = correctDocxXml(xml, opt);
+            if(fixed !== xml){ changed++; files[k] = fflate.strToU8(fixed); }
+          });
+          fflate.zip(files, {}, (zerr, zbuf)=>{
+            if(zerr){ reject(zerr); return; }
+            download(new Blob([zbuf]), file.name.replace(/(\.[^.]+)?$/, '')+'_修正.docx');
+            resolve({changed, parts:targets.length});
+          });
+        });
+      }catch(e){ reject(e); }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+fileRunBtn.addEventListener('click', async ()=>{
+  if(!pickedFile) return;
+  const opt = getOpt('fOpt');
+  fileRunBtn.disabled = true;
+  setBar(0.15); statFile.textContent = '⏳ 正在读取并处理…';
+  try{
+    let msg = '';
+    if(/\.txt$/i.test(pickedFile.name)){
+      const r = await processTxt(pickedFile, opt);
+      setBar(1); msg = `✅ 已生成修正文件，共规范 ${r.punctN} 处标点`;
+    } else if(/\.xlsx$/i.test(pickedFile.name)){
+      const r = await processXlsx(pickedFile, opt);
+      setBar(1); msg = `✅ 已生成修正文件：扫描 ${r.cells} 个文本单元格，修改 ${r.changed} 个`;
+    } else if(/\.docx$/i.test(pickedFile.name)){
+      const r = await processDocx(pickedFile, opt);
+      setBar(1); msg = `✅ 已生成修正文件：处理 ${r.parts} 个文档部件，修改 ${r.changed} 处`;
+    }
+    statFile.textContent = msg;
+    fileHint.textContent = '下载已自动开始；若未弹出，请检查浏览器是否拦截了下载。';
+  }catch(e){
+    statFile.textContent = '❌ 处理失败：' + (e && e.message ? e.message : e);
+  }finally{
+    fileRunBtn.disabled = false;
+  }
+});
+
+// 防止外部嵌套页面（如首页 iframe 内打开）重复注入脚本
+if(window.self !== window.top){
+  // 本工具自带完整样式，无需隐藏；保留空分支以便将来扩展
+}
+</script>
+</body>
+</html>

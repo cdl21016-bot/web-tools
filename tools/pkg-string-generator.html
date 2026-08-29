@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PKG箱号随机生成器</title>
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --ok: #10b981;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 24px;
+      line-height: 1.6;
+    }
+    .wrap { max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 22px; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+    .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+    .tab {
+      flex: 1; padding: 10px; text-align: center; cursor: pointer;
+      border: 1px solid var(--border); border-radius: 10px; background: var(--card);
+      font-size: 14px; font-weight: 600; color: var(--muted); transition: .15s;
+    }
+    .tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .panel { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+    .field { margin-bottom: 16px; }
+    .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .row .field { flex: 1; min-width: 140px; }
+    input[type="text"], input[type="number"] {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+      font-size: 14px; outline: none; transition: .15s; font-family: inherit;
+    }
+    input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,.15); }
+    .check { display: flex; align-items: center; gap: 8px; font-size: 14px; cursor: pointer; user-select: none; }
+    .checks { display: flex; gap: 16px; flex-wrap: wrap; }
+    .checks label { font-weight: 400; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .radios { display: flex; gap: 14px; flex-wrap: wrap; }
+    .output {
+      margin-top: 6px; background: #0f172a; color: #e2e8f0; border-radius: 10px;
+      padding: 16px; font-size: 20px; letter-spacing: 1px; word-break: break-all;
+      font-family: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace; min-height: 56px;
+      display: flex; align-items: center;
+    }
+    .btns { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+    button {
+      border: none; border-radius: 9px; padding: 11px 18px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: .15s; font-family: inherit;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-outline { background: #fff; color: var(--primary); border: 1px solid var(--primary); }
+    .btn-ghost { background: #f1f5f9; color: var(--muted); }
+    .meta { margin-top: 14px; font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; align-items: center; }
+    .toast {
+      position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
+      background: var(--ok); color: #fff; padding: 10px 18px; border-radius: 999px; font-size: 14px;
+      opacity: 0; transition: .25s; pointer-events: none; z-index: 99;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>📦 PKG箱号随机生成器</h1>
+    <div class="sub">面向 PKG 箱号 / 随机字符串生成，保证本机生成永不重复。</div>
+
+    <div class="tabs">
+      <div class="tab active" data-mode="pattern">有规律（箱号格式）</div>
+      <div class="tab" data-mode="random">无规律（完全随机）</div>
+    </div>
+
+    <!-- 有规律 -->
+    <div class="panel" id="panelPattern">
+      <div class="field">
+        <label class="check">
+          <input type="checkbox" id="prefixOn"> 添加自定义首字母（可选）
+        </label>
+        <div class="row" style="margin-top:8px;">
+          <div class="field">
+            <input type="text" id="prefixChar" maxlength="1" placeholder="如 X" disabled>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label>前 3 位自订大写字母</label>
+        <input type="text" id="prefix3" maxlength="3" placeholder="如 ABC" style="text-transform:uppercase;">
+        <div class="hint">留空则默认 PKG</div>
+      </div>
+      <div class="field">
+        <label>日期（自动取今天）</label>
+        <input type="text" id="datePart" readonly>
+        <div class="hint">格式 YYYYMMDD，随生成时间更新</div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>随机后缀长度</label>
+          <input type="number" id="suffixLen" min="5" value="5">
+          <div class="hint">≥ 5 位</div>
+        </div>
+        <div class="field">
+          <label>后缀字符集</label>
+          <div class="checks" style="margin-top:10px;">
+            <label class="check"><input type="checkbox" class="cs" value="upper" checked> 大写</label>
+            <label class="check"><input type="checkbox" class="cs" value="lower" checked> 小写</label>
+            <label class="check"><input type="checkbox" class="cs" value="digit" checked> 数字</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 无规律 -->
+    <div class="panel hidden" id="panelRandom">
+      <div class="field">
+        <label>首字母（固定）</label>
+        <input type="text" id="randFirst" maxlength="1" placeholder="如 P">
+        <div class="hint">除首字母外，其余字符完全随机生成</div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label>总长度</label>
+          <input type="number" id="randLen" min="2" value="12">
+        </div>
+        <div class="field">
+          <label>字符类型</label>
+          <div class="radios" style="margin-top:10px;">
+            <label class="check"><input type="radio" name="ctype" value="mixed" checked> 大小写字母</label>
+            <label class="check"><input type="radio" name="ctype" value="digit"> 纯数字</label>
+            <label class="check"><input type="radio" name="ctype" value="upper"> 仅大写</label>
+            <label class="check"><input type="radio" name="ctype" value="lower"> 仅小写</label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="field" style="margin-top:18px;">
+      <label>生成结果</label>
+      <div class="output" id="output">点击「生成」开始</div>
+    </div>
+
+    <div class="btns">
+      <button class="btn-primary" id="genBtn">再生成</button>
+      <button class="btn-outline" id="copyBtn">复制</button>
+      <button class="btn-ghost" id="clearBtn">清空历史</button>
+    </div>
+
+    <div class="meta">
+      <span id="count">已生成 0 个不重复</span>
+      <span>唯一性基于本机记录（跨设备需后端）</span>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (function () {
+      const $ = (id) => document.getElementById(id);
+      let mode = 'pattern';
+
+      // 标签页切换
+      document.querySelectorAll('.tab').forEach((t) => {
+        t.addEventListener('click', () => {
+          mode = t.getAttribute('data-mode');
+          document.querySelectorAll('.tab').forEach((x) => x.classList.remove('active'));
+          t.classList.add('active');
+          $('panelPattern').classList.toggle('hidden', mode !== 'pattern');
+          $('panelRandom').classList.toggle('hidden', mode !== 'random');
+        });
+      });
+
+      // 首字母开关
+      $('prefixOn').addEventListener('change', (e) => {
+        $('prefixChar').disabled = !e.target.checked;
+      });
+
+      // 日期
+      function todayYmd() {
+        const d = new Date();
+        const p = (n) => String(n).padStart(2, '0');
+        return '' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate());
+      }
+      $('datePart').value = todayYmd();
+
+      // 字符集
+      function charsetFromChecks() {
+        let c = '';
+        document.querySelectorAll('.cs').forEach((cb) => {
+          if (!cb.checked) return;
+          if (cb.value === 'upper') c += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+          if (cb.value === 'lower') c += 'abcdefghijklmnopqrstuvwxyz';
+          if (cb.value === 'digit') c += '0123456789';
+        });
+        return c || 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      }
+      function charsetFromRadio() {
+        const v = document.querySelector('input[name="ctype"]:checked').value;
+        if (v === 'digit') return '0123456789';
+        if (v === 'upper') return 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        if (v === 'lower') return 'abcdefghijklmnopqrstuvwxyz';
+        return 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+      }
+      function rnd(str, len) {
+        let s = '';
+        for (let i = 0; i < len; i++) s += str[Math.floor(Math.random() * str.length)];
+        return s;
+      }
+
+      // 唯一性记录
+      const HIST_KEY = 'pkg_gen_history_v1';
+      function loadHist() {
+        try { return new Set(JSON.parse(localStorage.getItem(HIST_KEY) || '[]')); }
+        catch (e) { return new Set(); }
+      }
+      function saveHist(s) { localStorage.setItem(HIST_KEY, JSON.stringify(Array.from(s))); }
+      function updateCount(n) { $('count').textContent = '已生成 ' + n + ' 个不重复'; }
+
+      function buildPattern() {
+        let s = '';
+        if ($('prefixOn').checked) {
+          const pc = $('prefixChar').value.trim();
+          if (pc) s += pc[0];
+        }
+        let p3 = ($('prefix3').value || 'PKG').toUpperCase().replace(/[^A-Z]/g, '').slice(0, 3);
+        while (p3.length < 3) p3 += 'PKG'[p3.length] || 'X';
+        s += p3;
+        s += todayYmd();
+        let len = parseInt($('suffixLen').value, 10);
+        if (isNaN(len) || len < 5) len = 5;
+        s += rnd(charsetFromChecks(), len);
+        return s;
+      }
+
+      function buildRandom() {
+        let first = $('randFirst').value.trim();
+        if (!first) { toast('请填写首字母'); return null; }
+        first = first[0];
+        let len = parseInt($('randLen').value, 10);
+        if (isNaN(len) || len < 2) len = 2;
+        return first + rnd(charsetFromRadio(), len - 1);
+      }
+
+      function generate() {
+        const hist = loadHist();
+        let candidate, tries = 0;
+        do {
+          candidate = mode === 'pattern' ? buildPattern() : buildRandom();
+          if (candidate === null) return;
+          tries++;
+          if (tries > 100) { candidate = candidate + '_' + Date.now().toString(36); break; }
+        } while (hist.has(candidate));
+        hist.add(candidate);
+        saveHist(hist);
+        $('output').textContent = candidate;
+        updateCount(hist.size);
+      }
+
+      function toast(msg) {
+        const t = $('toast');
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 1800);
+      }
+
+      async function copy() {
+        const text = $('output').textContent;
+        if (!text || text === '点击「生成」开始') { toast('请先生成'); return; }
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+          } else {
+            const ta = document.createElement('textarea');
+            ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.select();
+            document.execCommand('copy'); document.body.removeChild(ta);
+          }
+          toast('已复制到剪贴板');
+        } catch (e) {
+          toast('复制失败，请手动复制');
+        }
+      }
+
+      $('genBtn').addEventListener('click', generate);
+      $('copyBtn').addEventListener('click', copy);
+      $('clearBtn').addEventListener('click', () => {
+        if (confirm('确定清空本机生成记录？之后可能生成重复值。')) {
+          localStorage.removeItem(HIST_KEY);
+          updateCount(0);
+          toast('已清空历史');
+        }
+      });
+
+      // 初始化
+      updateCount(loadHist().size);
+      generate();
+    })();
+  </script>
+</body>
+</html>

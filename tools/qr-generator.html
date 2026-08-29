@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>二维码在线生成器</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5f6f8;
+    color: #1f2329;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 22px; margin: 4px 0 4px; }
+  .sub { color: #6b7280; font-size: 13px; margin-bottom: 16px; }
+  .tabs { display: flex; gap: 8px; margin-bottom: 18px; }
+  .tabs button {
+    border: 1px solid #d0d5dd; background: #fff; color: #344054;
+    padding: 9px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;
+  }
+  .tabs button.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+  section { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; }
+  section.hidden { display: none; }
+  .hint { font-size: 13px; color: #667085; background: #f0f6ff; border: 1px solid #d6e4ff; padding: 10px 12px; border-radius: 8px; margin: 0 0 14px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: #344054; margin: 12px 0 6px; }
+  textarea, input[type="file"], select {
+    width: 100%; font-size: 14px; font-family: inherit;
+  }
+  textarea { padding: 10px; border: 1px solid #d0d5dd; border-radius: 8px; resize: vertical; }
+  input[type="file"] { padding: 8px; border: 1px dashed #b6c2d4; border-radius: 8px; background: #fafbfc; }
+  .btn {
+    display: inline-block; border: none; background: #2563eb; color: #fff;
+    padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;
+    margin-top: 12px;
+  }
+  .btn:disabled { background: #b6c2d4; cursor: not-allowed; }
+  .btn.secondary { background: #eef2f6; color: #344054; }
+  .status { font-size: 13px; color: #344054; margin-top: 12px; min-height: 20px; }
+  .status.err { color: #d92d20; }
+  .progress { height: 8px; background: #e5e7eb; border-radius: 6px; margin-top: 12px; overflow: hidden; }
+  .progress.hidden { display: none; }
+  .progress .bar { height: 100%; width: 0; background: #16a34a; transition: width .15s; }
+  .preview { margin-top: 14px; }
+  .preview.hidden { display: none; }
+  .preview table { border-collapse: collapse; width: 100%; font-size: 12px; }
+  .preview td, .preview th { border: 1px solid #e5e7eb; padding: 4px 6px; text-align: left; }
+  .preview img { width: 64px; height: 64px; }
+  .single-results { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 16px; }
+  .res { flex: 1 1 240px; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px; text-align: center; }
+  .res h3 { margin: 0 0 10px; font-size: 15px; }
+  .code-canvas { max-width: 100%; border: 1px solid #eef2f6; background: #fff; padding: 6px; border-radius: 6px; }
+  .row-inline { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .row-inline select { width: auto; padding: 8px; border: 1px solid #d0d5dd; border-radius: 8px; }
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+    background: #1f2329; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 14px;
+    z-index: 50; opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+  .toast.hidden { display: none; }
+  .warn { color:#b54708; background:#fffaeb; border:1px solid #fedf89; padding:10px 12px; border-radius:8px; font-size:13px; margin-bottom:12px; }
+  .warn.hidden { display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🔳 二维码在线生成器</h1>
+  <div class="sub">批量表格打码 · 单条二维码 / 一维码生成</div>
+
+  <div id="libWarn" class="warn hidden"></div>
+
+  <div class="tabs">
+    <button data-tab="batch" class="active">批量表格生成</button>
+    <button data-tab="single">单条生成</button>
+  </div>
+
+  <!-- 批量 -->
+  <section id="batch">
+    <p class="hint">上传 <b>XLS / XLSX / CSV</b>，每个单元格的内容会自动生成对应的二维码；处理完成后可下载带二维码的表格（XLSX）。空单元格不生成。二维码的位置可在下方选择：<b>全部在右</b> · <b>全部在左</b> · <b>一右一左（按行交替）</b>。</p>
+    <label for="fileInput">选择表格文件</label>
+    <input type="file" id="fileInput" accept=".xls,.xlsx,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv">
+    <div class="row-inline" style="margin-top:12px;">
+      <label for="qrPos" style="margin:0;">二维码位置</label>
+      <select id="qrPos">
+        <option value="right">全部在右</option>
+        <option value="left">全部在左</option>
+        <option value="alt">一右一左（交替）</option>
+      </select>
+    </div>
+    <div id="batchStatus" class="status"></div>
+    <div id="batchProgress" class="progress hidden"><div class="bar"></div></div>
+    <div class="row-inline">
+      <button id="batchDownload" class="btn" disabled>下载生成的表格 (XLSX)</button>
+    </div>
+  </section>
+
+  <!-- 单条 -->
+  <section id="single" class="hidden">
+    <label for="singleInput">内容（输入或粘贴要生成码的文本）</label>
+    <textarea id="singleInput" rows="4" placeholder="例如：https://example.com 或 PKG-20260727-AB12C"></textarea>
+    <div class="row-inline">
+      <button id="genQR" class="btn">生成二维码</button>
+      <button id="genBC" class="btn secondary">生成一维码</button>
+      <select id="bcFormat" title="一维码格式">
+        <option value="CODE128">CODE128</option>
+        <option value="CODE39">CODE39</option>
+        <option value="EAN13">EAN13（需12-13位数字）</option>
+        <option value="EAN8">EAN8（需7-8位数字）</option>
+        <option value="UPC">UPC（需12位数字）</option>
+      </select>
+    </div>
+    <div class="single-results">
+      <div class="res">
+        <h3>二维码</h3>
+        <canvas id="qrCanvas" class="code-canvas" width="200" height="200"></canvas>
+        <div><button id="dlQR" class="btn" disabled>下载二维码 PNG</button></div>
+      </div>
+      <div class="res">
+        <h3>一维码</h3>
+        <canvas id="bcCanvas" class="code-canvas" width="320" height="120"></canvas>
+        <div><button id="dlBC" class="btn" disabled>下载一维码 PNG</button></div>
+      </div>
+    </div>
+  </section>
+
+  <div id="toast" class="toast hidden"></div>
+</div>
+
+<script src="lib/qrcode-generator.js"></script>
+<script src="lib/jsbarcode.all.min.js"></script>
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/exceljs.min.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var libsOk = (typeof qrcode !== 'undefined') && (typeof JsBarcode !== 'undefined') &&
+               (typeof XLSX !== 'undefined') && (typeof ExcelJS !== 'undefined');
+  if (!libsOk) {
+    var w = $('libWarn');
+    w.classList.remove('hidden');
+    w.textContent = '部分依赖库未加载成功，请确认 tools/lib 下的 qrcode-generator.js / jsbarcode.all.min.js / xlsx.full.min.js / exceljs.min.js 已随站点一同发布。';
+  }
+
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.remove('hidden');
+    requestAnimationFrame(function () { t.classList.add('show'); });
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () {
+      t.classList.remove('show');
+      setTimeout(function () { t.classList.add('hidden'); }, 220);
+    }, 2200);
+  }
+
+  // 标签切换
+  document.querySelectorAll('.tabs button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.tabs button').forEach(function (x) { x.classList.remove('active'); });
+      b.classList.add('active');
+      var tab = b.getAttribute('data-tab');
+      $('batch').classList.toggle('hidden', tab !== 'batch');
+      $('single').classList.toggle('hidden', tab !== 'single');
+    });
+  });
+
+  // 生成 PNG dataURL（qrcode-generator 输出 gif，转成 png 以兼容 ExcelJS）
+  function makeQrPng(text, cellSize, margin) {
+    cellSize = cellSize || 6;
+    margin = margin || 2;
+    return new Promise(function (resolve, reject) {
+      try {
+        var qr = qrcode(0, 'M');
+        qr.addData(text);
+        qr.make();
+        var gif = qr.createDataURL(cellSize, margin);
+        var img = new Image();
+        img.onload = function () {
+          var c = document.createElement('canvas');
+          c.width = img.width; c.height = img.height;
+          c.getContext('2d').drawImage(img, 0, 0);
+          resolve(c.toDataURL('image/png'));
+        };
+        img.onerror = function () { reject(new Error('二维码渲染失败')); };
+        img.src = gif;
+      } catch (e) { reject(e); }
+    });
+  }
+
+  function downloadBlob(blob, filename) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+  }
+  function downloadDataUrl(dataUrl, filename) {
+    var a = document.createElement('a');
+    a.href = dataUrl; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+
+  // ---------- 批量 ----------
+  var batchBlob = null;
+
+  function readRows(file) {
+    return new Promise(function (resolve, reject) {
+      var name = (file.name || '').toLowerCase();
+      if (name.endsWith('.csv')) {
+        file.text().then(function (text) {
+          try {
+            var wb = XLSX.read(text, { type: 'string' });
+            resolve(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' }));
+          } catch (e) { reject(e); }
+        }).catch(reject);
+      } else {
+        file.arrayBuffer().then(function (buf) {
+          try {
+            var wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+            resolve(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' }));
+          } catch (e) { reject(e); }
+        }).catch(reject);
+      }
+    });
+  }
+
+  function setProgress(done, total) {
+    var p = $('batchProgress');
+    var bar = p.querySelector('.bar');
+    if (total > 0) {
+      p.classList.remove('hidden');
+      bar.style.width = Math.round((done / total) * 100) + '%';
+    }
+  }
+
+  $('fileInput').addEventListener('change', function (e) {
+    var file = e.target.files[0];
+    if (!file) return;
+    if (!libsOk) { toast('依赖库未就绪，无法处理'); return; }
+    handleBatch(file);
+    e.target.value = '';
+  });
+
+  async function handleBatch(file) {
+    batchBlob = null;
+    $('batchDownload').disabled = true;
+    var status = $('batchStatus');
+    status.className = 'status';
+    status.textContent = '正在读取「' + file.name + '」…';
+    try {
+      var rows = await readRows(file);
+      var maxCols = 0;
+      rows.forEach(function (r) { if (r && r.length > maxCols) maxCols = r.length; });
+      if (maxCols === 0) { status.textContent = '文件中没有可读取的内容。'; return; }
+
+      status.textContent = '正在生成二维码…';
+      var qrMode = ($('qrPos') && $('qrPos').value) || 'right';
+      var out = new ExcelJS.Workbook();
+      out.creator = '二维码在线生成器';
+      out.created = new Date();
+      var ws = out.addWorksheet('二维码');
+
+      // 每对输出列：data 列宽 24、qr 列宽 14；按位置模式决定哪列放 data
+      var cols = [];
+      for (var c = 0; c < maxCols; c++) {
+        var wideFirst; // 第一列(0-based 2c)是否为 data
+        if (qrMode === 'left') wideFirst = false;
+        else if (qrMode === 'alt') wideFirst = null; // 按行交替：两列都可能放 data，统一宽度
+        else wideFirst = true; // right：第一列是 data
+        if (wideFirst === null) {
+          cols.push({ width: 20 });
+          cols.push({ width: 20 });
+        } else {
+          cols.push({ width: wideFirst ? 24 : 14 });
+          cols.push({ width: wideFirst ? 14 : 24 });
+        }
+      }
+      ws.columns = cols;
+
+      // 统计非空单元格总数（进度用）
+      var total = 0;
+      rows.forEach(function (r) {
+        (r || []).forEach(function (v) {
+          if (v !== undefined && v !== null && String(v).trim() !== '') total++;
+        });
+      });
+      var done = 0;
+      setProgress(0, total);
+
+      for (var r = 0; r < rows.length; r++) {
+        var row = rows[r] || [];
+        var excelRow = ws.getRow(r + 1);
+        excelRow.height = 76;
+        for (var c2 = 0; c2 < maxCols; c2++) {
+          var val = (row[c2] !== undefined && row[c2] !== null) ? String(row[c2]) : '';
+          // 计算二维码列（0-based）与数据列（1-based）
+          var qrCol0, dataCol1;
+          if (qrMode === 'left') {
+            qrCol0 = 2 * c2;        // 二维码在左
+            dataCol1 = 2 * c2 + 2;  // 数据在右
+          } else if (qrMode === 'alt') {
+            // 按行交替：偶数行二维码在右，奇数行二维码在左
+            if (r % 2 === 0) { qrCol0 = 2 * c2 + 1; dataCol1 = 2 * c2 + 1; }
+            else { qrCol0 = 2 * c2; dataCol1 = 2 * c2 + 2; }
+          } else { // right（默认）
+            qrCol0 = 2 * c2 + 1;    // 二维码在右
+            dataCol1 = 2 * c2 + 1;  // 数据在左
+          }
+          excelRow.getCell(dataCol1).value = val;
+          if (val.trim() !== '') {
+            var png = await makeQrPng(val);
+            var b64 = png.split(',')[1];
+            var imgId = out.addImage({ base64: b64, extension: 'png' });
+            ws.addImage(imgId, { tl: { col: qrCol0, row: r }, ext: { width: 92, height: 92 } });
+            done++;
+            setProgress(done, total);
+          }
+        }
+      }
+
+      status.textContent = '正在打包 XLSX…';
+      var buf = await out.xlsx.writeBuffer();
+      batchBlob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      $('batchProgress').classList.add('hidden');
+      $('batchDownload').disabled = false;
+      status.textContent = '已完成：' + done + ' 个二维码。点击按钮下载。';
+      toast('二维码表格已生成');
+    } catch (err) {
+      status.className = 'status err';
+      status.textContent = '处理失败：' + (err && err.message ? err.message : err);
+      console.error(err);
+    }
+  }
+
+  $('batchDownload').addEventListener('click', function () {
+    if (!batchBlob) return;
+    downloadBlob(batchBlob, '二维码表格_' + Date.now() + '.xlsx');
+  });
+
+  // ---------- 单条 ----------
+  var qrDataUrl = null;
+
+  $('genQR').addEventListener('click', async function () {
+    if (!libsOk) { toast('依赖库未就绪'); return; }
+    var text = $('singleInput').value.trim();
+    if (!text) { toast('请输入内容'); return; }
+    try {
+      var png = await makeQrPng(text);
+      qrDataUrl = png;
+      var img = new Image();
+      img.onload = function () {
+        var cv = $('qrCanvas');
+        cv.width = img.width; cv.height = img.height;
+        cv.getContext('2d').drawImage(img, 0, 0);
+        $('dlQR').disabled = false;
+      };
+      img.src = png;
+      toast('二维码已生成');
+    } catch (e) {
+      $('batchStatus').textContent = '';
+      toast('生成失败');
+    }
+  });
+
+  $('genBC').addEventListener('click', function () {
+    if (!libsOk) { toast('依赖库未就绪'); return; }
+    var text = $('singleInput').value.trim();
+    if (!text) { toast('请输入内容'); return; }
+    try {
+      JsBarcode($('bcCanvas'), text, {
+        format: $('bcFormat').value,
+        displayValue: true,
+        width: 2,
+        height: 70,
+        margin: 10,
+        fontSize: 16,
+        lineColor: '#000000',
+        background: '#ffffff'
+      });
+      $('dlBC').disabled = false;
+      toast('一维码已生成');
+    } catch (e) {
+      $('dlBC').disabled = true;
+      toast('该内容无法用「' + $('bcFormat').value + '」生成，请换格式或检查内容');
+      console.error(e);
+    }
+  });
+
+  $('dlQR').addEventListener('click', function () {
+    if (qrDataUrl) downloadDataUrl(qrDataUrl, '二维码_' + Date.now() + '.png');
+  });
+  $('dlBC').addEventListener('click', function () {
+    try {
+      downloadDataUrl($('bcCanvas').toDataURL('image/png'), '一维码_' + Date.now() + '.png');
+    } catch (e) { toast('导出失败'); }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>图片放大器（智能放大不模糊）</title>
+<style>
+:root{
+  --primary:#4f6dce; --primary-dark:#3a55a8;
+  --bg:#eef1f8; --card:#ffffff; --text:#1f2533; --muted:#7a8295; --border:#dde2ee;
+  --green:#16a34a;
+}
+*{box-sizing:border-box;}
+body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); line-height:1.6;}
+header{background:linear-gradient(135deg,#4f6dce,#3a55a8); color:#fff; padding:22px 16px; text-align:center;}
+header h1{margin:0; font-size:22px;}
+header p{margin:4px 0 0; font-size:13px; opacity:.92;}
+.wrap{max-width:820px; margin:0 auto; padding:18px 16px 40px;}
+.card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:16px;}
+.card h2{font-size:16px; margin:0 0 12px; display:flex; align-items:center; gap:8px;}
+.num{display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:var(--primary); color:#fff; font-size:13px; font-weight:700; flex:none;}
+.row{display:flex; gap:12px; align-items:center; margin-bottom:12px; flex-wrap:wrap;}
+label{font-size:13px; font-weight:600; min-width:88px;}
+select,input[type=number]{font-family:inherit; padding:8px 10px; border:1px solid var(--border); border-radius:8px; font-size:14px; background:#fff; min-width:110px;}
+.scale-num{flex:0 0 84px; width:84px; min-width:84px; text-align:center;}
+.btn{display:inline-block; border:none; border-radius:9px; padding:9px 18px; font-size:14px; font-weight:600; cursor:pointer; background:var(--primary); color:#fff; text-decoration:none; transition:.15s; font-family:inherit;}
+.btn:hover{background:var(--primary-dark);}
+.btn:disabled{opacity:.5; cursor:not-allowed;}
+.btn-outline{background:#fff; color:var(--primary); border:1px solid var(--primary);}
+.btn-outline:hover{background:#f0f3fc;}
+.meta{font-size:13px; color:var(--muted); margin-top:6px;}
+.hint{font-size:12px; color:var(--muted);}
+.progress{height:10px; background:#e3e8f4; border-radius:6px; overflow:hidden; margin-top:12px; display:none;}
+.bar{height:100%; width:0; background:var(--primary); transition:width .12s;}
+#status{font-size:13px; color:var(--muted); margin-top:8px; min-height:18px;}
+.note{font-size:12px; color:var(--muted); background:#fff; border:1px solid var(--border); border-radius:12px; padding:14px; line-height:1.7;}
+.note b{color:var(--text);}
+#resultCanvas{max-width:100%; border:1px solid var(--border); border-radius:8px; margin-top:12px; background:#fff; display:none; image-rendering:auto;}
+#origThumb{max-width:100%; border:1px solid var(--border); border-radius:8px; background:#fff; display:none;}
+input[type=file]{font-size:13px;}
+.drop{dash:none; border:2px dashed var(--border); border-radius:12px; padding:22px; text-align:center; color:var(--muted); cursor:pointer; transition:.15s; font-size:14px;}
+.drop.hover{border-color:var(--primary); background:#f3f6ff; color:var(--primary);}
+.pill{display:inline-block; padding:2px 10px; border-radius:999px; background:#eef1f8; color:var(--muted); font-size:12px;}
+.compare{display:flex; gap:14px; flex-wrap:wrap; margin-top:10px;}
+.compare figure{margin:0; flex:1 1 240px; text-align:center;}
+.compare figcaption{font-size:12px; color:var(--muted); margin-top:6px;}
+.slider-row{display:flex; align-items:center; gap:10px;}
+input[type=range]{flex:1; accent-color:var(--primary);}
+.seg{display:inline-flex; border:1px solid var(--border); border-radius:9px; overflow:hidden;}
+.seg button{border:none; background:#fff; padding:8px 14px; font-size:13px; cursor:pointer; font-family:inherit; color:var(--text);}
+.seg button.active{background:var(--primary); color:#fff;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🔍 图片放大器</h1>
+    <p>智能补全像素 · 放大后仍清晰不模糊（本地处理，不上传）</p>
+  </header>
+
+  <div class="card">
+    <h2><span class="num">1</span> 上传图片</h2>
+    <div class="drop" id="drop">点击选择，或将图片拖拽到此处</div>
+    <input type="file" id="file" accept="image/*" style="display:none;">
+    <div class="meta" id="meta">尚未选择图片</div>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">2</span> 放大设置</h2>
+    <div class="row">
+      <label>放大倍数</label>
+      <div class="slider-row" style="flex:1; min-width:240px;">
+        <input type="range" id="scaleRange" min="1" max="8" step="0.1" value="2">
+        <input type="number" id="scaleInput" min="1" max="8" step="0.1" value="2" class="scale-num">
+        <span class="pill" id="scaleVal">2.0×</span>
+      </div>
+    </div>
+    <div class="row">
+      <label>快速预设</label>
+      <div class="seg" id="scaleSeg">
+        <button data-scale="1.5">1.5×</button>
+        <button data-scale="2" class="active">2×</button>
+        <button data-scale="3">3×</button>
+        <button data-scale="4">4×</button>
+      </div>
+      <span class="hint">支持任意小数倍（1.0–8.0），如 1.5×、2.5×、3.3×</span>
+    </div>
+    <div class="row">
+      <label>智能锐化</label>
+      <div class="slider-row" style="flex:1; min-width:220px;">
+        <input type="range" id="sharp" min="0" max="100" value="60">
+        <span class="pill" id="sharpVal">60%</span>
+      </div>
+    </div>
+    <div class="row">
+      <label>放大模式</label>
+      <div class="seg" id="modeSeg">
+        <button data-mode="smart" class="active">智能（推荐）</button>
+        <button data-mode="smooth">平滑</button>
+        <button data-mode="pixel">像素风</button>
+      </div>
+      <span class="hint">智能：保真又锐利；平滑：最柔；像素：硬边放大</span>
+    </div>
+    <div class="row">
+      <label>输出格式</label>
+      <select id="fmt">
+        <option value="png" selected>PNG（无损）</option>
+        <option value="jpeg">JPEG（更小）</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">3</span> 开始放大</h2>
+    <button class="btn" id="run" disabled>请先上传图片</button>
+    <div class="progress" id="prog"><div class="bar" id="bar"></div></div>
+    <div id="status"></div>
+  </div>
+
+  <div class="card" id="outCard" style="display:none;">
+    <h2><span class="num">4</span> 放大结果</h2>
+    <div class="compare">
+      <figure>
+        <img id="origThumb" alt="原图">
+        <figcaption id="origCap">原图</figcaption>
+      </figure>
+      <figure style="flex:2 1 320px;">
+        <canvas id="resultCanvas"></canvas>
+        <figcaption id="resCap">放大后</figcaption>
+      </figure>
+    </div>
+    <div class="row" style="margin-top:14px;">
+      <button class="btn" id="dl">下载结果</button>
+      <button class="btn btn-outline" id="dlJpeg">下载为 JPEG</button>
+      <span class="pill" id="sizePill"></span>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>原理：</b>相比浏览器默认的「拉伸放大」（会发虚、糊），本工具先用 <b>兰佐斯(Lanczos-3)</b> 重采样保留干净的渐变与边缘，再与「临近像素」做<b>智能混合</b>把被平滑掉的细节补回来——放大后文字、线条、纹理依旧锐利，不会糊成一团。<br>
+    <b>智能锐化</b>滑块越高越清晰（0%=纯兰佐斯平滑，100%=硬像素）；<b>照片</b>建议 30–60%，<b>截图/文字/图标</b>建议 70–100%。<br>
+    <b>放大倍数</b>支持 1.0–8.0 的任意值（含小数，如 1.5×、2.5×、3.3×）：拖动滑块或直接输入数字即可，输出边长 = 原边长 × 倍数（自动限制单边 ≤8000px）。
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const $ = (id)=>document.getElementById(id);
+  const fmtX = (v)=> (Math.round(v*10)/10)+'×';
+  const fileInput=$('file'), drop=$('drop'), meta=$('meta'), runBtn=$('run');
+  const sharp=$('sharp'), sharpVal=$('sharpVal');
+  const scaleSeg=$('scaleSeg'), modeSeg=$('modeSeg'), fmtSel=$('fmt');
+  const scaleRange=$('scaleRange'), scaleInput=$('scaleInput'), scaleVal=$('scaleVal');
+  const prog=$('prog'), bar=$('bar'), statusEl=$('status');
+  const outCard=$('outCard'), canvas=$('resultCanvas'), origThumb=$('origThumb');
+  const origCap=$('origCap'), resCap=$('resCap'), sizePill=$('sizePill');
+  const dlBtn=$('dl'), dlJpegBtn=$('dlJpeg');
+
+  let imgData=null, srcW=0, srcH=0, curScale=2, curMode='smart';
+
+  // ---- UI 绑定 ----
+  drop.addEventListener('click',()=>fileInput.click());
+  fileInput.addEventListener('change',e=>{ if(e.target.files[0]) loadFile(e.target.files[0]); });
+  ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('hover');}));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('hover');}));
+  drop.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f&&f.type.startsWith('image/')) loadFile(f); });
+
+  sharp.addEventListener('input',()=>sharpVal.textContent=sharp.value+'%');
+  function setScale(v){
+    v=Math.min(8,Math.max(1,(+v)||1));
+    curScale=v;
+    scaleRange.value=v; scaleInput.value=v;
+    const txt=fmtX(v);
+    scaleVal.textContent=txt;
+    if(imgData) runBtn.textContent='开始放大（'+txt+'）';
+  }
+  scaleSeg.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; [...scaleSeg.children].forEach(x=>x.classList.remove('active')); b.classList.add('active'); setScale(b.dataset.scale); });
+  scaleRange.addEventListener('input',()=>setScale(scaleRange.value));
+  scaleInput.addEventListener('input',()=>{ const v=+scaleInput.value; if(v>=1&&v<=8) setScale(v); });
+  modeSeg.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b)return; [...modeSeg.children].forEach(x=>x.classList.remove('active')); b.classList.add('active'); curMode=b.dataset.mode; });
+
+  runBtn.addEventListener('click',run);
+
+  function loadFile(file){
+    meta.textContent='读取中…';
+    const url=URL.createObjectURL(file);
+    const img=new Image();
+    img.onload=()=>{
+      const maxSrc=4000;
+      let w=img.naturalWidth, h=img.naturalHeight;
+      // 限制超大图，避免内存/性能问题
+      if(Math.max(w,h)>maxSrc){ const r=maxSrc/Math.max(w,h); w=Math.round(w*r); h=Math.round(h*r); }
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      const cx=c.getContext('2d'); cx.drawImage(img,0,0,w,h);
+      imgData=cx.getImageData(0,0,w,h);
+      srcW=w; srcH=h; URL.revokeObjectURL(url);
+      origThumb.src=c.toDataURL('image/png'); origThumb.style.display='block';
+      origCap.textContent='原图（'+srcW+'×'+srcH+'）';
+      meta.textContent='已载入：'+srcW+'×'+srcH+' px，'+Math.round(file.size/1024)+' KB';
+      runBtn.disabled=false; runBtn.textContent='开始放大（'+fmtX(curScale)+'×）';
+    };
+    img.onerror=()=>{ meta.textContent='图片读取失败'; URL.revokeObjectURL(url); };
+    img.src=url;
+  }
+
+  // ---- 算法 ----
+  function lanczos(d,a){
+    if(d===0) return 1;
+    if(d<=-a||d>=a) return 0;
+    const px=Math.PI*d;
+    return a*Math.sin(px)*Math.sin(px/a)/(px*px);
+  }
+  // 为 1D 重采样预计算贡献表：每个目标索引 -> [[源索引,权重]...]（已归一化）
+  function buildContrib(srcSize,dstSize,a){
+    const scale=dstSize/srcSize;
+    const contribs=new Array(dstSize);
+    for(let i=0;i<dstSize;i++){
+      const center=(i+0.5)/scale-0.5;
+      const left=Math.floor(center-a+0.5);
+      const right=Math.floor(center+a-0.5);
+      const list=[]; let wsum=0;
+      for(let j=left;j<=right;j++){
+        if(j<0||j>=srcSize) continue;
+        const w=lanczos(center-j,a);
+        if(w===0) continue;
+        list.push([j,w]); wsum+=w;
+      }
+      if(wsum>0){ for(let k=0;k<list.length;k++) list[k][1]/=wsum; }
+      else { list.push([Math.max(0,Math.min(srcSize-1,i)),1]); }
+      contribs[i]=list;
+    }
+    return contribs;
+  }
+  const clamp255=(v)=> v<0?0:(v>255?255:v);
+
+  const yieldUI=()=>new Promise(r=>setTimeout(r,0));
+
+  async function run(){
+    if(!imgData) return;
+    runBtn.disabled=true; prog.style.display='block'; bar.style.width='0%'; statusEl.textContent='准备中…';
+    outCard.style.display='none';
+    const k=+sharp.value/100;
+    const scale=curScale, mode=curMode;
+    let dw=Math.round(srcW*scale), dh=Math.round(srcH*scale);
+    const MAXOUT=8000;
+    if(Math.max(dw,dh)>MAXOUT){ const r=MAXOUT/Math.max(dw,dh); dw=Math.round(dw*r); dh=Math.round(dh*r); statusEl.textContent='输出超过 '+MAXOUT+'px，已自动限制为 '+dw+'×'+dh; }
+
+    const src=imgData.data;
+    const t0=performance.now();
+
+    // 倍数 k 由模式决定
+    let kUse=k;
+    if(mode==='smooth') kUse=0;
+    else if(mode==='pixel') kUse=1;
+
+    // 1) 横向兰佐斯：srcW×srcH -> dw×srcH
+    statusEl.textContent='步骤 1/2：横向重采样…';
+    const hc=buildContrib(srcW,dw,3);
+    const hbuf=new Float32Array(dw*srcH*4);
+    for(let y=0;y<srcH;y++){
+      const rowOff=y*srcW*4, hoff=y*dw*4;
+      for(let x=0;x<dw;x++){
+        const contrib=hc[x];
+        let r=0,g=0,b=0,a=0;
+        for(let c=0;c<contrib.length;c++){
+          const sx=contrib[c][0], w=contrib[c][1];
+          const so=rowOff+sx*4;
+          r+=src[so]*w; g+=src[so+1]*w; b+=src[so+2]*w; a+=src[so+3]*w;
+        }
+        const o=hoff+x*4; hbuf[o]=r; hbuf[o+1]=g; hbuf[o+2]=b; hbuf[o+3]=a;
+      }
+    }
+
+    // 2) 纵向兰佐斯 + 与临近像素智能混合：dw×srcH -> dw×dh
+    statusEl.textContent='步骤 2/2：纵向重采样 + 智能补细节…';
+    const vc=buildContrib(srcH,dh,3);
+    const out=canvas.getContext('2d').createImageData(dw,dh);
+    const res=out.data;
+    const CHUNK=32;
+    const invScale=1/scale;
+    for(let y0=0;y0<dh;y0+=CHUNK){
+      const y1=Math.min(dh,y0+CHUNK);
+      for(let y=y0;y<y1;y++){
+        const contrib=vc[y];
+        const ny=Math.floor(y*invScale);
+        const nyOff=ny*srcW;
+        for(let x=0;x<dw;x++){
+          let r=0,g=0,b=0,a=0;
+          for(let c=0;c<contrib.length;c++){
+            const sy=contrib[c][0], w=contrib[c][1];
+            const ho=(sy*dw+x)*4;
+            r+=hbuf[ho]*w; g+=hbuf[ho+1]*w; b+=hbuf[ho+2]*w; a+=hbuf[ho+3]*w;
+          }
+          const nx=Math.floor(x*invScale);
+          const no=(nyOff+nx)*4;
+          const kk=kUse;
+          const o=(y*dw+x)*4;
+          res[o]  = clamp255(r*(1-kk)+src[no]  *kk);
+          res[o+1]= clamp255(g*(1-kk)+src[no+1]*kk);
+          res[o+2]= clamp255(b*(1-kk)+src[no+2]*kk);
+          res[o+3]= clamp255(a*(1-kk)+src[no+3]*kk);
+        }
+      }
+      bar.style.width=Math.round((y1/dh)*100)+'%';
+      await yieldUI();
+    }
+
+    canvas.width=dw; canvas.height=dh;
+    canvas.getContext('2d').putImageData(out,0,0);
+    canvas.style.display='block';
+    const ms=Math.round(performance.now()-t0);
+    const fmt=fmtSel.value;
+    resCap.textContent='放大后 '+dw+'×'+dh+'（'+(fmt==='png'?'PNG':'JPEG')+'）';
+    sizePill.textContent='用时 '+ms+' ms · 输出 '+dw+'×'+dh;
+    outCard.style.display='block';
+    statusEl.textContent='完成！可下载或调整锐化后重试。';
+    runBtn.disabled=false; runBtn.textContent='重新放大（'+fmtX(curScale)+'×）';
+    outCard.scrollIntoView({behavior:'smooth',block:'start'});
+  }
+
+  function download(type){
+    if(!canvas.width) return;
+    const mime=type==='jpeg'?'image/jpeg':'image/png';
+    const q=type==='jpeg'?0.92:undefined;
+    canvas.toBlob(b=>{
+      if(!b){ statusEl.textContent='下载失败，请尝试「新窗口打开」后另存。'; return; }
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(b);
+      a.download='放大图_'+canvas.width+'x'+canvas.height+'.'+(type==='jpeg'?'jpg':'png');
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+    }, mime, q);
+  }
+  dlBtn.addEventListener('click',()=>download(fmtSel.value==='jpeg'?'jpeg':'png'));
+  dlJpegBtn.addEventListener('click',()=>download('jpeg'));
+})();
+</script>
+</body>
+</html>

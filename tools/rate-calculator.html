@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>存贷款利率计算器</title>
+<style>
+:root{
+  --primary:#0e8a5f; --primary-dark:#0a6e4b;
+  --bg:#f1f7f4; --card:#ffffff; --text:#1f2a37; --muted:#6b7785; --border:#e1ece7;
+}
+*{box-sizing:border-box;}
+body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); line-height:1.6;}
+header{background:linear-gradient(135deg,#0e8a5f,#0a6e4b); color:#fff; padding:22px 16px; text-align:center;}
+header h1{margin:0; font-size:22px;}
+header p{margin:4px 0 0; font-size:13px; opacity:.92;}
+.wrap{max-width:860px; margin:0 auto; padding:18px 16px 50px;}
+.card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px 18px; margin-bottom:14px;}
+.tabs{display:flex; gap:10px; margin-bottom:14px;}
+.tab{flex:1; text-align:center; padding:12px; border:1px solid var(--border); border-radius:11px; font-size:15px; font-weight:600; background:#fff; color:var(--muted); cursor:pointer; transition:.12s; font-family:inherit;}
+.tab.active{background:var(--primary); border-color:var(--primary); color:#fff;}
+.row{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:11px 0;}
+.row > label{flex:0 0 110px; font-size:14px; color:var(--text);}
+.row .ctl{flex:1; min-width:150px; display:flex; align-items:center; gap:8px;}
+input[type=number],select{font-family:inherit; padding:9px 11px; border:1px solid var(--border); border-radius:9px; font-size:14px; background:#fff; color:var(--text); width:100%;}
+input[type=number]:focus,select:focus{outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(14,138,95,.15);}
+.seg{display:inline-flex; border:1px solid var(--border); border-radius:9px; overflow:hidden;}
+.seg button{border:none; background:#fff; padding:9px 14px; font-size:14px; cursor:pointer; font-family:inherit; color:var(--muted);}
+.seg button.active{background:var(--primary); color:#fff;}
+.hint{font-size:12px; color:var(--muted); margin-top:6px;}
+.presets{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;}
+.preset{padding:4px 11px; border:1px solid var(--border); border-radius:999px; font-size:12px; background:#fff; color:var(--muted); cursor:pointer; font-family:inherit;}
+.preset:hover{border-color:var(--primary); color:var(--primary);}
+.calc-btn{width:100%; margin-top:6px; padding:13px; border:none; border-radius:11px; font-size:15px; font-weight:700; background:var(--primary); color:#fff; cursor:pointer; font-family:inherit;}
+.calc-btn:hover{background:var(--primary-dark);}
+.hidden{display:none;}
+.result{margin-top:4px;}
+.rrow{display:flex; justify-content:space-between; align-items:baseline; padding:9px 2px; border-bottom:1px dashed var(--border);}
+.rrow:last-child{border-bottom:none;}
+.rrow .k{font-size:14px; color:var(--muted);}
+.rrow .v{font-size:17px; font-weight:700; color:var(--primary-dark); font-variant-numeric:tabular-nums;}
+.rrow .v small{font-size:12px; color:var(--muted); font-weight:400; margin-left:3px;}
+.note{font-size:12px; color:var(--muted); background:#f3f8f5; border-radius:9px; padding:9px 11px; margin-top:10px; line-height:1.55;}
+.err{color:#c0392b; font-size:13px; margin-top:8px; min-height:18px;}
+.sched-toggle{margin-top:12px;}
+.sched-toggle button{border:1px solid var(--border); background:#fff; color:var(--primary); border-radius:9px; padding:8px 14px; font-size:13px; cursor:pointer; font-family:inherit;}
+.sched{margin-top:10px; max-height:320px; overflow:auto; border:1px solid var(--border); border-radius:10px;}
+table{width:100%; border-collapse:collapse; font-size:13px;}
+th,td{padding:7px 9px; text-align:right; border-bottom:1px solid var(--border); font-variant-numeric:tabular-nums;}
+th{position:sticky; top:0; background:var(--primary); color:#fff; font-weight:600;}
+td:first-child,th:first-child{text-align:center;}
+tr:nth-child(even){background:#f7faf8;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>💰 存贷款利率计算器</h1>
+    <p>输入存 / 贷款方式、期数与银行利率，算出每月利息收入或每月应还金额</p>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-mode="dep">🏦 存款利息</div>
+    <div class="tab" data-mode="loan">💸 贷款还款</div>
+  </div>
+
+  <!-- ===== 存款 ===== -->
+  <div class="card" id="depCard">
+    <div class="row">
+      <label>存款方式</label>
+      <div class="ctl">
+        <div class="seg" id="depSeg">
+          <button data-dep="zheng" class="active">整存整取</button>
+          <button data-dep="ling">零存整取</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="zhengFields">
+      <div class="row">
+        <label>一次性本金</label>
+        <div class="ctl"><input type="number" id="depPrincipal" placeholder="如 100000" min="0" step="any"><span class="hint" style="flex:0 0 auto">元</span></div>
+      </div>
+      <div class="row">
+        <label>计息方式</label>
+        <div class="ctl">
+          <div class="seg" id="depIntSeg">
+            <button data-int="simple" class="active">单利</button>
+            <button data-int="compound">按月复利</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="lingFields" class="hidden">
+      <div class="row">
+        <label>每月存入</label>
+        <div class="ctl"><input type="number" id="depMonthly" placeholder="如 2000" min="0" step="any"><span class="hint" style="flex:0 0 auto">元</span></div>
+      </div>
+    </div>
+
+    <div class="row">
+      <label>银行年利率</label>
+      <div class="ctl"><input type="number" id="depRate" placeholder="如 1.5" min="0" step="any"><span class="hint" style="flex:0 0 auto">%</span></div>
+    </div>
+    <div class="row">
+      <label>期限（期数）</label>
+      <div class="ctl"><input type="number" id="depMonths" placeholder="如 12" min="1" step="1"><span class="hint" style="flex:0 0 auto">月</span></div>
+    </div>
+    <div class="presets" id="depPresets">
+      <span class="preset" data-m="3">3月</span><span class="preset" data-m="6">6月</span>
+      <span class="preset" data-m="12">1年</span><span class="preset" data-m="24">2年</span>
+      <span class="preset" data-m="36">3年</span><span class="preset" data-m="60">5年</span>
+    </div>
+    <div class="err" id="depErr"></div>
+    <button class="calc-btn" id="depCalc">计算存款收益</button>
+    <div class="result" id="depResult"></div>
+  </div>
+
+  <!-- ===== 贷款 ===== -->
+  <div class="card hidden" id="loanCard">
+    <div class="row">
+      <label>还款方式</label>
+      <div class="ctl">
+        <div class="seg" id="loanSeg">
+          <button data-loan="equal" class="active">等额本息</button>
+          <button data-loan="principal">等额本金</button>
+        </div>
+      </div>
+    </div>
+    <div class="row">
+      <label>贷款金额</label>
+      <div class="ctl"><input type="number" id="loanPrincipal" placeholder="如 1000000" min="0" step="any"><span class="hint" style="flex:0 0 auto">元</span></div>
+    </div>
+    <div class="row">
+      <label>贷款年利率</label>
+      <div class="ctl"><input type="number" id="loanRate" placeholder="如 4.2" min="0" step="any"><span class="hint" style="flex:0 0 auto">%</span></div>
+    </div>
+    <div class="row">
+      <label>期限（期数）</label>
+      <div class="ctl"><input type="number" id="loanMonths" placeholder="如 360" min="1" step="1"><span class="hint" style="flex:0 0 auto">月</span></div>
+    </div>
+    <div class="presets" id="loanPresets">
+      <span class="preset" data-m="12">1年</span><span class="preset" data-m="60">5年</span>
+      <span class="preset" data-m="120">10年</span><span class="preset" data-m="240">20年</span>
+      <span class="preset" data-m="360">30年</span>
+    </div>
+    <div class="err" id="loanErr"></div>
+    <button class="calc-btn" id="loanCalc">计算每月还款</button>
+    <div class="result" id="loanResult"></div>
+  </div>
+</div>
+
+<script>
+// ---------- 工具函数 ----------
+function num(id){ return parseFloat(document.getElementById(id).value); }
+function r2(n){ return (Math.round(n*100)/100).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function isPos(v){ return !isNaN(v) && v>0; }
+
+// ---------- Tab 切换 ----------
+let mode='dep';
+document.querySelectorAll('.tab').forEach(t=>{
+  t.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    mode=t.dataset.mode;
+    document.getElementById('depCard').classList.toggle('hidden', mode!=='dep');
+    document.getElementById('loanCard').classList.toggle('hidden', mode!=='loan');
+  });
+});
+
+// ---------- 存款子选项 ----------
+let depType='zheng', depInt='simple';
+document.querySelectorAll('#depSeg button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('#depSeg button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active'); depType=b.dataset.dep;
+    document.getElementById('zhengFields').classList.toggle('hidden', depType!=='zheng');
+    document.getElementById('lingFields').classList.toggle('hidden', depType!=='ling');
+  });
+});
+document.querySelectorAll('#depIntSeg button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('#depIntSeg button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active'); depInt=b.dataset.int;
+  });
+});
+
+// ---------- 贷款还款方式 ----------
+let loanType='equal';
+document.querySelectorAll('#loanSeg button').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('#loanSeg button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active'); loanType=b.dataset.loan;
+  });
+});
+
+// ---------- 期数预设 ----------
+document.querySelectorAll('#depPresets .preset').forEach(p=>{
+  p.addEventListener('click',()=>{ document.getElementById('depMonths').value=p.dataset.m; });
+});
+document.querySelectorAll('#loanPresets .preset').forEach(p=>{
+  p.addEventListener('click',()=>{ document.getElementById('loanMonths').value=p.dataset.m; });
+});
+
+// ---------- 存款计算 ----------
+function calcDeposit(){
+  const rate=num('depRate'), months=Math.round(num('depMonths'));
+  const err=document.getElementById('depErr'); err.textContent='';
+  if(!isPos(rate)){ err.textContent='请填写有效的银行年利率'; return; }
+  if(!(months>=1)){ err.textContent='请填写有效的期限（期数，单位：月）'; return; }
+  const r=rate/100/12;
+  let html='';
+  if(depType==='zheng'){
+    const P=num('depPrincipal');
+    if(!isPos(P)){ err.textContent='请填写有效的一次性本金'; return; }
+    if(depInt==='simple'){
+      const totalInt=P*r*months;
+      const monthInt=totalInt/months;
+      const maturity=P+totalInt;
+      html=row('每月利息收入（固定）', r2(monthInt), '元')
+          +row('到期总利息', r2(totalInt), '元')
+          +row('到期本息合计', r2(maturity), '元')
+          +note('整存整取按单利计息，利息于到期日一次性支付；每月利息为应计收益（'+r2(P*r)+' 元/月）。');
+    } else {
+      const maturity=P*Math.pow(1+r,months);
+      const totalInt=maturity-P;
+      const monthAvg=totalInt/months;
+      const firstInt=P*r;
+      const lastPrinc=P*Math.pow(1+r,months-1);
+      const lastInt=lastPrinc*r;
+      html=row('首月利息收入', r2(firstInt), '元')
+          +row('末月利息收入', r2(lastInt), '元')
+          +row('月均利息收入', r2(monthAvg), '元')
+          +row('到期总利息', r2(totalInt), '元')
+          +row('到期本息合计', r2(maturity), '元')
+          +note('按月复利：每月利息随本金增长而递增，上表为首月 / 末月 / 月均三项参考。');
+    }
+  } else { // 零存整取
+    const A=num('depMonthly');
+    if(!isPos(A)){ err.textContent='请填写有效的每月存入金额'; return; }
+    const totalDep=A*months;
+    const totalInt=A*r*months*(months+1)/2;
+    const maturity=totalDep+totalInt;
+    const monthAvg=totalInt/months;
+    html=row('每月存入金额', r2(A), '元')
+        +row('累计存入本金', r2(totalDep), '元')
+        +row('到期总利息', r2(totalInt), '元')
+        +row('月均利息收入', r2(monthAvg), '元')
+        +row('到期本息合计', r2(maturity), '元')
+        +note('零存整取：每月固定存入 '+r2(A)+' 元，利息于到期日一次性支付；月均为应计收益。');
+  }
+  document.getElementById('depResult').innerHTML='<div class="card" style="margin:0">'+html+'</div>';
+}
+
+// ---------- 贷款计算 ----------
+function calcLoan(){
+  const P=num('loanPrincipal'), rate=num('loanRate'), months=Math.round(num('loanMonths'));
+  const err=document.getElementById('loanErr'); err.textContent='';
+  if(!isPos(P)){ err.textContent='请填写有效的贷款金额'; return; }
+  if(!isPos(rate)){ err.textContent='请填写有效的贷款年利率'; return; }
+  if(!(months>=1)){ err.textContent='请填写有效的期限（期数，单位：月）'; return; }
+  const r=rate/100/12;
+  let html='', schedule=[], totalInt=0;
+  if(loanType==='equal'){
+    const pow=Math.pow(1+r,months);
+    const M=(r===0)? P/months : P*r*pow/(pow-1);
+    let remain=P;
+    for(let k=1;k<=months;k++){
+      const interest=remain*r;
+      const principal=M-interest;
+      remain-=principal; if(remain<0) remain=0;
+      schedule.push({k,pay:M,principal,interest,remain});
+    }
+    totalInt=M*months-P;
+    html=row('每月月供（固定）', r2(M), '元')
+        +row('还款总期数', months, '期')
+        +row('利息总额', r2(totalInt), '元')
+        +row('还款总额', r2(M*months), '元');
+  } else { // 等额本金
+    const mp=P/months;
+    let remain=P, dec=0, first=0;
+    for(let k=1;k<=months;k++){
+      const interest=remain*r;
+      const pay=mp+interest;
+      if(k===1) first=pay;
+      if(k===2) dec=first-pay;
+      remain-=mp; if(remain<0) remain=0;
+      schedule.push({k,pay,principal:mp,interest,remain});
+    }
+    totalInt=P*r*(months+1)/2;
+    const last=schedule[schedule.length-1].pay;
+    html=row('首月月供（最高）', r2(first), '元')
+        +row('每月递减', r2(dec), '元')
+        +row('末月月供（最低）', r2(last), '元')
+        +row('还款总期数', months, '期')
+        +row('利息总额', r2(totalInt), '元')
+        +row('还款总额', r2(P+totalInt), '元');
+  }
+  // 明细表
+  let tbl='<div class="sched"><table><thead><tr><th>期</th><th>月供</th><th>本金</th><th>利息</th><th>剩余本金</th></tr></thead><tbody>';
+  schedule.forEach(s=>{
+    tbl+='<tr><td>'+s.k+'</td><td>'+r2(s.pay)+'</td><td>'+r2(s.principal)+'</td><td>'+r2(s.interest)+'</td><td>'+r2(s.remain)+'</td></tr>';
+  });
+  tbl+='</tbody></table></div>';
+  html+='<div class="sched-toggle"><button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display===\'none\'?\'\':\'none\'">展开 / 收起 每月还款明细（'+months+' 期）</button>'+tbl+'</div>';
+  document.getElementById('loanResult').innerHTML='<div class="card" style="margin:0">'+html+'</div>';
+}
+
+function row(k,v,unit){ return '<div class="rrow"><span class="k">'+k+'</span><span class="v">'+v+(unit?'<small>'+unit+'</small>':'')+'</span></div>'; }
+function note(t){ return '<div class="note">'+t+'</div>'; }
+
+document.getElementById('depCalc').addEventListener('click', calcDeposit);
+document.getElementById('loanCalc').addEventListener('click', calcLoan);
+</script>
+</body>
+</html>

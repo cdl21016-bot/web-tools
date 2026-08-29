@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# 上线后把这行改成你的真实 Gitee Pages 地址（仓库名为 web-tools 时形如下方）
+Sitemap: https://你的Gitee用户名.gitee.io/web-tools/sitemap.xml

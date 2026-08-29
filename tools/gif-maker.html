@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>动图制作（视频转 GIF）</title>
+<style>
+:root{
+  --primary:#8a5a2b; --primary-dark:#6f4520;
+  --bg:#f6f1e7; --card:#ffffff; --text:#2a2118; --muted:#857a68; --border:#e4d8c4;
+  --green:#16a34a;
+}
+*{box-sizing:border-box;}
+body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); line-height:1.6;}
+header{background:linear-gradient(135deg,#8a5a2b,#6f4520); color:#fff; padding:22px 16px; text-align:center;}
+header h1{margin:0; font-size:22px;}
+header p{margin:4px 0 0; font-size:13px; opacity:.92;}
+.wrap{max-width:760px; margin:0 auto; padding:18px 16px 40px;}
+.card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:16px;}
+.card h2{font-size:16px; margin:0 0 12px; display:flex; align-items:center; gap:8px;}
+.num{display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:var(--primary); color:#fff; font-size:13px; font-weight:700; flex:none;}
+.row{display:flex; gap:12px; align-items:center; margin-bottom:10px; flex-wrap:wrap;}
+label{font-size:13px; font-weight:600; min-width:96px;}
+select,input[type=number]{font-family:inherit; padding:8px 10px; border:1px solid var(--border); border-radius:8px; font-size:14px; background:#fff; min-width:120px;}
+.btn{display:inline-block; border:none; border-radius:9px; padding:9px 18px; font-size:14px; font-weight:600; cursor:pointer; background:var(--primary); color:#fff; text-decoration:none; transition:.15s; font-family:inherit;}
+.btn:hover{background:var(--primary-dark);}
+.btn:disabled{opacity:.5; cursor:not-allowed;}
+.meta{font-size:13px; color:var(--muted); margin-top:10px;}
+.hint{font-size:12px; color:var(--muted);}
+.progress{height:10px; background:#ece3d4; border-radius:6px; overflow:hidden; margin-top:12px;}
+.bar{height:100%; width:0; background:var(--primary); transition:width .12s;}
+#status{font-size:13px; color:var(--muted); margin-top:8px; min-height:18px;}
+.note{font-size:12px; color:var(--muted); background:#fff; border:1px solid var(--border); border-radius:12px; padding:14px; line-height:1.7;}
+#gifImg{max-width:100%; border:1px solid var(--border); border-radius:8px; margin-top:12px; background:#fff; display:block;}
+input[type=file]{font-size:13px;}
+#preview{margin-top:12px; max-width:100%; border-radius:8px; border:1px solid var(--border); background:#000;}
+.pill{display:inline-block; padding:2px 10px; border-radius:999px; background:#f1ece2; color:var(--muted); font-size:12px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎞️ 动图制作（视频转 GIF）</h1>
+    <p>上传视频，自定义帧率 / 像素 / 起始时间，一键生成动图</p>
+  </header>
+
+  <div class="card">
+    <h2><span class="num">1</span> 上传视频</h2>
+    <input type="file" id="videoFile" accept="video/*">
+    <video id="preview" muted playsinline style="display:none;"></video>
+    <div class="meta" id="meta">尚未选择视频</div>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">2</span> 参数设置</h2>
+    <div class="row">
+      <label>帧率（fps）</label>
+      <select id="fps">
+        <option value="5">5</option>
+        <option value="8">8</option>
+        <option value="10" selected>10</option>
+        <option value="12">12</option>
+        <option value="15">15</option>
+        <option value="20">20</option>
+        <option value="25">25</option>
+      </select>
+      <span class="hint">每秒抽取多少帧</span>
+    </div>
+    <div class="row">
+      <label>像素宽度（px）</label>
+      <select id="width">
+        <option value="0">原尺寸</option>
+        <option value="240">240</option>
+        <option value="360">360</option>
+        <option value="480">480</option>
+        <option value="640" selected>640</option>
+        <option value="800">800</option>
+      </select>
+      <span class="hint">高度按视频比例自动计算</span>
+    </div>
+    <div class="row">
+      <label>起始时间（秒）</label>
+      <input type="number" id="start" min="0" step="0.1" value="0">
+    </div>
+    <div class="row">
+      <label>时长（秒）</label>
+      <input type="number" id="dur" min="0.1" step="0.1" value="">
+      <span class="pill" id="durHint"></span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><span class="num">3</span> 生成动图</h2>
+    <button id="genBtn" class="btn">开始生成</button>
+    <div class="progress" id="progress" style="display:none;">
+      <div class="bar" id="bar"></div>
+    </div>
+    <div id="status"></div>
+    <div id="result" style="display:none;">
+      <img id="gifImg" alt="GIF 预览">
+      <div style="margin-top:12px;">
+        <a id="download" class="btn" download="动图.gif">下载 GIF</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    说明：视频在浏览器本地解码与转码，不上传任何服务器。生成的 GIF 帧数越多、分辨率越高、时长越长，文件越大，请按需调整参数。GIF 仅支持 256 色，复杂画面可能出现轻微色彩损失。进度条走完后即可预览并下载，若下载按钮无反应，可右键预览图「图片另存为」。
+  </div>
+</div>
+
+<script src="lib/gifenc.global.js"></script>
+<script>
+(function(){
+  var $ = function(id){ return document.getElementById(id); };
+  if (!window.gifenc || !window.gifenc.GIFEncoder) {
+    $('status').textContent = 'GIF 编码库未加载，请检查 lib/gifenc.global.js';
+    return;
+  }
+  var GIFEncoder = window.gifenc.GIFEncoder;
+  var quantize = window.gifenc.quantize;
+  var applyPalette = window.gifenc.applyPalette;
+
+  var duration = 0, vw = 0, vh = 0, objectURL = null;
+
+  $('videoFile').addEventListener('change', function(e){
+    var f = e.target.files[0];
+    if (!f) return;
+    if (objectURL) URL.revokeObjectURL(objectURL);
+    objectURL = URL.createObjectURL(f);
+    var v = $('preview');
+    v.src = objectURL;
+    v.style.display = 'block';
+    v.onloadedmetadata = function(){
+      duration = v.duration || 0;
+      vw = v.videoWidth || 0;
+      vh = v.videoHeight || 0;
+      $('meta').textContent = '时长 ' + duration.toFixed(2) + 's · 分辨率 ' + vw + '×' + vh;
+      var s = parseFloat($('start').value) || 0;
+      var maxDur = Math.max(0.1, duration - s);
+      $('dur').value = maxDur.toFixed(1);
+      $('dur').max = maxDur;
+      $('durHint').textContent = '最长可用至视频结尾（约 ' + maxDur.toFixed(1) + 's）';
+    };
+  });
+
+  $('start').addEventListener('input', function(){
+    var s = parseFloat($('start').value) || 0;
+    var maxDur = Math.max(0.1, duration - s);
+    $('dur').max = maxDur;
+    $('durHint').textContent = '最长可用至视频结尾（约 ' + maxDur.toFixed(1) + 's）';
+  });
+
+  // 将视频定位到指定时间，并等待解码完成
+  function seekTo(time){
+    return new Promise(function(resolve){
+      var v = $('preview');
+      var done = false;
+      var onSeeked = function(){
+        if (done) return;
+        done = true;
+        v.removeEventListener('seeked', onSeeked);
+        resolve();
+      };
+      v.addEventListener('seeked', onSeeked);
+      // 兜底：若浏览器未触发 seeked，1.5s 后强制继续
+      setTimeout(onSeeked, 1500);
+      try { v.currentTime = Math.min(Math.max(time, 0), v.duration || time); } catch (err) { onSeeked(); }
+    });
+  }
+
+  $('genBtn').addEventListener('click', async function(){
+    if (!duration || !vw) { alert('请先上传视频'); return; }
+    var btn = $('genBtn');
+    btn.disabled = true;
+
+    var fps = parseInt($('fps').value, 10) || 10;
+    var outW = parseInt($('width').value, 10);
+    if (!outW || outW <= 0) outW = vw;
+    var outH = Math.max(1, Math.round(vh * (outW / vw)));
+    var start = Math.max(0, parseFloat($('start').value) || 0);
+    var dur = parseFloat($('dur').value) || 0;
+    dur = Math.min(dur, Math.max(0.1, duration - start));
+    var total = Math.max(1, Math.floor(dur * fps));
+
+    var canvas = document.createElement('canvas');
+    canvas.width = outW;
+    canvas.height = outH;
+    var ctx = canvas.getContext('2d', { willReadFrequently: true });
+
+    // 确保解码器就绪
+    try { await $('preview').play(); $('preview').pause(); } catch (e) {}
+
+    var gif = GIFEncoder();
+    $('progress').style.display = 'block';
+    $('result').style.display = 'none';
+    $('bar').style.width = '0%';
+    $('status').textContent = '生成中… 0/' + total;
+
+    try {
+      for (var i = 0; i < total; i++) {
+        var t = start + i / fps;
+        await seekTo(t);
+        ctx.drawImage($('preview'), 0, 0, outW, outH);
+        var rgba = ctx.getImageData(0, 0, outW, outH).data;
+        var palette = quantize(rgba, 256);
+        var index = applyPalette(rgba, palette);
+        gif.writeFrame(index, outW, outH, { palette: palette, delay: Math.round(1000 / fps) });
+        $('bar').style.width = Math.round(((i + 1) / total) * 100) + '%';
+        $('status').textContent = '生成中… ' + (i + 1) + '/' + total;
+        if (i % 5 === 4) { await new Promise(function(r){ setTimeout(r, 0); }); }
+      }
+      gif.finish();
+      var blob = new Blob([gif.bytes()], { type: 'image/gif' });
+      var url = URL.createObjectURL(blob);
+      $('gifImg').src = url;
+      $('download').href = url;
+      $('result').style.display = 'block';
+      $('status').textContent = '完成！共 ' + total + ' 帧，大小约 ' + (blob.size / 1024).toFixed(0) + ' KB';
+    } catch (err) {
+      $('status').textContent = '生成失败：' + (err && err.message ? err.message : err);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>

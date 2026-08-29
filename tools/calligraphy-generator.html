@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>书法字体生成器（王羲之风格）</title>
+  <link rel="stylesheet" href="fonts/local-fonts.css">
+  <link rel="stylesheet" href="fonts/chongxi.css">
+  <script src="lib/opencc.js"></script>
+  <style>
+    :root {
+      --primary: #8a5a2b;
+      --primary-dark: #6f4520;
+      --bg: #f6f1e7;
+      --card: #ffffff;
+      --text: #2a2118;
+      --muted: #857a68;
+      --border: #e4d8c4;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 24px; line-height: 1.6; color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+    }
+    .wrap { max-width: 880px; margin: 0 auto; }
+    h1 { font-size: 22px; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+    .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+    .panel { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+    .field { margin-bottom: 14px; }
+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    label.checkbox { display: flex; align-items: center; gap: 6px; font-weight: 500; cursor: pointer; }
+    label.checkbox input { width: 16px; height: 16px; }
+    textarea {
+      width: 100%; min-height: 84px; padding: 10px 12px; border: 1px solid var(--border);
+      border-radius: 8px; font-size: 18px; outline: none; resize: vertical; font-family: inherit; line-height: 1.8;
+    }
+    textarea:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(138,90,43,.15); }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-end; }
+    .row.wrap { margin-bottom: 4px; }
+    select, input[type="number"] { font-family: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; background: #fff; }
+    input[type="range"] { font-family: inherit; }
+    .count { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .ink-presets { display: flex; gap: 8px; margin-bottom: 8px; }
+    .ink-presets button {
+      width: 30px; height: 30px; border-radius: 50%; border: 2px solid #fff; cursor: pointer;
+      box-shadow: 0 0 0 1px var(--border); transition: transform .12s;
+    }
+    .ink-presets button:hover { transform: scale(1.12); }
+    .ink-presets button.active { box-shadow: 0 0 0 2px var(--primary); }
+    input[type="color"] { width: 46px; height: 34px; border: 1px solid var(--border); border-radius: 8px; background: #fff; cursor: pointer; padding: 2px; }
+    .disabled { opacity: .4; pointer-events: none; }
+    .canvas-wrap {
+      margin-top: 16px; background: #ece3d2; border: 1px dashed #cdbfa3; border-radius: 10px;
+      padding: 12px; display: flex; justify-content: center; align-items: center; overflow: auto;
+    }
+    canvas { max-width: 100%; height: auto; border-radius: 4px; box-shadow: 0 4px 18px rgba(60,40,15,.18); }
+    .btns { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+    button.btn {
+      border: none; border-radius: 9px; padding: 11px 18px; font-size: 14px; font-weight: 600;
+      cursor: pointer; transition: .15s; font-family: inherit;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-dark); }
+    .btn-outline { background: #fff; color: var(--primary); border: 1px solid var(--primary); }
+    .btn-ghost { background: #f1ece2; color: var(--muted); }
+    .toast {
+      position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%) translateY(20px);
+      background: #10b981; color: #fff; padding: 10px 18px; border-radius: 999px; font-size: 14px;
+      opacity: 0; transition: .25s; pointer-events: none; z-index: 99;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .note { font-size: 12px; color: var(--muted); margin-top: 12px; line-height: 1.7; }
+    .sep { height: 1px; background: var(--border); margin: 16px 0; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>🖌️ 书法字体生成器</h1>
+    <div class="sub">输入汉字（最多 100 字），生成王羲之风格行书 / 楷书 / 草书毛笔字，可导出 PNG 到下载文件夹。</div>
+
+    <div class="panel">
+      <div class="field">
+        <label>输入汉字（最多 100 字，可按 Enter 自主换行）</label>
+        <textarea id="input" maxlength="100" placeholder="例如：永和九年岁在癸丑暮春之初"></textarea>
+        <div class="count"><span id="count">0</span> / 100 字</div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="row wrap">
+        <div class="field">
+          <label>字体风格</label>
+          <select id="style">
+            <option value="xing">行书（近王羲之·默认）</option>
+            <option value="kai">楷书</option>
+            <option value="cao">草书</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>排版方向</label>
+          <select id="layout">
+            <option value="vertical">竖排</option>
+            <option value="horizontal">横排</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>排列起向</label>
+          <select id="flow">
+            <option value="rtl">从右到左（传统）</option>
+            <option value="ltr">从左到右</option>
+          </select>
+        </div>
+        <div class="field">
+          <label id="perLineLabel">每列字数</label>
+          <input type="number" id="perLine" min="1" max="50" value="8" style="width:90px;">
+        </div>
+        <div class="field">
+          <label>字号 <span id="sizeVal">72</span>px</label>
+          <input type="range" id="size" min="36" max="160" value="72" style="width:160px;">
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="row wrap">
+        <div class="field">
+          <label>字体颜色</label>
+          <div class="ink-presets" id="inkPresets"></div>
+          <input type="color" id="inkColor" value="#1a1410">
+        </div>
+        <div class="field" style="padding-bottom:6px;">
+          <label class="checkbox"><input type="checkbox" id="goldBlack"> 上金下黑 · 两重立体</label>
+        </div>
+        <div class="field" id="extrudeField" style="display:none;">
+          <label>立体偏移（金色表层向右下侧移）<span id="extrudeVal">10</span>px</label>
+          <input type="range" id="extrude" min="0" max="40" value="10" style="width:170px;">
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="row wrap">
+        <div class="field">
+          <label>背景格式</label>
+          <select id="bg">
+            <option value="scroll">古风裱糊字画（默认）</option>
+            <option value="pure">纯色</option>
+            <option value="paper">宣纸</option>
+            <option value="silk">绫绢</option>
+            <option value="red">红纸（春联/喜庆）</option>
+          </select>
+        </div>
+        <div class="field" style="padding-bottom:6px;">
+          <label class="checkbox"><input type="checkbox" id="autoSize" checked> 自适应画布长宽</label>
+        </div>
+        <div class="field" id="whField" style="display:none;">
+          <label>画布宽 × 高 (px)</label>
+          <div class="row" style="gap:8px;">
+            <input type="number" id="cvW" min="100" value="800" style="width:90px;">
+            <span style="align-self:center;">×</span>
+            <input type="number" id="cvH" min="100" value="600" style="width:90px;">
+          </div>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="row wrap">
+        <div class="field">
+          <label>字格背景色（各字一致）</label>
+          <input type="color" id="cellBg" value="#e8dcc0">
+        </div>
+        <div class="field">
+          <label>字格背景透明度 <span id="cellOpVal">0</span>%</label>
+          <input type="range" id="cellOp" min="0" max="100" value="0" style="width:150px;">
+        </div>
+        <div class="field" style="padding-bottom:6px;">
+          <label class="checkbox"><input type="checkbox" id="cellBorder"> 显示字格边框</label>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="row wrap">
+        <div class="field" style="min-width:180px;">
+          <label>姓名章文字（必须 4 字，简体自动转繁体）</label>
+          <div class="row" style="gap:8px;align-items:center;">
+            <input type="text" id="sealText" maxlength="4" placeholder="如：張三之印" style="width:140px;">
+            <button class="btn btn-ghost" id="sealFill" type="button" style="padding:8px 12px;font-size:13px;">补齐为4字</button>
+          </div>
+          <div class="count" id="sealHint">0 / 4 字</div>
+        </div>
+        <div class="field">
+          <label>印章字体</label>
+          <select id="sealFont">
+            <option value="seal">小篆（姓名章默认）</option>
+            <option value="kai">楷书</option>
+            <option value="xing">行书</option>
+            <option value="cao">草书</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>印章样式</label>
+          <select id="sealStyle">
+            <option value="yang">阳文（红底白字）</option>
+            <option value="yin">阴文（白底红字）</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>印章位置</label>
+          <select id="sealPos">
+            <option value="end">字贴末尾</option>
+            <option value="br">右下角</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>印章尺寸 <span id="sealSizeVal">48</span>px（≤落款字）</label>
+          <input type="range" id="sealSize" min="24" max="96" value="48" style="width:150px;">
+        </div>
+        <div class="field">
+          <label>印章字大小 <span id="sealFontVal">40</span>px</label>
+          <input type="range" id="sealFontPx" min="12" max="96" value="40" style="width:150px;">
+        </div>
+      </div>
+
+      <div class="canvas-wrap">
+        <canvas id="canvas"></canvas>
+      </div>
+
+      <div class="btns">
+        <button class="btn btn-primary" id="pngBtn">下载 PNG（到下载文件夹）</button>
+        <button class="btn btn-outline" id="copyBtn">复制文本</button>
+        <button class="btn btn-ghost" id="clearBtn">清空</button>
+      </div>
+      <div class="note">
+        说明：免费字体以「行书 / 楷书 / 草书」毛笔风格近似王羲之；罕见字可能回退为系统字体。如需严格还原王羲之原帖，请将 CSS 与 canvas 中的 font-family 替换为已授权的王羲之字库。<br>
+        「上金下黑·两重立体」= 原字以墨黑绘于底层并向右下方侧移指定距离，金色字符覆于表层，形成立体效果；开启后字体颜色设置自动忽略，「立体偏移」可调侧移距离。裱糊 / 宣纸背景已加纸纹，新增红纸背景。姓名章为方形四字章，2×2 等分排版，输入简体将自动转为繁体；印章尺寸默认不超过落款字，可在滑块范围内调整。PNG 由浏览器保存到默认下载文件夹（在首页弹窗内打开时也已放开下载权限）。
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (function () {
+      const $ = (id) => document.getElementById(id);
+
+      const STYLES = {
+        xing: { font: '"Zhi Mang Xing", cursive' },
+        kai:  { font: '"Ma Shan Zheng", cursive' },
+        cao:  { font: '"Liu Jian Mao Cao", cursive' },
+      };
+      const SEAL_FONTS = {
+        seal: '"Chong Xi Small Seal", "Seal Script", "FZXiaoZhuan", serif',
+        kai:  '"Ma Shan Zheng", cursive',
+        xing: '"Zhi Mang Xing", cursive',
+        cao:  '"Liu Jian Mao Cao", cursive',
+      };
+
+      let s2tConverter = null;
+      try {
+        if (window.OpenCC) {
+          s2tConverter = OpenCC.Converter({ from: 'cn', to: 'tw' });
+        }
+      } catch (e) {
+        console.warn('OpenCC 初始化失败', e);
+      }
+
+      function toTraditional(str) {
+        if (!str) return '';
+        if (s2tConverter) return s2tConverter(str);
+        return str;
+      }
+
+      function getSealInfo() {
+        const raw = ($('sealText').value || '').trim();
+        const traditional = toTraditional(raw);
+        const chars = [...traditional].filter((c) => !/\s/.test(c)).slice(0, 4);
+        return { raw, traditional, chars, valid: chars.length === 4 };
+      }
+
+      const INK_PRESETS = [
+        { name: '原墨色', value: '#1a1410' },
+        { name: '墨金色', value: '#7a5c1e' },
+        { name: '暗金色', value: '#9c7a3c' },
+      ];
+
+      const BG = {
+        scroll: { frame: true,  mount: '#3b4a42', paper: '#f3e9d2', border: '#b8924f', borderW: 6 },
+        pure:   { frame: false, color: '#ffffff' },
+        paper:  { frame: false, color: '#efe6d0' },
+        silk:   { frame: true,  mount: '#6b4a2b', paper: '#f6efe0', border: '#c9a24a', borderW: 5 },
+        red:    { frame: false, color: '#b91c1c' },
+      };
+
+      const GOLD_TOP = '#d9b85a';
+      const INK_BLACK = '#1a1410';
+
+      let renderTimer = null;
+      let userTouchedSealSize = false;
+      let userTouchedSealFont = false;
+
+      function clamp(v, min, max) { return Math.min(Math.max(v, min), max); }
+
+      function syncSealSize() {
+        const size = parseInt($('size').value, 10) || 72;
+        const max = Math.max(24, size); // 印章尺寸原则上不大于落款字
+        const def = Math.round(size * 0.85);
+        const slider = $('sealSize');
+        slider.max = max;
+        if (!userTouchedSealSize) slider.value = def;
+        else if (parseInt(slider.value, 10) > max) slider.value = max;
+        $('sealSizeVal').textContent = slider.value;
+      }
+
+      function syncSealFont() {
+        const sealSize = parseInt($('sealSize').value, 10) || 48;
+        const max = Math.max(12, Math.round(sealSize * 0.49)); // 单字不超出所在格
+        const def = Math.round(sealSize * 0.4);
+        const slider = $('sealFontPx');
+        slider.max = max;
+        if (!userTouchedSealFont) slider.value = def;
+        else if (parseInt(slider.value, 10) > max) slider.value = max;
+        $('sealFontVal').textContent = slider.value;
+      }
+
+      function updateSealHint() {
+        const info = getSealInfo();
+        const el = $('sealHint');
+        let text = `${info.chars.length} / 4 字`;
+        if (info.raw && info.traditional !== info.raw) {
+          text += `（已自动转繁体：${info.traditional}）`;
+        }
+        if (info.raw && !info.valid) {
+          text += '，姓名章需补齐为 4 字';
+        }
+        el.textContent = text;
+        el.style.color = info.valid ? 'var(--muted)' : '#dc2626';
+      }
+
+      function roundRect(ctx, x, y, w, h, r) {
+        if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); return; }
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + w, y, x + w, y + h, r);
+        ctx.arcTo(x + w, y + h, x, y + h, r);
+        ctx.arcTo(x, y + h, x, y, r);
+        ctx.arcTo(x, y, x + w, y, r);
+        ctx.closePath();
+      }
+
+      function hexToRgba(hex, a) {
+        const h = hex.replace('#', '');
+        const r = parseInt(h.substring(0, 2), 16);
+        const g = parseInt(h.substring(2, 4), 16);
+        const b = parseInt(h.substring(4, 6), 16);
+        return 'rgba(' + r + ',' + g + ',' + b + ',' + a + ')';
+      }
+
+      // 纸纹：一次性生成噪点贴片（淡棕斑点），用于裱糊/宣纸背景
+      let noiseCanvas = null;
+      function getNoise() {
+        if (noiseCanvas) return noiseCanvas;
+        const n = document.createElement('canvas');
+        n.width = 160; n.height = 160;
+        const nc = n.getContext('2d');
+        const img = nc.createImageData(160, 160);
+        const d = img.data;
+        for (let i = 0; i < d.length; i += 4) {
+          if (Math.random() < 0.5) { d[i + 3] = 0; }
+          else {
+            const a = Math.random() * 26;
+            d[i] = 120; d[i + 1] = 95; d[i + 2] = 60; d[i + 3] = a;
+          }
+        }
+        nc.putImageData(img, 0, 0);
+        noiseCanvas = n;
+        return n;
+      }
+
+      function buildLines(text, perLine) {
+        return text.split('\n').map((p) => [...p].filter((c) => !/\s/.test(c)))
+          .reduce((acc, chars) => {
+            for (let i = 0; i < chars.length; i += perLine) acc.push(chars.slice(i, i + perLine));
+            return acc;
+          }, [])
+          .filter((l) => l.length > 0);
+      }
+
+      function clearPlaceholder() {
+        const bgKey = $('bg').value;
+        const bg = BG[bgKey];
+        const scale = 2;
+        const cv = $('canvas');
+        const w = 420, h = 240;
+        cv.width = w * scale; cv.height = h * scale;
+        const ctx = cv.getContext('2d');
+        ctx.setTransform(scale, 0, 0, scale, 0, 0);
+        ctx.fillStyle = bg.frame ? bg.paper : bg.color;
+        ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = 'rgba(120,90,40,0.5)';
+        ctx.font = '16px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('在上方输入汉字后自动生成', w / 2, h / 2);
+      }
+
+      function drawGlyph(ctx, ch, x, y, size, color, styleKey, goldBlack, extrude) {
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = size + 'px ' + STYLES[styleKey].font;
+        if (goldBlack) {
+          // 底层：原字以墨黑绘于右下侧移位置
+          ctx.fillStyle = INK_BLACK;
+          ctx.fillText(ch, x + extrude, y + extrude);
+          // 表层：金色字符覆于原位
+          ctx.fillStyle = GOLD_TOP;
+          ctx.fillText(ch, x, y);
+        } else {
+          ctx.fillStyle = color;
+          ctx.fillText(ch, x, y);
+        }
+        ctx.restore();
+      }
+
+      function draw() {
+        const text = $('input').value;
+        const allChars = [...text];
+        $('count').textContent = allChars.length;
+
+        const styleKey = $('style').value;
+        const layout = $('layout').value;
+        const flow = $('flow').value;
+        const perLine = Math.max(1, parseInt($('perLine').value, 10) || 8);
+        const size = parseInt($('size').value, 10);
+        const goldBlack = $('goldBlack').checked;
+        const inkColor = $('inkColor').value;
+        const bgKey = $('bg').value;
+        const bg = BG[bgKey];
+        const autoSize = $('autoSize').checked;
+        const cellBg = $('cellBg').value;
+        const cellOp = parseInt($('cellOp').value, 10) / 100;
+        const cellBorder = $('cellBorder').checked;
+        const extrude = parseInt($('extrude').value, 10);
+
+        const lines = buildLines(text, perLine);
+        if (lines.length === 0) { clearPlaceholder(); return; }
+
+        const cell = Math.round(size * 1.5);
+        const gap = Math.round(size * 0.12);
+        const lineCount = lines.length;
+        const maxChars = Math.max.apply(null, lines.map((l) => l.length));
+
+        let contentW, contentH;
+        if (layout === 'horizontal') {
+          contentW = maxChars * cell + Math.max(0, maxChars - 1) * gap;
+          contentH = lineCount * cell + Math.max(0, lineCount - 1) * gap;
+        } else {
+          contentW = lineCount * cell + Math.max(0, lineCount - 1) * gap;
+          contentH = maxChars * cell + Math.max(0, maxChars - 1) * gap;
+        }
+
+        const margin = bg.frame ? Math.round(size * 0.9) : Math.round(size * 0.4);
+        let canvasW, canvasH;
+        if (autoSize) {
+          canvasW = contentW + margin * 2;
+          canvasH = contentH + margin * 2;
+        } else {
+          canvasW = parseInt($('cvW').value, 10) || contentW + margin * 2;
+          canvasH = parseInt($('cvH').value, 10) || contentH + margin * 2;
+        }
+
+        const scale = 2;
+        const cv = $('canvas');
+        cv.width = canvasW * scale;
+        cv.height = canvasH * scale;
+        const ctx = cv.getContext('2d');
+        ctx.setTransform(scale, 0, 0, scale, 0, 0);
+        ctx.clearRect(0, 0, canvasW, canvasH);
+
+        let contentOX, contentOY;
+        if (bg.frame) {
+          ctx.fillStyle = bg.mount;
+          ctx.fillRect(0, 0, canvasW, canvasH);
+          const px = margin, py = margin, pw = canvasW - 2 * margin, ph = canvasH - 2 * margin;
+          ctx.fillStyle = bg.paper;
+          ctx.fillRect(px, py, pw, ph);
+          if (bg.borderW) {
+            ctx.strokeStyle = bg.border;
+            ctx.lineWidth = bg.borderW;
+            ctx.strokeRect(px + bg.borderW / 2, py + bg.borderW / 2, pw - bg.borderW, ph - bg.borderW);
+            ctx.strokeStyle = 'rgba(184,146,79,0.5)';
+            ctx.lineWidth = 1.5;
+            const m2 = bg.borderW + 6;
+            ctx.strokeRect(px + m2, py + m2, pw - 2 * m2, ph - 2 * m2);
+          }
+          // 纸纹
+          ctx.save();
+          ctx.globalAlpha = 0.6;
+          ctx.fillStyle = ctx.createPattern(getNoise(), 'repeat');
+          ctx.fillRect(px, py, pw, ph);
+          ctx.restore();
+          contentOX = clamp(px + (pw - contentW) / 2, px, px + Math.max(0, pw - contentW));
+          contentOY = clamp(py + (ph - contentH) / 2, py, py + Math.max(0, ph - contentH));
+        } else {
+          ctx.fillStyle = bg.color;
+          ctx.fillRect(0, 0, canvasW, canvasH);
+          if (bgKey === 'paper') {
+            ctx.save();
+            ctx.globalAlpha = 0.6;
+            ctx.fillStyle = ctx.createPattern(getNoise(), 'repeat');
+            ctx.fillRect(0, 0, canvasW, canvasH);
+            ctx.restore();
+          }
+          contentOX = clamp((canvasW - contentW) / 2, 0, Math.max(0, canvasW - contentW));
+          contentOY = clamp((canvasH - contentH) / 2, 0, Math.max(0, canvasH - contentH));
+        }
+
+        lines.forEach((line, li) => {
+          line.forEach((ch, ci) => {
+            let col, row;
+            if (layout === 'horizontal') {
+              row = li;
+              const startCol = (flow === 'rtl') ? (maxChars - line.length) : 0;
+              col = startCol + ci;
+            } else {
+              col = (flow === 'rtl') ? (lineCount - 1 - li) : li;
+              row = ci;
+            }
+            const x = contentOX + col * (cell + gap) + cell / 2;
+            const y = contentOY + row * (cell + gap) + cell / 2;
+            const cx = x - cell / 2, cy = y - cell / 2;
+
+            ctx.save();
+            ctx.globalAlpha = cellOp;
+            ctx.fillStyle = cellBg;
+            roundRect(ctx, cx, cy, cell, cell, Math.round(cell * 0.08));
+            ctx.fill();
+            ctx.restore();
+
+            if (cellBorder) {
+              ctx.save();
+              ctx.strokeStyle = 'rgba(120,90,40,0.35)';
+              ctx.lineWidth = 1;
+              roundRect(ctx, cx, cy, cell, cell, Math.round(cell * 0.08));
+              ctx.stroke();
+              ctx.restore();
+            }
+
+            drawGlyph(ctx, ch, x, y, size, inkColor, styleKey, goldBlack, extrude);
+          });
+        });
+
+        drawSeal(ctx, {
+          layout, flow, cell, gap, contentOX, contentOY, contentW, contentH,
+          lineCount, maxChars, lines,
+        });
+      }
+
+      function drawSeal(ctx, geo) {
+        const info = getSealInfo();
+        if (!info.valid) return;
+        const chars = info.chars;
+        const style = $('sealStyle').value; // yang | yin
+        const pos = $('sealPos').value; // end | br
+        const sealSize = parseInt($('sealSize').value, 10) || 48;
+        const sealFontKey = $('sealFont').value;
+        const sealColor = '#b91c1c';
+        const padding = sealSize * 0.1;
+        let sx, sy;
+
+        // 计算文本最后一个字符的格位置
+        const lastLineIdx = geo.lines.length - 1;
+        const lastLine = geo.lines[lastLineIdx];
+        let col = 0, row = 0;
+        if (geo.layout === 'horizontal') {
+          row = lastLineIdx;
+          const startCol = (geo.flow === 'rtl') ? (geo.maxChars - lastLine.length) : 0;
+          col = startCol + lastLine.length - 1;
+        } else {
+          col = (geo.flow === 'rtl') ? (geo.lineCount - 1 - lastLineIdx) : lastLineIdx;
+          row = lastLine.length - 1;
+        }
+        const cellX = geo.contentOX + col * (geo.cell + geo.gap);
+        const cellY = geo.contentOY + row * (geo.cell + geo.gap);
+        const cellR = cellX + geo.cell;
+        const cellB = cellY + geo.cell;
+        // 与正文的间距：保证不靠近、不遮挡
+        const off = geo.gap * 0.6 + sealSize * 0.22;
+
+        if (pos === 'br') {
+          // 右下角：最后一个字的右下角
+          sx = cellR + off;
+          sy = cellB + off;
+          if (sx + sealSize > geo.contentOX + geo.contentW) {
+            sx = cellX + geo.cell / 2 - sealSize / 2; // 右侧放不下则置于末字正下方
+          }
+        } else {
+          // 末尾：最后一个字的左下角
+          sx = cellX - sealSize - off;
+          sy = cellB + off;
+          if (sx < geo.contentOX) {
+            sx = cellX + geo.cell / 2 - sealSize / 2; // 左侧放不下则置于末字正下方
+          }
+        }
+
+        // 确保印章不超出画布（draw 使用 scale=2，CSS 尺寸为 backing store 的一半）
+        const cssW = ctx.canvas.width / 2;
+        const cssH = ctx.canvas.height / 2;
+        sx = clamp(sx, 0, Math.max(0, cssW - sealSize));
+        sy = clamp(sy, 0, Math.max(0, cssH - sealSize));
+
+        const cs = sealSize / 2; // 每格边长
+
+        ctx.save();
+        // 底色
+        ctx.fillStyle = style === 'yang' ? sealColor : '#ffffff';
+        ctx.strokeStyle = sealColor;
+        ctx.lineWidth = Math.max(2, sealSize * 0.07);
+        roundRect(ctx, sx, sy, sealSize, sealSize, sealSize * 0.06);
+        ctx.fill();
+        ctx.stroke();
+
+        // 斑驳缺口：沿外框随机擦除少许，模拟印章磨损
+        ctx.save();
+        ctx.globalCompositeOperation = 'destination-out';
+        const edgeDots = Math.max(16, Math.round(sealSize * 0.35));
+        for (let i = 0; i < edgeDots; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const rad = sealSize / 2 + (Math.random() - 0.5) * sealSize * 0.06;
+          const cx = sx + sealSize / 2 + Math.cos(angle) * rad;
+          const cy = sy + sealSize / 2 + Math.sin(angle) * rad;
+          const r = Math.random() * sealSize * 0.03 + 0.6;
+          ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
+
+        // 文字：传统印章读法，右列优先（右上→左上→右下→左下）
+        ctx.fillStyle = style === 'yang' ? '#ffffff' : sealColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const fontSize = parseInt($('sealFontPx').value, 10) || Math.round(sealSize * 0.4);
+        ctx.font = fontSize + 'px ' + SEAL_FONTS[sealFontKey];
+
+        const positions = [
+          { x: sx + cs * 0.5, y: sy + cs * 0.5 }, // 右上
+          { x: sx + cs * 1.5, y: sy + cs * 0.5 }, // 左上
+          { x: sx + cs * 0.5, y: sy + cs * 1.5 }, // 右下
+          { x: sx + cs * 1.5, y: sy + cs * 1.5 }, // 左下
+        ];
+        chars.forEach((ch, i) => {
+          ctx.fillText(ch, positions[i].x, positions[i].y);
+        });
+
+        // 印泥不均匀斑点
+        ctx.save();
+        ctx.globalCompositeOperation = 'source-atop';
+        const spots = Math.max(20, Math.round(sealSize * 0.45));
+        for (let i = 0; i < spots; i++) {
+          const rx = sx + Math.random() * sealSize;
+          const ry = sy + Math.random() * sealSize;
+          const r = Math.random() * sealSize * 0.04 + 0.5;
+          ctx.fillStyle = style === 'yang'
+            ? 'rgba(80,10,10,0.22)'
+            : 'rgba(180,40,40,0.18)';
+          ctx.beginPath(); ctx.arc(rx, ry, r, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
+
+        ctx.restore();
+      }
+
+      function scheduleRender() {
+        clearTimeout(renderTimer);
+        renderTimer = setTimeout(render, 120);
+      }
+
+      async function render() {
+        const styleKey = $('style').value;
+        const size = parseInt($('size').value, 10);
+        const sealSize = parseInt($('sealSize').value, 10);
+        try { await document.fonts.load(Math.max(size, 40) + 'px ' + STYLES[styleKey].font); } catch (e) {}
+        try { await document.fonts.load(Math.max(parseInt($('sealFontPx').value, 10) || 32, 32) + 'px ' + SEAL_FONTS[$('sealFont').value]); } catch (e) {}
+        try { await document.fonts.ready; } catch (e) {}
+        draw();
+      }
+
+      function toast(msg) {
+        const t = $('toast');
+        t.textContent = msg; t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 1800);
+      }
+
+      async function copy() {
+        const text = $('input').value.trim();
+        if (!text) { toast('请先输入汉字'); return; }
+        try {
+          if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(text);
+          else { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); }
+          toast('已复制文本');
+        } catch (e) { toast('复制失败'); }
+      }
+
+      function downloadPNG() {
+        const text = $('input').value.trim();
+        if (!text) { toast('请先输入汉字'); return; }
+        const cv = $('canvas');
+        const fire = (url, revoke) => {
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = '书法-' + Date.now() + '.png';
+          document.body.appendChild(a); a.click(); a.remove();
+          if (revoke) setTimeout(() => URL.revokeObjectURL(url), 1000);
+          toast('已导出 PNG 到下载文件夹');
+        };
+        const fallback = () => {
+          try {
+            const url = cv.toDataURL('image/png');
+            fire(url, false);
+          } catch (e) {
+            toast('导出失败：画布被跨域资源污染');
+            console.error(e);
+          }
+        };
+        if (cv.toBlob) {
+          cv.toBlob((blob) => {
+            if (blob) fire(URL.createObjectURL(blob), true);
+            else fallback();
+          }, 'image/png');
+        } else {
+          fallback();
+        }
+      }
+
+      // 构建墨色预设
+      const presetsWrap = $('inkPresets');
+      INK_PRESETS.forEach((p) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.title = p.name;
+        b.style.background = p.value;
+        b.setAttribute('data-val', p.value);
+        b.addEventListener('click', () => {
+          $('inkColor').value = p.value;
+          $('goldBlack').checked = false;
+          syncInkActive();
+          scheduleRender();
+        });
+        presetsWrap.appendChild(b);
+      });
+      function syncInkActive() {
+        const cur = $('inkColor').value.toLowerCase();
+        presetsWrap.querySelectorAll('button').forEach((b) => {
+          b.classList.toggle('active', b.getAttribute('data-val').toLowerCase() === cur);
+        });
+      }
+
+      function onGoldBlackToggle() {
+        const on = $('goldBlack').checked;
+        $('inkColor').classList.toggle('disabled', on);
+        presetsWrap.classList.toggle('disabled', on);
+        $('extrudeField').style.display = on ? 'block' : 'none';
+      }
+
+      // 事件绑定
+      ['input', 'change'].forEach((ev) => {
+        $('input').addEventListener(ev, scheduleRender);
+        $('style').addEventListener(ev, scheduleRender);
+        $('layout').addEventListener(ev, () => { updatePerLineLabel(); scheduleRender(); });
+        $('flow').addEventListener(ev, scheduleRender);
+        $('perLine').addEventListener(ev, scheduleRender);
+        $('size').addEventListener(ev, () => { $('sizeVal').textContent = $('size').value; syncSealSize(); syncSealFont(); scheduleRender(); });
+        $('inkColor').addEventListener(ev, () => { $('goldBlack').checked = false; onGoldBlackToggle(); syncInkActive(); scheduleRender(); });
+        $('goldBlack').addEventListener(ev, () => { onGoldBlackToggle(); scheduleRender(); });
+        $('extrude').addEventListener(ev, () => { $('extrudeVal').textContent = $('extrude').value; scheduleRender(); });
+        $('bg').addEventListener(ev, scheduleRender);
+        $('autoSize').addEventListener(ev, () => {
+          $('whField').style.display = $('autoSize').checked ? 'none' : 'block';
+          scheduleRender();
+        });
+        $('cvW').addEventListener(ev, scheduleRender);
+        $('cvH').addEventListener(ev, scheduleRender);
+        $('cellBg').addEventListener(ev, scheduleRender);
+        $('cellOp').addEventListener(ev, () => { $('cellOpVal').textContent = $('cellOp').value; scheduleRender(); });
+        $('cellBorder').addEventListener(ev, scheduleRender);
+        $('sealText').addEventListener(ev, () => { updateSealHint(); scheduleRender(); });
+        $('sealFont').addEventListener(ev, scheduleRender);
+        $('sealStyle').addEventListener(ev, scheduleRender);
+        $('sealPos').addEventListener(ev, scheduleRender);
+        $('sealSize').addEventListener(ev, () => { userTouchedSealSize = true; $('sealSizeVal').textContent = $('sealSize').value; syncSealFont(); scheduleRender(); });
+        $('sealFontPx').addEventListener(ev, () => { userTouchedSealFont = true; $('sealFontVal').textContent = $('sealFontPx').value; scheduleRender(); });
+      });
+
+      function updatePerLineLabel() {
+        $('perLineLabel').textContent = ($('layout').value === 'vertical') ? '每列字数' : '每行字数';
+      }
+
+      $('copyBtn').addEventListener('click', copy);
+      $('pngBtn').addEventListener('click', downloadPNG);
+      $('clearBtn').addEventListener('click', () => { $('input').value = ''; render(); });
+
+      $('sealFill').addEventListener('click', () => {
+        const info = getSealInfo();
+        const len = info.chars.length;
+        if (len === 0) { toast('请先输入印章文字'); return; }
+        if (len >= 4) { toast('已经是 4 字'); return; }
+        const map = { 1: '之私印', 2: '之印', 3: '印' };
+        const append = map[len] || '';
+        const raw = ($('sealText').value || '').trim();
+        $('sealText').value = (raw + append).slice(0, 4);
+        updateSealHint();
+        scheduleRender();
+      });
+
+      // 初始化
+      $('input').value = '永和九年岁在癸丑暮春之初';
+      updatePerLineLabel();
+      onGoldBlackToggle();
+      syncInkActive();
+      syncSealSize();
+      syncSealFont();
+      updateSealHint();
+      render();
+    })();
+  </script>
+</body>
+</html>

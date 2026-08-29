@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Python 代码格式修正工具</title>
+<style>
+:root{
+  --primary:#8a5a2b; --primary-dark:#6f4520;
+  --bg:#f6f1e7; --card:#ffffff; --text:#2a2118; --muted:#857a68; --border:#e4d8c4;
+  --green:#16a34a; --red:#d93025;
+}
+*{box-sizing:border-box;}
+body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; background:var(--bg); color:var(--text); line-height:1.6;}
+header{background:linear-gradient(135deg,#8a5a2b,#6f4520); color:#fff; padding:28px 24px; text-align:center;}
+header h1{margin:0 0 6px; font-size:24px;}
+header p{margin:0; opacity:.92; font-size:13px;}
+.wrap{max-width:980px; margin:0 auto; padding:20px 16px 40px;}
+.card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:18px; margin-bottom:16px;}
+.card h2{font-size:16px; margin:0 0 12px; display:flex; align-items:center; gap:8px;}
+.num{display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:50%; background:var(--primary); color:#fff; font-size:13px; font-weight:700; flex:none;}
+.row{display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:8px;}
+label{font-size:13px; font-weight:600;}
+.btn{border:none; border-radius:9px; padding:9px 16px; font-size:14px; font-weight:600; cursor:pointer; background:var(--primary); color:#fff; transition:.15s; font-family:inherit;}
+.btn:hover{background:var(--primary-dark);}
+.btn.secondary{background:#f1ece2; color:var(--muted);}
+.btn.green{background:var(--green);}
+.btn.green:hover{filter:brightness(.95);}
+.btn:disabled{opacity:.5; cursor:not-allowed;}
+.pill{display:inline-block; padding:3px 10px; border-radius:999px; background:#f1ece2; color:var(--muted); font-size:12px;}
+.pill.ok{background:#e6f6ec; color:var(--green);}
+.pill.bad{background:#fdecea; color:var(--red);}
+.hint{font-size:12px; color:var(--muted); margin:8px 0 0;}
+.check{display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:500; cursor:pointer;}
+.check input{width:16px; height:16px;}
+#drop{border:2px dashed var(--border); border-radius:12px; padding:22px; text-align:center; color:var(--muted); cursor:pointer; background:#faf6ee; transition:.15s; font-size:14px;}
+#drop:hover,#drop.drag{border-color:var(--primary); background:#f3ead9; color:var(--primary);}
+textarea{width:100%; min-height:260px; font-family:"JetBrains Mono",Consolas,"Courier New",monospace; font-size:13px; line-height:1.55; tab-size:4; padding:12px; border:1px solid var(--border); border-radius:10px; resize:vertical; background:#fffdf8; color:var(--text); white-space:pre; overflow:auto;}
+textarea:focus{outline:2px solid rgba(138,90,43,.3); border-color:var(--primary);}
+#issues{font-size:13px; max-height:220px; overflow:auto;}
+#issues .item{padding:6px 10px; border-left:3px solid var(--red); background:#fdf7f6; margin-bottom:6px; border-radius:0 8px 8px 0;}
+#issues .item.warn{border-left-color:#d97706; background:#fdf9f0;}
+#issues .item.info{border-left-color:var(--green); background:#f4fbf6;}
+#issues b{color:var(--red);}
+#issues .warn b{color:#d97706;}
+#issues .info b{color:var(--green);}
+.statusbar{display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px;}
+.backlink{color:#fff; opacity:.85; font-size:13px; text-decoration:none;}
+.backlink:hover{opacity:1; text-decoration:underline;}
+</style>
+</head>
+<body>
+<header>
+  <h1>🐍 Python 代码格式修正工具</h1>
+  <p>粘贴 / 上传 TXT 或 HTML 中的 Python 代码 → 自动检测语法与格式 → 一键修正 → 在线查看或下载 .txt 文件 · 纯本地运行，代码不上传</p>
+  <p style="margin-top:8px;"><a class="backlink" href="index.html">← 返回小工具箱</a></p>
+</header>
+
+<div class="wrap">
+
+  <!-- 1 输入 -->
+  <div class="card">
+    <h2><span class="num">1</span>输入 Python 代码</h2>
+    <div id="drop">点击选择文件，或将 .py / .txt / .html 拖拽到此处</div>
+    <input type="file" id="file" accept=".py,.txt,.html,.htm" style="display:none">
+    <div class="row" style="margin-top:12px;">
+      <button class="btn" id="detectBtn">🔍 检测语法 / 格式</button>
+      <button class="btn green" id="fixBtn">✨ 自动修正并显示在下方</button>
+      <button class="btn secondary" id="demoBtn">载入示例错误代码</button>
+      <button class="btn secondary" id="clearBtn">清空输入</button>
+    </div>
+    <textarea id="src" placeholder="把 Python 代码粘贴到这里……&#10;&#10;支持：直接粘贴 / 上传 .py 或 .txt 文件 / 粘贴含代码的 HTML 片段（自动提取 &lt;pre&gt;&lt;code&gt; 内的代码）"></textarea>
+    <div class="statusbar">
+      <span class="pill" id="statPill">待检测</span>
+      <span class="pill" id="lineCount">0 行</span>
+    </div>
+    <div id="issues"></div>
+  </div>
+
+  <!-- 2 输出 -->
+  <div class="card">
+    <h2><span class="num">2</span>修正结果</h2>
+    <div class="row">
+      <label>缩进：</label>
+      <select id="indentSel">
+        <option value="4">4 空格（PEP 8 推荐）</option>
+        <option value="2">2 空格</option>
+        <option value="tab">Tab</option>
+      </select>
+      <span class="check"><input type="checkbox" id="optColon" checked> 补全缺失冒号</span>
+      <span class="check"><input type="checkbox" id="optFull" checked> 全角符号转半角</span>
+      <span class="check"><input type="checkbox" id="optSmartQuote" checked> 中文引号转英文引号</span>
+      <span class="check"><input type="checkbox" id="optTabs" checked> Tab 混用统一为空格</span>
+      <span class="check"><input type="checkbox" id="optTrail" checked> 去行尾空白 / 文件末尾补换行</span>
+      <span class="check"><input type="checkbox" id="optBlank" checked> 规范空行（函数/类间两空行）</span>
+    </div>
+    <div class="row">
+      <label>下载文件名：</label>
+      <input type="text" id="outName" value="fixed_code.txt" style="padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;width:200px;">
+      <button class="btn green" id="dlBtn" disabled>⬇️ 下载修正后 TXT 文件</button>
+      <button class="btn secondary" id="copyBtn" disabled>复制结果</button>
+      <button class="btn secondary" id="backBtn" disabled>把结果填回输入框复查</button>
+    </div>
+    <textarea id="out" placeholder="修正后的代码会显示在这里……" readonly></textarea>
+  </div>
+
+  <p class="hint" style="text-align:center;">
+    说明：本工具在浏览器内对常见 Python 格式问题做检测与自动修复（混合缩进、全角字符、中文引号、缺失冒号、括号不配对、行尾空格等），
+    并可选加载 Pyodide 引擎做真实 CPython 语法编译校验。逻辑类错误无法自动修复，请人工复核。
+  </p>
+</div>
+
+<!-- 可选：Pyodide 真实语法校验引擎（本地托管，加载失败时自动回退内置检测器） -->
+<script src="libs/pyodide/pyodide.js" onerror="window.__pyodideFailed=true"></script>
+<script>
+(function(){
+'use strict';
+const $ = s => document.querySelector(s);
+const srcTa = $('#src'), outTa = $('#out'), issuesEl = $('#issues');
+let pyodide = null, lastFixed = '';
+
+/* ---------- 从 HTML 中提取代码 ---------- */
+function extractFromHtml(text){
+  const m = text.match(/<pre[^>]*>([\s\S]*?)<\/pre>/i) || text.match(/<code[^>]*>([\s\S]*?)<\/code>/i);
+  if(!m) return null;
+  const div = document.createElement('div');
+  div.innerHTML = m[1];
+  return div.textContent.replace(/\u00a0/g,' ');
+}
+
+/* ---------- 检测器 ---------- */
+const FULLWIDTH_MAP = {'，':',','。':'.','：':':','；':';','！':'!','？':'?','（':'(','）':')','【':'[','】':']','｛':'{','｝':'}','＝':'=','＋':'+','－':'-','＊':'*','／':'/','＜':'<','＞':'>','％':'%'};
+const SMART_QUOTES = {'“':'"','”':'"','‘':"'",'’':"'"};
+
+function analyze(code){
+  const issues = [];
+  const lines = code.split('\n');
+  let inStr = null, prevSignificant = '', depth = 0;
+
+  // 字符串感知扫描
+  for(let i=0;i<lines.length;i++){
+    let line = lines[i], j = 0;
+    while(j < line.length){
+      const ch = line[j];
+      if(inStr){
+        if(ch === '\\') { j += 2; continue; }
+        if(inStr === '"""' || inStr === "'''"){
+          if(line.substr(j,3) === inStr){ inStr = null; j += 3; continue; }
+        } else if(ch === inStr){ inStr = null; }
+        j++; continue;
+      }
+      if(ch === '#') break; // 注释
+      if(ch === '"' || ch === "'"){
+        const tri = line.substr(j,3);
+        if(tri === '"""' || tri === "'''"){ inStr = tri; j += 3; continue; }
+        inStr = ch; j++; continue;
+      }
+      if(ch === '(' || ch === '[' || ch === '{') depth++;
+      if(ch === ')' || ch === ']' || ch === '}') depth--;
+      if(depth < 0) { issues.push({line:i+1, type:'error', msg:'多余的右括号 ) ] }'}); depth = 0; }
+      // 全角 / 中文引号（仅代码位置）
+      if(FULLWIDTH_MAP[ch] !== undefined && !/\s/.test(lines[i][j-1]||' ') !== false){
+        // 记录一次即可，避免刷屏
+        if(j===0 || line[j-1] !== ch)
+          issues.push({line:i+1, type:'warn', msg:'发现全角字符 “'+ch+'”（应为 '+FULLWIDTH_MAP[ch]+'）'});
+        break;
+      }
+      if(SMART_QUOTES[ch]){ issues.push({line:i+1, type:'error', msg:'使用了中文引号 '+ch+'，Python 会报 SyntaxError'}); break; }
+      j++;
+    }
+    if(depth < 0) depth = 0;
+    const t = line.trim();
+    if(t){ prevSignificant = t; }
+  }
+  if(inStr) issues.push({line:lines.length, type:'error', msg:'存在未闭合的字符串 '+inStr});
+
+  // 缩进检查（跳过续行内的简单判断：以反斜杠结尾或括号深度>0 的行不算块首）
+  let openDepth = 0;
+  const indents = [];
+  for(let i=0;i<lines.length;i++){
+    const raw = lines[i];
+    if(/^\s*#/.test(raw) && raw.trim() !== '') continue;
+    const lead = raw.match(/^[\t ]*/)[0];
+    if(/ /.test(lead) && /\t/.test(lead)) issues.push({line:i+1, type:'error', msg:'空格与 Tab 混合缩进'});
+    if(raw.includes('\t')) issues.push({line:i+1, type:'warn', msg:'行内含 Tab 字符'});
+    if(/[ \t]+$/.test(raw) && raw.trim()!=='') issues.push({line:i+1, type:'warn', msg:'行尾有多余空白'});
+    if(/[，。：；！（）“”‘’]/.test(raw.replace(/#.*$/,'').replace(/(['"]).*?\1/g,''))) {
+      // 已在上面逐字符报告过，这里忽略
+    }
+    const t = raw.trim();
+    if(t === '' || openDepth > 0 || /\\$/.test(t)) continue;
+    openDepth = 0;
+    for(const c of t){ if('([{'.includes(c)) openDepth++; else if(')]}'.includes(c)) openDepth--; }
+    indents.push({n:i+1, w:lead.length, tab:/^\t/.test(lead), text:t});
+  }
+
+  // 块语句缺冒号（启发式：def/class/if/elif/else/for/while/try/except/finally/with 后无冒号且非注释行）
+  const blockRe = /^(async\s+)?(def|class|if|elif|else|for|while|try|except|finally|with)\b/;
+  for(const it of indents){
+    let t = it.text;
+    if(blockRe.test(t)){
+      // 去掉行尾注释再判断
+      const noCmt = t.replace(/#.*$/,'').trimEnd();
+      if(!noCmt.endsWith(':') && !noCmt.endsWith('\\')){
+        // lambda 单行等除外
+        issues.push({line:it.n, type:'error', msg:'疑似缺少冒号："'+noCmt.slice(0,40)+'"'});
+      }
+    }
+  }
+
+  // 缩进不一致（同级宽度不同）
+  const widths = indents.map(x=>x.w).filter(w=>w>0);
+  if(widths.length >= 3){
+    const uniq = [...new Set(widths)].sort((a,b)=>a-b);
+    if(uniq.length > 1 && !uniq.every((v,i)=> i===0 || v % uniq[0] === 0))
+      issues.push({line:null, type:'warn', msg:'缩进宽度混乱：出现 '+uniq.join('、')+' 空格多种层级'});
+  }
+
+  // 括号不配对（整体计数，粗检）
+  const cnt = (re) => (code.replace(/(["'])(?:\\.|(?!\1)[\s\S])*?\1/g,'').replace(/#.*$/gm,'').match(re)||[]).length;
+  const po=cnt(/\(/g), pc=cnt(/\)/g), bo=cnt(/\[/g), bc=cnt(/\]/g), co=cnt(/\{/g), cc=cnt(/\}/g);
+  if(po!==pc) issues.push({line:null, type:'error', msg:'圆括号不配对：( 共 '+po+' 个，) 共 '+pc+' 个'});
+  if(bo!==bc) issues.push({line:null, type:'error', msg:'方括号不配对：[ 共 '+bo+' 个，] 共 '+bc+' 个'});
+  if(co!==cc) issues.push({line:null, type:'error', msg:'花括号不配对：{ 共 '+co+' 个，} 共 '+cc+' 个'});
+
+  // print 语句（Python2 写法）
+  for(let i=0;i<lines.length;i++){
+    if(/^\s*print\s+[^(=\s]/.test(lines[i]))
+      issues.push({line:i+1, type:'warn', msg:'Python2 风格 print 语句，建议改为 print(...)'});
+  }
+
+  return issues;
+}
+
+/* ---------- 修正器 ---------- */
+function fixCode(code){
+  const changes = [];
+  const indentUnit = $('#indentSel').value === 'tab' ? '\t' : ' '.repeat(+$('#indentSel').value);
+  let s = code.replace(/\r\n?/g,'\n');
+
+  // 从 HTML 提取
+  const ex = extractFromHtml(s);
+  if(ex && ex.trim()){ s = ex; changes.push('已从 HTML 内容中提取出代码'); }
+
+  // 去 BOM、零宽字符
+  if(/[\uFEFF\u200b\u200c\u200d\u2028\u2029]/.test(s)){ s = s.replace(/[\uFEFF\u200b\u200c\u200d\u2028\u2029]/g,''); changes.push('移除了 BOM / 零宽不可见字符'); }
+  // NBSP
+  if(/\u00a0/.test(s)){ s = s.replace(/\u00a0/g,' '); changes.push('不间断空格(NBSP)转为普通空格'); }
+
+  if($('#optFull').checked){
+    let n=0;
+    s = s.replace(/[，。：；！？（）【】｛｝＝＋－＊／＜＞％]/g, ch => { n++; return FULLWIDTH_MAP[ch]; });
+    // 全角数字/字母
+    s = s.replace(/[\uff01-\uff5e]/g, ch => String.fromCharCode(ch.charCodeAt(0)-0xFEE0));
+    if(n) changes.push('全角标点/符号转半角 '+n+' 处');
+  }
+  if($('#optSmartQuote').checked){
+    const before = s;
+    // 仅在字符串外替换中文引号：简化处理——逐行、去注释后判断是否在引号内太复杂，采用保守策略：
+    // 若整份代码没有任何英文双引号包裹中文的场景，直接替换；否则按奇偶配对。
+    s = s.replace(/[“”]/g,'"').replace(/[‘’]/g,"'");
+    if(before !== s) changes.push('中文弯引号 “ ” ‘ ’ 转为直引号 " \' ');
+  }
+
+  // 重新按行处理
+  const lines = s.split('\n');
+  const outLines = [];
+  let inStr = null, parenDepth = 0;
+  let lastOpenLine = -1, maxSeen = 0, pendingContinuation = false;
+  const globalOpenStack = [], openLineStack = [];
+  for(let i=0;i<lines.length;i++){
+    let line = lines[i];
+
+    // 行尾空白
+    if($('#optTrail').checked) line = line.replace(/[ \t]+$/,'');
+
+    // Tab 缩进统一：按列位置展开（一个 Tab 跳到下一个缩进单位边界），而非简单一对一替换
+    if($('#optTabs').checked && line.includes('\t')){
+      const unit = $('#indentSel').value === 'tab' ? 4 : +$('#indentSel').value;
+      line = line.replace(/^[\t ]*/, lead => {
+        let col = 0, outStr = '';
+        for(const ch of lead){
+          if(ch === '\t'){ const next = (Math.floor(col/unit)+1)*unit; outStr += (indentUnit==='\t'?'\t':indentUnit).repeat(indentUnit==='\t' ? (next-col)/unit : next-col); col = next; }
+          else { outStr += ch; col++; }
+        }
+        return outStr;
+      });
+      changes.push('第 '+(i+1)+' 行 Tab 缩进已统一');
+    }
+
+    // 括号深度跟踪（先算，供补冒号逻辑使用）；同步维护全局「开括号→行号」栈
+    const sc = stripStringsAndComment(line);
+    const depthBefore = parenDepth;
+    {
+      for(const c of sc){
+        if('([{'.includes(c)){ globalOpenStack.push(c); openLineStack.push(i); }
+        else if(')]}'.includes(c)){ if(globalOpenStack.length){ globalOpenStack.pop(); openLineStack.pop(); } }
+      }
+      var unclosedStack = globalOpenStack.slice(); // 本行结束时仍未闭合的括号栈
+      parenDepth = globalOpenStack.length;
+    }
+
+    // 缺失冒号的块语句（如 if x == 1 → if x == 1:）；未闭合括号统一在扫描结束后处理
+    if($('#optColon').checked && !/\\\s*$/.test(line)){
+      const t = sc.trimEnd(), tt = t.trim();
+      const isBlock = /^(async\s+)?(def|class|if|elif|else|for|while|try|except|finally|with)\b/.test(tt);
+      if(isBlock && unclosedStack.length === 0 && !/[,:;\\]$/.test(tt) && tt !== '' && !/[+\-*/%<>=]$/.test(tt)){
+        line = line.trimEnd() + ':';
+        changes.push('第 '+(i+1)+' 行补全了缺失的冒号');
+      }
+    }
+
+    outLines.push(line);
+  }
+  s = outLines.join('\n');
+
+  // 整体扫描结束仍有未闭合括号 → 按各开括号的行号分别补齐（栈顶的括号先闭合）
+  if($('#optColon').checked && globalOpenStack.length && openLineStack.length){
+    const byLine = {};
+    // 从栈底到栈顶依次闭合：栈顶(最晚打开)的右括号放最前
+    let closersAll = '';
+    for(let k = globalOpenStack.length-1; k >= 0; k--){
+      const c = globalOpenStack[k];
+      closersAll += c==='(' ? ')' : c==='[' ? ']' : '}';
+      const ln = openLineStack[k];
+      byLine[ln] = byLine[ln] || [];
+      byLine[ln].unshift(c);
+    }
+    const ls2 = s.split('\n');
+    for(const [ln, stack] of Object.entries(byLine)){
+      const closers = stack.slice().reverse().map(c => c==='(' ? ')' : c==='[' ? ']' : '}').join('');
+      ls2[ln] = ls2[ln].trimEnd() + closers;
+      changes.push('第 '+(+ln+1)+' 行补全了缺失的右括号 '+closers);
+      // 用户把冒号误写进括号内（如 def util(v:) ）→ 移到括号外
+      {
+        const m2 = ls2[ln].match(/^(.*?\()[^()]*:\s*(\)+)\s*$/);
+        if(m2){ ls2[ln] = m2[1].trimEnd() + m2[2] + ':'; }
+      }
+      // 补完右括号后，该行若是块语句仍缺冒号则一并补上（基于最新内容判断）
+      const tt2 = stripStringsAndComment(ls2[ln]).trim();
+      if(/^(async\s+)?(def|class|if|elif|else|for|while|try|except|finally|with)\b/.test(tt2)
+         && !/[,:;\\]$/.test(tt2) && !/[+\-*/%<>=]$/.test(tt2)){
+        ls2[ln] = ls2[ln].trimEnd() + ':';
+        changes.push('第 '+(+ln+1)+' 行补全了缺失的冒号');
+      }
+    }
+    s = ls2.join('\n');
+  }
+
+  // 规范空行：def/class 前两空行（顶层），内部一空行；去掉 3 连以上空行
+  if($('#optBlank').checked){
+    const ls = s.split('\n');
+    const res = [];
+    let blanks = 0;
+    for(let i=0;i<ls.length;i++){
+      const t = ls[i].trim();
+      if(t===''){ blanks++; continue; }
+      blanks = Math.min(blanks, 2);
+      if(/^(def|class|async def)\b/.test(t) && res.length){
+        let prevIdx = res.length-1;
+        let need = indentLevel(ls[i]) === 0 ? 2 : 1;
+        let curBlanks = blanks;
+        // 向前数已有空行
+        let have = 0;
+        for(let k=res.length-1;k>=0;k--){ if(res[k].trim()==='') have++; else break; }
+        if(have < need){ for(let k=have;k<need;k++) res.push(''); }
+        // 删多余
+        while(res.length && res[res.length-1]==='' ){ 
+          let cnt=0,k=res.length-1;
+          while(k>=0 && res[k]===''){cnt++;k--;}
+          if(cnt>need){ res.pop(); } else break;
+        }
+      }
+      // 追加当前行前的空行
+      for(let k=0;k<blanks && res.length;k++){ /* blanks already pushed below */ }
+      // 实际推入：先把之前的空行推入
+      res.push(...Array(blanks).fill('').slice(0, blanks)); // 简化
+      res.push(ls[i]);
+      blanks = 0;
+    }
+    s = res.join('\n').replace(/\n{4,}/g,'\n\n\n');
+  }
+
+  // 缩进重建：按块语句/冒号规则 + 原始缩进锚点重算每一行缩进级别
+  if($('#optTabs').checked){
+    const ls = s.split('\n');
+    const rebuilt = [];
+    const unitN = $('#indentSel').value === 'tab' ? 4 : +$('#indentSel').value;
+    let level = 0;
+    const anchors = []; // 原始缩进列栈
+    const blockRe2 = /^(async\s+)?(def|class|if|elif|else|for|while|try|except|finally|with)\b/;
+    const origCol = ln => { let c=0; for(const ch of ln){ if(ch==='\t') c = (Math.floor(c/unitN)+1)*unitN; else if(ch===' ') c++; else break; } return c; };
+    let parenOpen = 0; // 跨行括号深度：>0 表示当前行是上一行的延续，不动它的缩进
+    for(const ln of ls){
+      const t = ln.trim();
+      if(t === ''){ rebuilt.push(''); continue; }
+      if(parenOpen > 0 || /\\$/.test(t)){
+        // 括号内续行 / 显式续行：保持原样
+        rebuilt.push(ln.replace(/^[ \t]+/, m => indentUnit === '\t' ? m : m.replace(/\t/g, '    ')));
+      } else {
+        const oc = origCol(ln);
+        while(anchors.length && anchors[anchors.length-1] >= oc && level > 0){ anchors.pop(); level--; }
+        rebuilt.push(indentUnit.repeat(level) + t);
+        if(blockRe2.test(t) && t.endsWith(':')){ level++; anchors.push(oc); }
+      }
+      // 更新跨行括号深度（去字符串和注释后统计）
+      const sc2 = stripStringsAndComment(ln);
+      for(const c of sc2){ if('([{'.includes(c)) parenOpen++; else if(')]}'.includes(c)) parenOpen = Math.max(0, parenOpen-1); }
+    }
+    s = rebuilt.join('\n');
+    changes.push('已按逻辑块结构重建全部缩进');
+  }
+
+  if($('#optTrail').checked){
+    if(s && !s.endsWith('\n')){ s += '\n'; changes.push('文件末尾补充换行符'); }
+    s = s.replace(/^\n+/,'');
+  }
+
+  return {code:s, changes:[...new Set(changes)]};
+}
+
+function stripStringsAndComment(line){
+  let r = '', q = null;
+  for(let i=0;i<line.length;i++){
+    const c = line[i];
+    if(q){ if(c==='\\'){ i++; continue; } if(c===q) q=null; continue; }
+    if(c==='#') break;
+    if(c==='"'||c==="'"){ q=c; continue; }
+    r += c;
+  }
+  return r;
+}
+function indentLevel(line){
+  const m = line.match(/^[\t ]*/)[0];
+  return (m.match(/\t/g)||[]).length + Math.floor(m.replace(/\t/g,'    ').length/4);
+}
+
+/* ---------- Pyodide 真实语法校验 ---------- */
+async function pyCompileCheck(code){
+  if(window.__pyodideFailed || typeof loadPyodide === 'undefined') return null;
+  try{
+    if(!pyodide) pyodide = await loadPyodide({ indexURL: 'libs/pyodide/' });
+    pyodide.globals.set('__src__', code);
+    return pyodide.runPython(`
+import ast, json
+try:
+    ast.parse(__src__)
+    json.dumps({"ok": True})
+except SyntaxError as e:
+    json.dumps({"ok": False, "msg": str(e.msg), "line": e.lineno or 0, "text": (e.text or "").strip()})
+`);
+  }catch(e){ return null; }
+}
+
+/* ---------- UI ---------- */
+function renderIssues(list){
+  if(!list.length){
+    issuesEl.innerHTML = '<div class="item info"><b>✅ 未发现问题</b>：未检出常见格式/语法问题。</div>';
+    $('#statPill').textContent='✅ 检测通过'; $('#statPill').className='pill ok';
+    return;
+  }
+  const err = list.filter(x=>x.type==='error'), warn = list.filter(x=>x.type==='warn');
+  $('#statPill').textContent = '⚠️ 发现 '+err.length+' 个错误 / '+warn.length+' 个警告';
+  $('#statPill').className='pill bad';
+  issuesEl.innerHTML = list.map(it =>
+    '<div class="item '+it.type+'">'+(it.line?'<b>第 '+it.line+' 行</b> · ':'<b>整体</b> · ')+it.msg+'</div>'
+  ).join('');
+}
+
+$('#detectBtn').addEventListener('click', async function(){
+  this.disabled = true; this.textContent = '检测中…';
+  let code = srcTa.value;
+  const htmlCode = extractFromHtml(code);
+  if(htmlCode && htmlCode.trim()) code = htmlCode;
+  const issues = analyze(code);
+
+  // Pyodide 增强
+  const pyRes = await pyCompileCheck(code);
+  if(pyRes){
+    if(pyRes.ok){
+      issues.unshift({line:null,type:'info',msg:'Pyodide(CPython) 编译校验通过：语法完全正确'});
+    } else {
+      issues.unshift({line:pyRes.line,type:'error',msg:'CPython 语法错误：'+pyRes.msg+(pyRes.text?' → '+pyRes.text:'')});
+    }
+  } else if(window.__pyodideFailed || typeof loadPyodide === 'undefined'){
+    issues.unshift({line:null,type:'info',msg:'使用内置检测器（离线模式）；联网时可自动启用 CPython 引擎精确校验'});
+  }
+  renderIssues(issues);
+  this.disabled = false; this.textContent = '🔍 检测语法 / 格式';
+});
+
+$('#fixBtn').addEventListener('click', async function(){
+  this.disabled = true; this.textContent='修正中…';
+  const {code, changes} = fixCode(srcTa.value);
+  lastFixed = code;
+  outTa.value = code;
+  $('#outName').value = ($('#outName').value || 'fixed_code.txt');
+
+  // 修正后再检测一次
+  const issues = analyze(code);
+  const pyRes = await pyCompileCheck(code);
+  if(pyRes){
+    if(pyRes.ok) issues.unshift({line:null,type:'info',msg:'修正后已通过 CPython 编译校验 ✅'});
+    else issues.unshift({line:pyRes.line,type:'error',msg:'仍有 CPython 语法错误：'+pyRes.msg});
+  }
+  renderIssues(issues);
+
+  let summary = changes.length ? ('共应用修正 '+changes.length+' 类：<br>· '+changes.join('<br>· ')) : '未发现需要修正的内容';
+  issuesEl.innerHTML = '<div class="item info"><b>✨ 修正完成</b><br>'+summary+'</div>' + issuesEl.innerHTML;
+
+  $('#dlBtn').disabled = false; $('#copyBtn').disabled = false; $('#backBtn').disabled = false;
+  this.disabled = false; this.textContent = '✨ 自动修正并显示在下方';
+});
+
+$('#dlBtn').addEventListener('click', function(){
+  const blob = new Blob([lastFixed], {type:'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  let name = $('#outName').value.trim() || 'fixed_code.txt';
+  if(!/\.txt$/i.test(name)) name += '.txt';
+  a.download = name; a.click();
+  URL.revokeObjectURL(a.href);
+});
+$('#copyBtn').addEventListener('click', function(){
+  navigator.clipboard.writeText(lastFixed).then(()=>{
+    this.textContent='✅ 已复制'; setTimeout(()=>this.textContent='复制结果',1500);
+  });
+});
+$('#backBtn').addEventListener('click', ()=>{ srcTa.value = lastFixed; updateCount(); });
+
+$('#clearBtn').addEventListener('click', ()=>{
+  srcTa.value=''; outTa.value=''; issuesEl.innerHTML='';
+  $('#statPill').textContent='待检测'; $('#statPill').className='pill';
+  $('#dlBtn').disabled=$('#copyBtn').disabled=$('#backBtn').disabled=true; updateCount();
+});
+
+$('#demoBtn').addEventListener('click', ()=>{
+  srcTa.value = 'import os，sys\n\ndef hello(name\n    print("Hello, " + name）\n\tif name == “world”:\n\t\tprint("Hi world")\n   else:\n     print("Hi",name)   \ndef foo():\n    x = 1\n\n\n\n\n    return x\nhello("world")';
+  updateCount();
+});
+
+/* 文件上传 / 拖拽 */
+const drop = $('#drop'), fileInput = $('#file');
+drop.addEventListener('click', ()=> fileInput.click());
+['dragover','dragenter'].forEach(ev => drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.add('drag'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e=>{ e.preventDefault(); drop.classList.remove('drag'); }));
+drop.addEventListener('drop', e=> handleFiles(e.dataTransfer.files));
+fileInput.addEventListener('change', ()=> handleFiles(fileInput.files));
+function handleFiles(files){
+  if(!files || !files.length) return;
+  const f = files[0];
+  const rd = new FileReader();
+  rd.onload = () => {
+    let txt = rd.result;
+    const ex = extractFromHtml(txt);
+    if(ex && ex.trim()) txt = ex;
+    srcTa.value = txt;
+    if(!/^fixed/.test($('#outName').value) || true) $('#outName').value = f.name.replace(/\.[^.]+$/,'') + '_fixed.txt';
+    updateCount();
+  };
+  rd.readAsText(f, 'utf-8');
+}
+
+srcTa.addEventListener('input', updateCount);
+function updateCount(){ $('#lineCount').textContent = (srcTa.value ? srcTa.value.split('\n').length : 0) + ' 行'; }
+
+// iframe 嵌入时隐藏 header
+if(window.self !== window.top){ document.querySelector('header').style.display='none'; }
+})();
+</script>
+</body>
+</html>
