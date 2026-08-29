@@ -630,8 +630,6 @@ const App = (function () {
             <ul>
               <li><strong>前端</strong> — 原生 HTML / CSS / JavaScript</li>
               <li><strong>Markdown</strong> — marked.js + highlight.js + DOMPurify</li>
-              <li><strong>数据存储</strong> — localStorage + IndexedDB（支持大文件）</li>
-              <li><strong>路由</strong> — 自研轻量哈希路由</li>
             </ul>
           </div>
         </div>
