@@ -249,12 +249,12 @@ const Store = (function () {
     // 初始化文章（带种子版本；升级时按 id 合并：新增/覆盖内置文章，保留用户自建文章）
     const ARTICLE_SEED_VER = 'v20260822-tools13';
     if (localStorage.getItem('blog_articles_seed_ver') !== ARTICLE_SEED_VER) {
-      // 以 id 为键合并：SAMPLE_ARTICLES 覆盖同名内置文章、补全缺失文章，
+      // 以 id 为键合并：仅「补全缺失」的内置文章，绝不覆盖已存储（可能被管理员改过日期/内容）的文章，
       // 用户在界面自建的文章（id 不在内置清单内）予以保留，避免被清掉。
       const existing = getArticles();
       const byId = new Map();
       existing.forEach((a) => byId.set(a.id, a));
-      sampleArticles.forEach((s) => byId.set(s.id, s));
+      sampleArticles.forEach((s) => { if (!byId.has(s.id)) byId.set(s.id, s); });
       const merged = Array.from(byId.values());
       setJSON(STORAGE_KEYS.articles, merged);
       try { localStorage.setItem('blog_articles_seed_ver', ARTICLE_SEED_VER); } catch (e) {}
