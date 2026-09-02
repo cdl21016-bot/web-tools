@@ -247,7 +247,7 @@ const Store = (function () {
   // ============================================
   function init() {
     // 初始化文章（带种子版本；升级时按 id 合并：新增/覆盖内置文章，保留用户自建文章）
-    const ARTICLE_SEED_VER = 'v20260822-tools13';
+    const ARTICLE_SEED_VER = 'v20260902-excelsplit';
     if (localStorage.getItem('blog_articles_seed_ver') !== ARTICLE_SEED_VER) {
       // 以 id 为键合并：仅「补全缺失」的内置文章，绝不覆盖已存储（可能被管理员改过日期/内容）的文章，
       // 用户在界面自建的文章（id 不在内置清单内）予以保留，避免被清掉。
@@ -551,6 +551,14 @@ const Store = (function () {
         description: '自动规范中文标点：文本可直接复制，文档支持 TXT / Excel / Word 导入并生成修正文件',
         builtin: true,
         src: 'tools/typo-fixer.html',
+      },
+      {
+        id: 'tool_excelsplit',
+        name: '一键拆合Excel',
+        icon: '🗂️',
+        description: '按某一列的不同内容一键拆成多个 Sheet（可选打包成多个文件的 ZIP），或把多个 Sheet / 文件合并回一张总表，支持按表头智能对齐',
+        builtin: true,
+        src: 'tools/excel-split-merge.html',
       },
     ];
 
