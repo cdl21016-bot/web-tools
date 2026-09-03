@@ -247,7 +247,7 @@ const Store = (function () {
   // ============================================
   function init() {
     // 初始化文章（带种子版本；升级时按 id 合并：新增/覆盖内置文章，保留用户自建文章）
-    const ARTICLE_SEED_VER = 'v20260904-txtsm';
+    const ARTICLE_SEED_VER = 'v20260904-imagic';
     if (localStorage.getItem('blog_articles_seed_ver') !== ARTICLE_SEED_VER) {
       // 以 id 为键合并：仅「补全缺失」的内置文章，绝不覆盖已存储（可能被管理员改过日期/内容）的文章，
       // 用户在界面自建的文章（id 不在内置清单内）予以保留，避免被清掉。
@@ -583,6 +583,14 @@ const Store = (function () {
         description: '选一列按分隔符拆成多列（右侧插入），或勾选多列用分隔符合并成一列（可指定插入位置），纯本地处理',
         builtin: true,
         src: 'tools/text-split-merge.html',
+      },
+      {
+        id: 'tool_imagic',
+        name: '图片魔法',
+        icon: '🪄',
+        description: '上传图片改格式(PNG/JPEG/WEBP)、改像素、压文件大小、加马赛克与Logo叠加，全程本地处理',
+        builtin: true,
+        src: 'tools/image-magic.html',
       },
     ];
 

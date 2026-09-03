@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>图片魔法</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5f6f8;
+    color: #1f2329;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 22px; margin: 4px 0 4px; }
+  .sub { color: #6b7280; font-size: 13px; margin-bottom: 16px; }
+  section { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+  .hint { font-size: 13px; color: #667085; background: #f0f6ff; border: 1px solid #d6e4ff; padding: 10px 12px; border-radius: 8px; margin: 0 0 14px; }
+  .warn { color:#b54708; background:#fffaeb; border:1px solid #fedf89; padding:10px 12px; border-radius:8px; font-size:13px; margin-bottom:12px; }
+  .hidden { display: none; }
+  label { display: block; font-size: 13px; font-weight: 600; color: #344054; margin: 12px 0 6px; }
+  select, input[type="text"], input[type="number"] {
+    width: 100%; font-size: 14px; font-family: inherit; padding: 8px 10px;
+    border: 1px solid #d0d5dd; border-radius: 8px; background: #fff; color: #1f2329;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+  .btn {
+    display: inline-block; border: none; background: #2563eb; color: #fff;
+    padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;
+    margin-top: 12px; margin-right: 8px;
+  }
+  .btn:disabled { background: #b6c2d4; cursor: not-allowed; }
+  .btn.secondary { background: #eef2f6; color: #344054; }
+  .status { font-size: 13px; color: #344054; margin-top: 12px; min-height: 20px; }
+  .status.err { color: #d92d20; }
+  .status.ok { color: #067647; }
+  .note { font-size: 12px; color: #667085; margin-top: 8px; }
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+    background: #1f2329; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 14px;
+    z-index: 50; opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+  .toast.hidden { display: none; }
+  .drop {
+    border: 2px dashed #c4ccd6; border-radius: 12px; padding: 28px 16px; text-align: center;
+    color: #667085; cursor: pointer; background: #fafbfc; transition: border-color .15s, background .15s;
+  }
+  .drop.over { border-color: #2563eb; background: #eef4ff; }
+  .preview-box { margin-top: 14px; text-align: center; }
+  .preview-box canvas { max-width: 100%; height: auto; border: 1px solid #e5e7eb; border-radius: 8px; background:
+    repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50% / 16px 16px; }
+  .meta { font-size: 13px; color: #475467; margin-top: 8px; }
+  .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #344054; margin-right: 14px; }
+  .chk input { width: 15px; height: 15px; margin: 0; }
+  .posgrid { display: grid; grid-template-columns: repeat(3, 40px); grid-template-rows: repeat(3, 40px); gap: 6px; width: max-content; margin-top: 6px; }
+  .poscell { border: 1px solid #d0d5dd; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 13px; color: #344054; background: #fff; user-select: none; }
+  .poscell.active { background: #2563eb; color: #fff; border-color: #2563eb; }
+  .range-row { display: flex; align-items: center; gap: 12px; }
+  .range-row input[type="range"] { flex: 1; }
+  .range-val { min-width: 48px; text-align: right; font-size: 13px; color: #344054; }
+  .swatch { display:inline-block; width:12px; height:12px; border-radius:3px; vertical-align:middle; margin-right:6px; border:1px solid #d0d5dd; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🪄 图片魔法</h1>
+  <div class="sub">本地处理，不上传服务器 · 改格式 / 改像素 / 压大小 / 加马赛克 / 加 Logo</div>
+
+  <div id="libWarn" class="warn hidden"></div>
+
+  <section>
+    <div class="hint">上传一张图片即可开始。所有处理在你的浏览器本地完成，文件不会离开电脑。</div>
+    <div class="drop" id="dropZone">
+      点击或拖拽图片到此（JPG / PNG / WEBP / GIF / BMP 等）
+      <input type="file" id="fileInput" accept="image/*" class="hidden">
+    </div>
+    <div class="preview-box">
+      <canvas id="preview" class="hidden"></canvas>
+      <div id="imgMeta" class="meta"></div>
+    </div>
+  </section>
+
+  <section>
+    <h3>① 输出格式</h3>
+    <div class="warn">浏览器导出能力限制：仅可输出 <b>PNG / JPEG / WEBP</b> 三种（基于 Canvas）。选择「保持原格式」会沿用原图类型，若原类型为上述之一则原样输出，否则回退为 PNG。「任意格式」指在这三种通用格式间自由互转。</div>
+    <label>导出格式</label>
+    <select id="fmt">
+      <option value="keep">保持原格式</option>
+      <option value="image/png">PNG（无损）</option>
+      <option value="image/jpeg">JPEG（有损，体积小）</option>
+      <option value="image/webp">WEBP（有损/无损，体积最小）</option>
+    </select>
+  </section>
+
+  <section>
+    <h3>② 像素 / 尺寸</h3>
+    <label>缩放方式</label>
+    <select id="resizeMode">
+      <option value="none">不调整（原尺寸）</option>
+      <option value="width">按宽度</option>
+      <option value="height">按高度</option>
+      <option value="custom">自定义宽高</option>
+      <option value="percent">按百分比</option>
+    </select>
+    <div class="grid3" style="margin-top:10px;">
+      <div>
+        <label>宽度(px)</label>
+        <input type="number" id="rw" min="1" placeholder="如 800">
+      </div>
+      <div>
+        <label>高度(px)</label>
+        <input type="number" id="rh" min="1" placeholder="如 600">
+      </div>
+      <div>
+        <label>百分比(%)</label>
+        <input type="number" id="rpct" min="1" max="1000" placeholder="如 50">
+      </div>
+    </div>
+    <div style="margin-top:10px;">
+      <label class="chk"><input type="checkbox" id="lockRatio" checked> 锁定宽高比（按单边计算时自动算另一边）</label>
+    </div>
+  </section>
+
+  <section>
+    <h3>③ 文件大小</h3>
+    <label>画质（仅 JPEG / WEBP 生效，0–100）</label>
+    <div class="range-row">
+      <input type="range" id="quality" min="10" max="100" value="92">
+      <span class="range-val" id="qualityVal">92</span>
+    </div>
+    <label style="margin-top:14px;">目标文件大小(KB，可选)</label>
+    <input type="number" id="targetKB" min="1" placeholder="如 200，留空则按画质导出">
+    <div class="note">说明：JPEG / WEBP 会按目标大小自动下调画质（最低 10）；PNG 为无损，无法靠画质压缩，将自动按尺寸等比缩小以逼近目标（最低缩到 30%）。</div>
+  </section>
+
+  <section>
+    <h3>④ 马赛克</h3>
+    <label class="chk"><input type="checkbox" id="mosaicOn"> 启用马赛克</label>
+    <label>像素块大小(px，越大越糊)</label>
+    <div class="range-row">
+      <input type="range" id="mosaicBlock" min="2" max="60" value="12">
+      <span class="range-val" id="mosaicBlockVal">12</span>
+    </div>
+    <label style="margin-top:14px;">作用范围</label>
+    <select id="mosaicScope">
+      <option value="all">整张图片</option>
+      <option value="custom">自定义矩形区域</option>
+    </select>
+    <div class="grid2" id="mosaicRegionBox" style="margin-top:10px;">
+      <div>
+        <label>区域 X 起点(%)</label>
+        <input type="number" id="mox" min="0" max="100" value="0">
+      </div>
+      <div>
+        <label>区域 Y 起点(%)</label>
+        <input type="number" id="moy" min="0" max="100" value="0">
+      </div>
+      <div>
+        <label>区域宽度(%)</label>
+        <input type="number" id="mow" min="1" max="100" value="100">
+      </div>
+      <div>
+        <label>区域高度(%)</label>
+        <input type="number" id="moh" min="1" max="100" value="100">
+      </div>
+    </div>
+    <div class="note">自定义区域：以百分比指定要打码的位置（如人脸区域）。坐标原点在左上角。</div>
+  </section>
+
+  <section>
+    <h3>⑤ Logo 叠加</h3>
+    <label class="chk"><input type="checkbox" id="logoOn"> 启用 Logo 叠加</label>
+    <div class="drop" id="logoDrop" style="margin-top:10px;">
+      点击或拖拽 Logo 图片（建议透明背景 PNG）
+      <input type="file" id="logoInput" accept="image/*" class="hidden">
+    </div>
+    <label style="margin-top:14px;">位置</label>
+    <div class="posgrid" id="posGrid">
+      <div class="poscell" data-pos="tl">↖</div>
+      <div class="poscell" data-pos="tc">↑</div>
+      <div class="poscell" data-pos="tr">↗</div>
+      <div class="poscell" data-pos="ml">←</div>
+      <div class="poscell" data-pos="mc">＋</div>
+      <div class="poscell" data-pos="mr">→</div>
+      <div class="poscell" data-pos="bl">↙</div>
+      <div class="poscell" data-pos="bc">↓</div>
+      <div class="poscell active" data-pos="br">↘</div>
+    </div>
+    <div class="grid2" style="margin-top:10px;">
+      <div>
+        <label>Logo 宽度占画布比例(%)</label>
+        <input type="number" id="logoScale" min="1" max="100" value="20">
+      </div>
+      <div>
+        <label>边距(px)</label>
+        <input type="number" id="logoMargin" min="0" value="16">
+      </div>
+    </div>
+    <label style="margin-top:14px;">不透明度(%)</label>
+    <div class="range-row">
+      <input type="range" id="logoOpacity" min="10" max="100" value="100">
+      <span class="range-val" id="logoOpacityVal">100</span>
+    </div>
+  </section>
+
+  <section>
+    <button class="btn" id="processBtn" disabled>生成并下载</button>
+    <button class="btn secondary" id="resetBtn">清空重来</button>
+    <div class="status" id="status"></div>
+  </section>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return (typeof document !== 'undefined') ? document.getElementById(id) : null; }
+  function toast(msg) {
+    var t = $('toast'); if (!t) return;
+    t.textContent = msg; t.classList.remove('hidden'); t.classList.add('show');
+    setTimeout(function () { t.classList.remove('show'); }, 1800);
+  }
+  function setStatus(id, msg, kind) {
+    var el = $(id); if (!el) return;
+    el.textContent = msg || '';
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+  function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+  function numOr(v, d) { var n = parseFloat(v); return isFinite(n) ? n : d; }
+
+  // ============================================================
+  // 纯逻辑函数（与 Canvas 解耦，便于自动化测试）
+  // ============================================================
+
+  // 计算缩放后的尺寸
+  function computeResize(ow, oh, mode, vw, vh, pct, lock) {
+    ow = ow | 0; oh = oh | 0;
+    if (mode === 'width') {
+      var w = Math.max(1, vw | 0);
+      return { w: w, h: lock ? Math.max(1, Math.round(oh * (w / ow))) : oh };
+    }
+    if (mode === 'height') {
+      var h = Math.max(1, vh | 0);
+      return { w: lock ? Math.max(1, Math.round(ow * (h / oh))) : ow, h: h };
+    }
+    if (mode === 'custom') {
+      return { w: Math.max(1, vw | 0 || ow), h: Math.max(1, vh | 0 || oh) };
+    }
+    if (mode === 'percent') {
+      var f = (isFinite(pct) ? pct : 100) / 100;
+      return { w: Math.max(1, Math.round(ow * f)), h: Math.max(1, Math.round(oh * f)) };
+    }
+    return { w: ow, h: oh };
+  }
+
+  // 对像素数组(data: Uint8ClampedArray, 长度 w*h*4) 在区域内打马赛克（块平均）
+  function mosaicRegion(data, w, h, block, x0, y0, x1, y1) {
+    block = Math.max(1, block | 0);
+    w = w | 0; h = h | 0;
+    x0 = clamp(x0 | 0, 0, w); x1 = clamp(x1 | 0, 0, w);
+    y0 = clamp(y0 | 0, 0, h); y1 = clamp(y1 | 0, 0, h);
+    if (x1 <= x0 || y1 <= y0) return data;
+    for (var by = y0; by < y1; by += block) {
+      var y2 = Math.min(by + block, y1);
+      for (var bx = x0; bx < x1; bx += block) {
+        var x2 = Math.min(bx + block, x1);
+        var r = 0, g = 0, b = 0, n = 0, x, y, i;
+        for (y = by; y < y2; y++) {
+          for (x = bx; x < x2; x++) {
+            i = (y * w + x) * 4; r += data[i]; g += data[i + 1]; b += data[i + 2]; n++;
+          }
+        }
+        r = Math.round(r / n); g = Math.round(g / n); b = Math.round(b / n);
+        for (y = by; y < y2; y++) {
+          for (x = bx; x < x2; x++) {
+            i = (y * w + x) * 4; data[i] = r; data[i + 1] = g; data[i + 2] = b;
+          }
+        }
+      }
+    }
+    return data;
+  }
+
+  // 计算 Logo 尺寸（按画布宽度比例）
+  function computeLogoSize(scalePct, cw, l0w, l0h) {
+    var w = Math.max(1, Math.round(cw * (clamp(scalePct, 1, 100) / 100)));
+    var ratio = l0h / l0w;
+    return { w: w, h: Math.max(1, Math.round(w * ratio)) };
+  }
+
+  // 计算 Logo 位置（九宫格：tl/tc/tr/ml/mc/mr/bl/bc/br）
+  function computeLogoPos(pos, cw, ch, lw, lh, margin) {
+    var x, y;
+    var col = pos.charAt(1), row = pos.charAt(0);
+    if (col === 'l') x = margin;
+    else if (col === 'r') x = cw - lw - margin;
+    else x = (cw - lw) / 2;
+    if (row === 't') y = margin;
+    else if (row === 'b') y = ch - lh - margin;
+    else y = (ch - lh) / 2;
+    return { x: Math.round(x), y: Math.round(y) };
+  }
+
+  // 把目标大小转为字节
+  function kbToBytes(kb) { return Math.max(1, Math.round(numOr(kb, 0) * 1024)); }
+
+  // 映射导出格式
+  function resolveFormat(sel, originalType) {
+    if (sel === 'keep') {
+      if (originalType === 'image/png' || originalType === 'image/jpeg' || originalType === 'image/webp') return originalType;
+      return 'image/png';
+    }
+    return sel;
+  }
+  function isLossy(fmt) { return fmt === 'image/jpeg' || fmt === 'image/webp'; }
+
+  // ============================================================
+  // 真实处理流程（依赖浏览器 Canvas）
+  // ============================================================
+  var state = { img: null, logo: null, logoPos: 'br', fileName: 'image' };
+
+  function blobToCanvas(blob) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.onload = function () { resolve(img); };
+      img.onerror = function () { reject(new Error('图片解码失败')); };
+      img.src = URL.createObjectURL(blob);
+    });
+  }
+
+  function canvasToBlob(canvas, fmt, quality) {
+    return new Promise(function (resolve, reject) {
+      if (canvas.toBlob) {
+        canvas.toBlob(function (b) { b ? resolve(b) : reject(new Error('导出失败')); }, fmt, quality);
+      } else {
+        try {
+          var dataURL = canvas.toDataURL(fmt, quality);
+          var bin = atob(dataURL.split(',')[1]);
+          var arr = new Uint8Array(bin.length);
+          for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+          resolve(new Blob([arr], { type: fmt }));
+        } catch (e) { reject(e); }
+      }
+    });
+  }
+
+  // 构建最终画布（已应用尺寸 + 马赛克 + Logo），scaleOver 用于目标大小迭代时覆盖缩放
+  function buildCanvas(srcImg, opts, scaleOver) {
+    var dim = computeResize(srcImg.naturalWidth, srcImg.naturalHeight,
+      scaleOver ? 'percent' : opts.resizeMode,
+      opts.rw, opts.rh, scaleOver ? scaleOver * 100 : opts.pct, opts.lock);
+    var W = dim.w, H = dim.h;
+    var cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    var ctx = cv.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(srcImg, 0, 0, W, H);
+
+    // 马赛克
+    if (opts.mosaicOn) {
+      var d = ctx.getImageData(0, 0, W, H);
+      if (opts.mosaicScope === 'all') {
+        mosaicRegion(d.data, W, H, opts.mosaicBlock, 0, 0, W, H);
+      } else {
+        var rx = Math.round(W * clamp(opts.mox, 0, 100) / 100);
+        var ry = Math.round(H * clamp(opts.moy, 0, 100) / 100);
+        var rw = Math.round(W * clamp(opts.mow, 0, 100) / 100);
+        var rh = Math.round(H * clamp(opts.moh, 0, 100) / 100);
+        mosaicRegion(d.data, W, H, opts.mosaicBlock, rx, ry, rx + rw, ry + rh);
+      }
+      ctx.putImageData(d, 0, 0);
+    }
+
+    // Logo
+    if (opts.logoOn && state.logo) {
+      var ls = computeLogoSize(opts.logoScale, W, state.logo.naturalWidth, state.logo.naturalHeight);
+      var lp = computeLogoPos(opts.logoPos, W, H, ls.w, ls.h, opts.logoMargin);
+      ctx.globalAlpha = clamp(opts.logoOpacity, 10, 100) / 100;
+      ctx.drawImage(state.logo, lp.x, lp.y, ls.w, ls.h);
+      ctx.globalAlpha = 1;
+    }
+    return cv;
+  }
+
+  function readOptions() {
+    return {
+      resizeMode: $('resizeMode').value,
+      rw: $('rw').value ? ($('rw').value | 0) : 0,
+      rh: $('rh').value ? ($('rh').value | 0) : 0,
+      pct: numOr($('rpct').value, 100),
+      lock: $('lockRatio').checked,
+      quality: clamp($('quality').value | 0, 10, 100),
+      targetBytes: $('targetKB').value ? kbToBytes($('targetKB').value) : 0,
+      mosaicOn: $('mosaicOn').checked,
+      mosaicBlock: clamp($('mosaicBlock').value | 0, 2, 60),
+      mosaicScope: $('mosaicScope').value,
+      mox: numOr($('mox').value, 0),
+      moy: numOr($('moy').value, 0),
+      mow: numOr($('mow').value, 100),
+      moh: numOr($('moh').value, 100),
+      logoOn: $('logoOn').checked,
+      logoScale: numOr($('logoScale').value, 20),
+      logoMargin: numOr($('logoMargin').value, 16),
+      logoOpacity: clamp($('logoOpacity').value | 0, 10, 100),
+      logoPos: state.logoPos,
+      fmt: resolveFormat($('fmt').value, state.img ? state.img.type : ''),
+    };
+  }
+
+  function process() {
+    if (!state.img) { setStatus('status', '请先上传图片。', 'err'); return; }
+    var opts = readOptions();
+    var btn = $('processBtn'); btn.disabled = true;
+    setStatus('status', '处理中…');
+
+    try {
+      var cv = buildCanvas(state.img, opts, 0);
+
+      var finish = function (blob, usedQuality, usedScale) {
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        var ext = opts.fmt === 'image/png' ? 'png' : (opts.fmt === 'image/jpeg' ? 'jpg' : 'webp');
+        a.href = url; a.download = (state.fileName || 'image') + '_magic.' + ext;
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+        var msg = '已下载：' + a.download + '（' + (blob.size / 1024).toFixed(1) + ' KB';
+        if (usedQuality) msg += '，画质 ' + usedQuality;
+        if (usedScale) msg += '，缩放 ' + Math.round(usedScale * 100) + '%';
+        msg += '）';
+        setStatus('status', msg, 'ok'); toast('下载完成');
+        btn.disabled = false;
+      };
+
+      if (opts.targetBytes && opts.targetBytes > 0 && isLossy(opts.fmt)) {
+        // 有损：迭代下调画质
+        var q = opts.quality;
+        var step = function () {
+          canvasToBlob(cv, opts.fmt, q / 100).then(function (blob) {
+            if (blob.size <= opts.targetBytes || q <= 10) finish(blob, q);
+            else { q -= 5; if (q < 10) q = 10; step(); }
+          }).catch(function (e) { setStatus('status', '导出失败：' + e.message, 'err'); btn.disabled = false; });
+        };
+        step();
+      } else if (opts.targetBytes && opts.targetBytes > 0 && !isLossy(opts.fmt)) {
+        // 无损(PNG)：迭代缩小尺寸
+        var scale = 1.0;
+        var stepP = function () {
+          var cv2 = buildCanvas(state.img, opts, scale);
+          canvasToBlob(cv2, opts.fmt, 1).then(function (blob) {
+            if (blob.size <= opts.targetBytes || scale <= 0.3) finish(blob, 0, scale);
+            else { scale -= 0.1; if (scale < 0.3) scale = 0.3; stepP(); }
+          }).catch(function (e) { setStatus('status', '导出失败：' + e.message, 'err'); btn.disabled = false; });
+        };
+        stepP();
+      } else {
+        canvasToBlob(cv, opts.fmt, isLossy(opts.fmt) ? opts.quality / 100 : undefined)
+          .then(function (blob) { finish(blob, isLossy(opts.fmt) ? opts.quality : 0); })
+          .catch(function (e) { setStatus('status', '导出失败：' + e.message, 'err'); btn.disabled = false; });
+      }
+    } catch (e) {
+      setStatus('status', '处理失败：' + e.message, 'err');
+      btn.disabled = false;
+    }
+  }
+
+  // ============================================================
+  // 交互绑定
+  // ============================================================
+  function showPreview() {
+    var cv = $('preview'); if (!cv || !state.img) return;
+    var maxW = Math.min(720, state.img.naturalWidth);
+    var ratio = maxW / state.img.naturalWidth;
+    cv.width = maxW; cv.height = Math.round(state.img.naturalHeight * ratio);
+    cv.getContext('2d').drawImage(state.img, 0, 0, cv.width, cv.height);
+    cv.classList.remove('hidden');
+    $('imgMeta').textContent = '原始：' + state.img.naturalWidth + ' × ' + state.img.naturalHeight +
+      ' px · ' + (state.img.type || '未知类型') +
+      (state.img.size ? ' · ' + (state.img.size / 1024).toFixed(1) + ' KB' : '');
+  }
+
+  function handleFile(file) {
+    if (!file || !/^image\//.test(file.type)) { setStatus('status', '请选择图片文件。', 'err'); return; }
+    state.img = file; state.fileName = (file.name || 'image').replace(/\.[^.]+$/, '');
+    blobToCanvas(file).then(function (img) {
+      state.img = img; state.img.type = file.type; state.img.size = file.size;
+      showPreview(); $('processBtn').disabled = false;
+      setStatus('status', '图片已就绪，设置参数后点击生成。');
+    }).catch(function (e) { setStatus('status', '图片读取失败：' + e.message, 'err'); });
+  }
+
+  function handleLogo(file) {
+    if (!file || !/^image\//.test(file.type)) return;
+    blobToCanvas(file).then(function (img) { state.logo = img; setStatus('status', 'Logo 已加载。'); })
+      .catch(function () { setStatus('status', 'Logo 读取失败。', 'err'); });
+  }
+
+  function bindDrop(zoneId, inputId, handler) {
+    var zone = $(zoneId), input = $(inputId);
+    if (!zone || !input) return;
+    zone.addEventListener('click', function () { input.click(); });
+    input.addEventListener('change', function () { if (input.files && input.files[0]) handler(input.files[0]); });
+    ['dragenter', 'dragover'].forEach(function (ev) {
+      zone.addEventListener(ev, function (e) { e.preventDefault(); zone.classList.add('over'); });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+      zone.addEventListener(ev, function (e) { e.preventDefault(); zone.classList.remove('over'); });
+    });
+    zone.addEventListener('drop', function (e) {
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) handler(e.dataTransfer.files[0]);
+    });
+  }
+
+  function bindRange(id, valId) {
+    var r = $(id), v = $(valId);
+    if (!r || !v) return;
+    r.addEventListener('input', function () { v.textContent = r.value; });
+  }
+
+  function init() {
+    bindDrop('dropZone', 'fileInput', handleFile);
+    bindDrop('logoDrop', 'logoInput', handleLogo);
+    bindRange('quality', 'qualityVal');
+    bindRange('mosaicBlock', 'mosaicBlockVal');
+    bindRange('logoOpacity', 'logoOpacityVal');
+
+    var pg = $('posGrid');
+    if (pg) {
+      pg.querySelectorAll('.poscell').forEach(function (c) {
+        c.addEventListener('click', function () {
+          pg.querySelectorAll('.poscell').forEach(function (x) { x.classList.remove('active'); });
+          c.classList.add('active'); state.logoPos = c.getAttribute('data-pos');
+        });
+      });
+    }
+
+    var mScope = $('mosaicScope');
+    if (mScope) {
+      mScope.addEventListener('change', function () {
+        $('mosaicRegionBox').style.opacity = (mScope.value === 'custom') ? '1' : '0.45';
+      });
+      $('mosaicRegionBox').style.opacity = '0.45';
+    }
+
+    $('processBtn').addEventListener('click', process);
+    $('resetBtn').addEventListener('click', function () {
+      state = { img: null, logo: null, logoPos: 'br', fileName: 'image' };
+      $('preview').classList.add('hidden');
+      $('imgMeta').textContent = '';
+      $('processBtn').disabled = true;
+      if ($('fileInput')) $('fileInput').value = '';
+      if ($('logoInput')) $('logoInput').value = '';
+      setStatus('status', '已清空，可重新上传。');
+    });
+  }
+
+  // ---------- 调试桥：供自动化测试调用核心逻辑 ----------
+  if (typeof window !== 'undefined') {
+    window.__IMG_DEBUG = {
+      computeResize: computeResize,
+      mosaicRegion: mosaicRegion,
+      computeLogoSize: computeLogoSize,
+      computeLogoPos: computeLogoPos,
+      resolveFormat: resolveFormat,
+      isLossy: isLossy,
+      kbToBytes: kbToBytes,
+      getState: function () { return state; },
+      buildCanvas: buildCanvas,
+      readOptions: readOptions,
+    };
+  }
+
+  if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+  }
+})();
+</script>
+</body>
+</html>
