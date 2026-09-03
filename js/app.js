@@ -807,7 +807,11 @@ const App = (function () {
           ` : ''}
           ${app.introHtml ? `
             <div style="border:1px solid var(--border-color);border-radius:var(--radius-md);overflow:hidden;">
-              <iframe class="tool-iframe" style="height:380px;width:100%;border:0;" srcdoc="${escapeHtml(app.introHtml)}" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;background:var(--bg-hover);border-bottom:1px solid var(--border-color);">
+                <span style="font-size:13px;color:var(--text-secondary);font-weight:600;">HTML 介绍说明</span>
+                <button class="btn btn-outline btn-sm" id="introFullscreenBtn" title="全屏查看">⛶ 全屏查看</button>
+              </div>
+              <iframe class="tool-iframe" style="height:380px;width:100%;border:0;display:block;" srcdoc="${escapeHtml(app.introHtml)}" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
             </div>
           ` : '<p style="color:var(--text-secondary);font-size:13px;margin:0;">管理员尚未上传 HTML 介绍说明。</p>'}
         </div>
@@ -821,6 +825,37 @@ const App = (function () {
     };
     overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
     overlay.querySelector('#detailClose').addEventListener('click', close);
+
+    const introFsBtn = overlay.querySelector('#introFullscreenBtn');
+    if (introFsBtn) {
+      introFsBtn.addEventListener('click', () => showAppIntroFullscreen(app));
+    }
+  }
+
+  // 全屏查看应用的 HTML 介绍说明（独立全屏层，覆盖整个视口）
+  function showAppIntroFullscreen(app) {
+    if (!app.introHtml) return;
+    const fs = document.createElement('div');
+    fs.className = 'app-intro-fullscreen';
+    fs.innerHTML = `
+      <div class="app-intro-fs-bar">
+        <span class="app-intro-fs-title">${escapeHtml(app.name)} · HTML 介绍说明</span>
+        <button class="tool-modal-close" id="fsClose" title="退出全屏">✕</button>
+      </div>
+      <iframe class="tool-iframe" style="flex:1;width:100%;border:0;display:block;background:#fff;" srcdoc="${escapeHtml(app.introHtml)}" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>`;
+    document.body.appendChild(fs);
+
+    const onKey = (e) => { if (e.key === 'Escape') closeFs(); };
+    const closeFs = () => {
+      fs.remove();
+      document.removeEventListener('keydown', onKey);
+      // 详情弹窗仍在底层，保持滚动锁定；否则恢复页面滚动
+      if (!document.querySelector('.tool-modal-overlay')) {
+        document.body.style.overflow = '';
+      }
+    };
+    fs.querySelector('#fsClose').addEventListener('click', closeFs);
+    document.addEventListener('keydown', onKey);
   }
 
   function bindAppInteractions() {

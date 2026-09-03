@@ -2483,6 +2483,33 @@ ul {
   background: #fff;
 }
 
+/* ============ 应用介绍全屏查看 ============ */
+.app-intro-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+.app-intro-fs-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border-color);
+}
+.app-intro-fs-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ============ 下载广告弹窗 ============ */
 .ad-modal-overlay {
   position: fixed;
