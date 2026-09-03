@@ -247,7 +247,7 @@ const Store = (function () {
   // ============================================
   function init() {
     // 初始化文章（带种子版本；升级时按 id 合并：新增/覆盖内置文章，保留用户自建文章）
-    const ARTICLE_SEED_VER = 'v20260903-exceltoc';
+    const ARTICLE_SEED_VER = 'v20260903-excelmulti';
     if (localStorage.getItem('blog_articles_seed_ver') !== ARTICLE_SEED_VER) {
       // 以 id 为键合并：仅「补全缺失」的内置文章，绝不覆盖已存储（可能被管理员改过日期/内容）的文章，
       // 用户在界面自建的文章（id 不在内置清单内）予以保留，避免被清掉。
@@ -567,6 +567,14 @@ const Store = (function () {
         description: '在所有工作表最前面插入一页可点击跳转的目录：有表头取表头为名称、无表头用 Sheet 名，并在每个表头右上角加「返回目录」按钮',
         builtin: true,
         src: 'tools/excel-toc.html',
+      },
+      {
+        id: 'tool_excelmulti',
+        name: '多表格拆合',
+        icon: '🗃️',
+        description: '拖拽多个列格式相同的表格合并成一个多 Sheet 文件（可另附总表），或把一个多 Sheet 文件拆成多个独立表格打包下载',
+        builtin: true,
+        src: 'tools/excel-multisheet.html',
       },
     ];
 

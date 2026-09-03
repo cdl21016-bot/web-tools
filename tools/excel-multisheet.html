@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>多表格拆合</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5f6f8;
+    color: #1f2329;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 22px; margin: 4px 0 4px; }
+  .sub { color: #6b7280; font-size: 13px; margin-bottom: 16px; }
+  section { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; }
+  .hint { font-size: 13px; color: #667085; background: #f0f6ff; border: 1px solid #d6e4ff; padding: 10px 12px; border-radius: 8px; margin: 0 0 14px; }
+  .warn { color:#b54708; background:#fffaeb; border:1px solid #fedf89; padding:10px 12px; border-radius:8px; font-size:13px; margin-bottom:12px; }
+  .warn.hidden, .hidden { display: none; }
+  label { display: block; font-size: 13px; font-weight: 600; color: #344054; margin: 12px 0 6px; }
+  select, input[type="number"], input[type="text"] {
+    width: 100%; font-size: 14px; font-family: inherit; padding: 8px 10px;
+    border: 1px solid #d0d5dd; border-radius: 8px; background: #fff; color: #1f2329;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+  .btn {
+    display: inline-block; border: none; background: #2563eb; color: #fff;
+    padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;
+    margin-top: 12px;
+  }
+  .btn:disabled { background: #b6c2d4; cursor: not-allowed; }
+  .btn.secondary { background: #eef2f6; color: #344054; }
+  .status { font-size: 13px; color: #344054; margin-top: 12px; min-height: 20px; }
+  .status.err { color: #d92d20; }
+  .status.ok { color: #067647; }
+  .progress { height: 8px; background: #e5e7eb; border-radius: 6px; margin-top: 12px; overflow: hidden; }
+  .progress.hidden { display: none; }
+  .progress .bar { height: 100%; width: 0; background: #16a34a; transition: width .15s; }
+  .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #344054; margin-right: 14px; margin-top: 8px; }
+  .chk input { width: 15px; height: 15px; margin: 0; }
+  table.grid { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 10px; }
+  table.grid th, table.grid td { border: 1px solid #e5e7eb; padding: 6px 8px; text-align: left; vertical-align: middle; }
+  table.grid th { background: #f7f8fa; font-weight: 600; }
+  table.grid td.num, table.grid th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .scroll { max-height: 340px; overflow: auto; border: 1px solid #e5e7eb; border-radius: 8px; }
+  .scroll table.grid { margin-top: 0; border: none; }
+  .scroll table.grid th { position: sticky; top: 0; z-index: 1; }
+  .empty { color: #98a2b3; font-size: 13px; padding: 12px 0; }
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+    background: #1f2329; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 14px;
+    z-index: 50; opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+  .toast.hidden { display: none; }
+  .badge { display:inline-block; background:#eef2f6; color:#344054; border-radius:6px; padding:2px 8px; font-size:12px; margin-left:6px; }
+  input.name-input { width: 100%; font-size: 13px; padding: 5px 8px; border: 1px solid #d0d5dd; border-radius: 6px; font-family: inherit; }
+  .note { font-size: 12px; color: #667085; margin-top: 8px; }
+
+  /* 模式切换 */
+  .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .tab {
+    flex: 1; text-align: center; padding: 10px; border-radius: 10px; cursor: pointer;
+    background: #eef2f6; color: #344054; font-weight: 600; font-size: 14px; user-select: none;
+    border: 2px solid transparent;
+  }
+  .tab.active { background: #2563eb; color: #fff; }
+
+  /* 拖拽区 */
+  .drop {
+    border: 2px dashed #b6c2d4; border-radius: 12px; background: #fafbfc;
+    padding: 22px 16px; text-align: center; cursor: pointer; transition: all .15s;
+  }
+  .drop:hover { border-color: #2563eb; background: #f0f6ff; }
+  .drop.drag { border-color: #2563eb; background: #e0edff; }
+  .drop .big { font-size: 28px; line-height: 1; margin-bottom: 6px; }
+  .drop .t1 { font-size: 14px; font-weight: 600; color: #344054; }
+  .drop .t2 { font-size: 12px; color: #667085; margin-top: 4px; }
+
+  /* 文件条目 */
+  .filelist { margin-top: 10px; }
+  .fileitem {
+    display: flex; align-items: center; gap: 10px; font-size: 13px;
+    border: 1px solid #e5e7eb; border-radius: 8px; padding: 7px 10px; margin-top: 6px; background: #fff;
+  }
+  .fileitem .fname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .fileitem .fmeta { color: #667085; font-size: 12px; white-space: nowrap; }
+  .fileitem .rm {
+    border: none; background: #fee4e2; color: #b42318; border-radius: 6px;
+    padding: 3px 9px; cursor: pointer; font-size: 12px; font-weight: 600;
+  }
+  .subopts { margin-left: 22px; padding-left: 12px; border-left: 2px solid #e5e7eb; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🗃️ 多表格拆合</h1>
+  <div class="sub">多个表格 ⇄ 一个多 Sheet 表格，双向互转 · 拖拽上传（全程本地处理，不上传服务器）</div>
+
+  <div id="libWarn" class="warn hidden"></div>
+
+  <div class="tabs">
+    <div class="tab active" data-mode="merge">🧩 合：多个表格 → 一个文件（多 Sheet）</div>
+    <div class="tab" data-mode="split">✂️ 拆：一个文件 → 多个表格</div>
+  </div>
+
+  <!-- ================= 合 ================= -->
+  <section id="paneMerge">
+    <p class="hint">
+      <b>合</b>：拖入多个「列格式相同」的表格（或单个含多个 Sheet 的表格），
+      工具会把每个源工作表<b>原样搬进一个新文件，各占一个 Sheet</b>；
+      也可勾选<b>额外生成一张总表</b>，把所有行纵向拼到一起。
+    </p>
+
+    <div id="mergeDrop" class="drop">
+      <div class="big">📥</div>
+      <div class="t1">点击选择，或把 Excel 文件拖到这里</div>
+      <div class="t2">支持一次选多个 · XLSX / XLSM / XLS / CSV</div>
+      <input type="file" id="mergeFile" multiple class="hidden"
+        accept=".xlsx,.xlsm,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv">
+    </div>
+
+    <div id="mergeFileList" class="filelist"></div>
+
+    <div class="grid2">
+      <div>
+        <label for="mgNameMode">Sheet 命名规则</label>
+        <select id="mgNameMode">
+          <option value="auto">自动（推荐）</option>
+          <option value="file">用文件名</option>
+          <option value="filesheet">文件名_Sheet名</option>
+          <option value="sheet">用原 Sheet 名</option>
+        </select>
+      </div>
+      <div>
+        <label for="mgTotalName">总表 Sheet 名称</label>
+        <input type="text" id="mgTotalName" value="总表" maxlength="31">
+      </div>
+    </div>
+
+    <div style="margin-top:6px;">
+      <label>选项</label>
+      <div>
+        <label class="chk"><input type="checkbox" id="mgIncludeHidden"> 包含隐藏的工作表</label>
+        <label class="chk"><input type="checkbox" id="mgSkipEmpty" checked> 忽略空白工作表</label>
+        <label class="chk"><input type="checkbox" id="mgTotal"> 额外生成一张总表（所有行拼一起）</label>
+      </div>
+      <div id="mgTotalOpts" class="subopts hidden">
+        <label class="chk"><input type="checkbox" id="mgSkipHeader" checked> 总表跳过后续文件的表头行</label>
+        <label class="chk"><input type="checkbox" id="mgSourceCol" checked> 总表加「来源文件」列</label>
+      </div>
+    </div>
+
+    <div id="mgPreviewWrap" class="hidden" style="margin-top:16px;">
+      <label>合并预览 <span class="badge" id="mgCount"></span></label>
+      <div class="scroll">
+        <table class="grid">
+          <thead><tr>
+            <th style="width:44px;">#</th>
+            <th style="width:20%;">来源文件</th>
+            <th style="width:18%;">原 Sheet</th>
+            <th>新文件里的 Sheet 名（可直接改）</th>
+            <th class="num" style="width:76px;">行数</th>
+            <th class="num" style="width:66px;">列数</th>
+          </tr></thead>
+          <tbody id="mgPreview"></tbody>
+        </table>
+      </div>
+      <p class="note">提示：Sheet 名最长 31 字符，重名会自动加 <code>_2</code>；改完直接点「合并并下载」。</p>
+    </div>
+
+    <div>
+      <button id="mgRun" class="btn" disabled>🧩 合并并下载</button>
+      <button id="mgClear" class="btn secondary">清空</button>
+    </div>
+
+    <div id="mgStatus" class="status"></div>
+    <div id="mgProgress" class="progress hidden"><div class="bar"></div></div>
+  </section>
+
+  <!-- ================= 拆 ================= -->
+  <section id="paneSplit" class="hidden">
+    <p class="hint">
+      <b>拆</b>：上传<b>一个含多个 Sheet 的表格</b>，工具会把每个工作表
+      <b>单独存成一个 xlsx 文件</b>，默认打包成 ZIP 一次下载；也可选择逐个下载。
+    </p>
+
+    <div id="splitDrop" class="drop">
+      <div class="big">📤</div>
+      <div class="t1">点击选择，或把 Excel 文件拖到这里</div>
+      <div class="t2">单个文件 · XLSX / XLSM / XLS</div>
+      <input type="file" id="splitFile" class="hidden"
+        accept=".xlsx,.xlsm,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv">
+    </div>
+
+    <div id="splitFileList" class="filelist"></div>
+
+    <div class="grid2">
+      <div>
+        <label for="spNameMode">输出文件名取自</label>
+        <select id="spNameMode">
+          <option value="sheet">Sheet 名</option>
+          <option value="filesheet">原文件名_Sheet名（推荐）</option>
+        </select>
+      </div>
+      <div>
+        <label for="spOutMode">下载方式</label>
+        <select id="spOutMode">
+          <option value="zip">打包成一个 ZIP（推荐）</option>
+          <option value="each">逐个下载（浏览器可能提示允许多个下载）</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="margin-top:6px;">
+      <label>选项</label>
+      <div>
+        <label class="chk"><input type="checkbox" id="spIncludeHidden"> 包含隐藏的工作表</label>
+        <label class="chk"><input type="checkbox" id="spSkipEmpty" checked> 忽略空白工作表</label>
+      </div>
+    </div>
+
+    <div id="spPreviewWrap" class="hidden" style="margin-top:16px;">
+      <label>拆分预览 <span class="badge" id="spCount"></span></label>
+      <div class="scroll">
+        <table class="grid">
+          <thead><tr>
+            <th style="width:40px;"><input type="checkbox" id="spAll" checked title="全选/全不选"></th>
+            <th style="width:20%;">Sheet 名</th>
+            <th>输出文件名（可直接改）</th>
+            <th class="num" style="width:76px;">行数</th>
+            <th class="num" style="width:66px;">列数</th>
+          </tr></thead>
+          <tbody id="spPreview"></tbody>
+        </table>
+      </div>
+      <p class="note">提示：取消勾选则不导出该 Sheet；文件名会自动去重。</p>
+    </div>
+
+    <div>
+      <button id="spRun" class="btn" disabled>✂️ 拆分并下载</button>
+      <button id="spClear" class="btn secondary">清空</button>
+    </div>
+
+    <div id="spStatus" class="status"></div>
+    <div id="spProgress" class="progress hidden"><div class="bar"></div></div>
+  </section>
+
+  <p class="note" style="margin-top:14px;">
+    说明：整个过程在<b>你的浏览器本地</b>完成，文件不会上传到任何服务器。
+    合并、拆分都会<b>原样保留单元格内容、公式与列宽</b>；因所用表格库为免费版，字体颜色等样式可能不保留。
+  </p>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/fflate.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ---------- 基础工具 ----------
+  var $ = function (id) { return document.getElementById(id); };
+  var toastTimer = null;
+
+  function toast(msg) {
+    var el = $('toast');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(function () { el.classList.add('show'); });
+    } else {
+      el.classList.add('show');
+    }
+    if (typeof clearTimeout === 'function') clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () {
+      el.classList.remove('show');
+      setTimeout(function () { el.classList.add('hidden'); }, 220);
+    }, 2200);
+  }
+
+  function setStatus(id, msg, kind) {
+    var el = $(id);
+    el.textContent = msg || '';
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function progress(id, pct) {
+    var box = $(id);
+    var bar = box.querySelector('.bar');
+    if (pct === null || pct === undefined) {
+      box.classList.add('hidden');
+      bar.style.width = '0';
+      return;
+    }
+    box.classList.remove('hidden');
+    bar.style.width = Math.max(0, Math.min(100, pct)) + '%';
+  }
+
+  // 依赖检查
+  if (typeof XLSX === 'undefined') {
+    var w = $('libWarn');
+    w.textContent = '表格解析库加载失败：请确认 tools/lib/xlsx.full.min.js 存在。';
+    w.classList.remove('hidden');
+    return;
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/"/g, '&quot;');
+  }
+
+  function stripExt(name) { return String(name).replace(/\.[^.]+$/, ''); }
+
+  function fileNameSafe(name) {
+    return String(name == null ? '' : name).replace(/[\\\/:*?"<>|]/g, '_').trim() || '表格';
+  }
+
+  // Sheet 名清洗：Excel 限制 31 字符、禁用 []:*?/\ 、不可为空
+  function cleanSheetName(name, fallback) {
+    var s = String(name == null ? '' : name);
+    s = s.replace(/[\[\]:*?\/\\]/g, '_').replace(/^'+|'+$/g, '').trim();
+    if (!s) s = fallback || 'Sheet';
+    if (s.length > 31) s = s.slice(0, 31);
+    return s;
+  }
+
+  // 重名去重：追加 _2 / _3 ...（Excel 不区分大小写）
+  function uniqueSheetName(name, used, fallback) {
+    var base = cleanSheetName(name, fallback);
+    var candidate = base, i = 2;
+    while (used[candidate.toLowerCase()]) {
+      var suffix = '_' + i;
+      candidate = base.slice(0, Math.max(1, 31 - suffix.length)) + suffix;
+      i++;
+    }
+    used[candidate.toLowerCase()] = true;
+    return candidate;
+  }
+
+  function uniqueFileName(base, used) {
+    var b = fileNameSafe(base) || '表格';
+    var candidate = b, i = 2;
+    while (used[candidate.toLowerCase()]) {
+      candidate = b + '_' + i;
+      i++;
+    }
+    used[candidate.toLowerCase()] = true;
+    return candidate;
+  }
+
+  // 判断工作表是否隐藏
+  function hiddenSheetMap(wb) {
+    var map = {};
+    if (wb && wb.Workbook && wb.Workbook.Sheets) {
+      wb.Workbook.Sheets.forEach(function (s) {
+        if (s && s.name) map[s.name.toLowerCase()] = !!s.Hidden;
+      });
+    }
+    return map;
+  }
+
+  // 读取工作表为二维数组，并给出行列数
+  function sheetStats(ws) {
+    var empty = { aoa: [], rows: 0, cols: 0, isEmpty: true };
+    if (!ws || !ws['!ref']) return empty;
+    var aoa;
+    try {
+      aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false, raw: true });
+    } catch (e) {
+      return empty;
+    }
+    if (!aoa || !aoa.length) return empty;
+    var maxCol = 0, nonEmpty = false;
+    for (var i = 0; i < aoa.length; i++) {
+      var row = aoa[i] || [];
+      if (row.length > maxCol) maxCol = row.length;
+      for (var j = 0; j < row.length; j++) {
+        var v = row[j];
+        if (v !== '' && v !== null && v !== undefined) nonEmpty = true;
+      }
+    }
+    return { aoa: aoa, rows: aoa.length, cols: maxCol, isEmpty: !nonEmpty };
+  }
+
+  // 单元格值 → 文本（用于表头比对）
+  function cellToText(v) {
+    if (v === null || v === undefined) return '';
+    return String(v).trim();
+  }
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+
+  // ---------- 模式切换 ----------
+  var currentMode = 'merge';
+  Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (tab) {
+    tab.addEventListener('click', function () {
+      var mode = tab.getAttribute('data-mode');
+      if (mode === currentMode) return;
+      currentMode = mode;
+      Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
+        t.classList.toggle('active', t.getAttribute('data-mode') === mode);
+      });
+      $('paneMerge').classList.toggle('hidden', mode !== 'merge');
+      $('paneSplit').classList.toggle('hidden', mode !== 'split');
+    });
+  });
+
+  // ---------- 通用：拖拽 + 选择 ----------
+  function bindDrop(zoneId, inputId, onFiles) {
+    var zone = $(zoneId), input = $(inputId);
+    zone.addEventListener('click', function (e) {
+      if (e.target === input) return;
+      input.click();
+    });
+    input.addEventListener('click', function (e) { e.stopPropagation(); });
+    input.addEventListener('change', function () {
+      if (input.files && input.files.length) onFiles(input.files);
+      input.value = '';
+    });
+    ['dragenter', 'dragover'].forEach(function (ev) {
+      zone.addEventListener(ev, function (e) {
+        e.preventDefault(); e.stopPropagation();
+        zone.classList.add('drag');
+      });
+    });
+    ['dragleave', 'dragend'].forEach(function (ev) {
+      zone.addEventListener(ev, function (e) {
+        e.preventDefault(); e.stopPropagation();
+        zone.classList.remove('drag');
+      });
+    });
+    zone.addEventListener('drop', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      zone.classList.remove('drag');
+      var dt = e.dataTransfer;
+      if (dt && dt.files && dt.files.length) onFiles(dt.files);
+    });
+  }
+
+  function filterExcel(files) {
+    var ok = [], bad = [];
+    Array.prototype.forEach.call(files, function (f) {
+      if (/\.(xlsx|xlsm|xls|csv)$/i.test(f.name)) ok.push(f); else bad.push(f.name);
+    });
+    return { ok: ok, bad: bad };
+  }
+
+  function downloadBlob(blob, name) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+  }
+
+  // ================= 合：多 → 一 =================
+  // 每个源：{ file, fileName, fileBase, sheetName, ws, rows, cols, aoa, hidden }
+  var mergeSources = [];
+  var mergeOverrides = {};   // 用户手改的 Sheet 名：index -> 文本
+  var mergeRemoved = {};     // 用户勾掉/移除的源 index
+
+  function readFileAsArray(file) {
+    return new Promise(function (resolve, reject) {
+      var fr = new FileReader();
+      fr.onerror = function () { reject(new Error('读取失败：' + file.name)); };
+      fr.onload = function (ev) { resolve(new Uint8Array(ev.target.result)); };
+      fr.readAsArrayBuffer(file);
+    });
+  }
+
+  function parseWorkbook(data, label) {
+    var wb;
+    try {
+      wb = XLSX.read(data, { type: 'array', cellDates: true, cellStyles: true });
+    } catch (e) {
+      throw new Error('解析失败（' + label + '）：' + e.message);
+    }
+    if (!wb || !wb.SheetNames || !wb.SheetNames.length) {
+      throw new Error('没有找到任何工作表（' + label + '）');
+    }
+    return wb;
+  }
+
+  function addMergeFiles(fileList) {
+    var picked = filterExcel(fileList);
+    if (picked.bad.length) {
+      toast('已忽略 ' + picked.bad.length + ' 个非表格文件');
+    }
+    if (!picked.ok.length) return;
+
+    setStatus('mgStatus', '正在解析 ' + picked.ok.length + ' 个文件 ...');
+    progress('mgProgress', 10);
+
+    var chain = Promise.resolve();
+    picked.ok.forEach(function (file) {
+      chain = chain.then(function () {
+        return readFileAsArray(file).then(function (data) {
+          var wb = parseWorkbook(data, file.name);
+          var hidden = hiddenSheetMap(wb);
+          var count = 0;
+          wb.SheetNames.forEach(function (sn) {
+            var st = sheetStats(wb.Sheets[sn]);
+            mergeSources.push({
+              fileName: file.name,
+              fileBase: stripExt(file.name),
+              sheetName: sn,
+              ws: wb.Sheets[sn],
+              rows: st.rows,
+              cols: st.cols,
+              aoa: st.aoa,
+              isEmpty: st.isEmpty,
+              hidden: !!hidden[sn.toLowerCase()],
+            });
+            count++;
+          });
+          return count;
+        });
+      });
+    });
+
+    chain.then(function () {
+      progress('mgProgress', 100);
+      renderMergeList();
+      renderMergePreview();
+      var n = mergeSources.length;
+      setStatus('mgStatus', '已载入 ' + mergeSources.length + ' 个工作表（来自 ' + countFiles() + ' 个文件）', 'ok');
+      setTimeout(function () { progress('mgProgress', null); }, 600);
+    }).catch(function (err) {
+      setStatus('mgStatus', '出错：' + err.message, 'err');
+      progress('mgProgress', null);
+    });
+  }
+
+  function countFiles() {
+    var set = {};
+    mergeSources.forEach(function (s) { set[s.fileName] = true; });
+    return Object.keys(set).length;
+  }
+
+  // 依据命名规则算出每个源的默认 Sheet 名
+  function defaultSheetNames() {
+    var fileSet = {};
+    mergeSources.forEach(function (s) { fileSet[s.fileName] = (fileSet[s.fileName] || 0) + 1; });
+    var fileCount = Object.keys(fileSet).length;
+    var mode = $('mgNameMode').value;
+
+    return mergeSources.map(function (s) {
+      var base;
+      if (mode === 'file') {
+        base = s.fileBase;
+      } else if (mode === 'sheet') {
+        base = s.sheetName;
+      } else if (mode === 'filesheet') {
+        base = s.fileBase + '_' + s.sheetName;
+      } else {
+        // 自动：多文件时单 Sheet 用文件名、多 Sheet 用 文件名_Sheet名；单文件用 Sheet 名
+        if (fileCount > 1) {
+          base = (fileSet[s.fileName] > 1) ? (s.fileBase + '_' + s.sheetName) : s.fileBase;
+        } else {
+          base = s.sheetName;
+        }
+      }
+      return base;
+    });
+  }
+
+  function activeMergeSources() {
+    var includeHidden = $('mgIncludeHidden').checked;
+    var skipEmpty = $('mgSkipEmpty').checked;
+    return mergeSources.map(function (s, i) {
+      return { src: s, index: i };
+    }).filter(function (o) {
+      if (!includeHidden && o.src.hidden) return false;
+      if (skipEmpty && o.src.isEmpty) return false;
+      return true;
+    });
+  }
+
+  function renderMergeList() {
+    var byFile = {};
+    var order = [];
+    mergeSources.forEach(function (s) {
+      if (!byFile[s.fileName]) { byFile[s.fileName] = []; order.push(s.fileName); }
+      byFile[s.fileName].push(s);
+    });
+    var html = order.map(function (fn) {
+      var list = byFile[fn];
+      return '<div class="fileitem">' +
+        '<span class="fname">📄 ' + escapeHtml(fn) + '</span>' +
+        '<span class="fmeta">' + list.length + ' 个 Sheet</span>' +
+        '<button class="rm" data-rmfile="' + escapeAttr(fn) + '">移除</button>' +
+        '</div>';
+    }).join('');
+    $('mergeFileList').innerHTML = html;
+  }
+
+  function renderMergePreview() {
+    var actives = activeMergeSources();
+    var defaults = defaultSheetNames();
+    var used = {};
+    var rows = [];
+
+    actives.forEach(function (o) {
+      var override = mergeOverrides[o.index];
+      var want = (override !== undefined && String(override).trim() !== '')
+        ? String(override).trim()
+        : defaults[o.index];
+      var name = uniqueSheetName(want, used, o.src.sheetName);
+      rows.push({ src: o.src, index: o.index, name: name, rows: o.src.rows, cols: o.src.cols });
+    });
+
+    var html = rows.map(function (r, i) {
+      return '<tr data-index="' + r.index + '">' +
+        '<td>' + (i + 1) + '</td>' +
+        '<td title="' + escapeAttr(r.src.fileName) + '">' + escapeHtml(r.src.fileName) + '</td>' +
+        '<td>' + escapeHtml(r.src.sheetName) + '</td>' +
+        '<td><input type="text" class="name-input" data-i="' + r.index + '" value="' + escapeAttr(r.name) + '"></td>' +
+        '<td class="num">' + r.rows + '</td>' +
+        '<td class="num">' + r.cols + '</td>' +
+        '</tr>';
+    }).join('');
+
+    $('mgPreview').innerHTML = html || '<tr><td colspan="6" class="empty">请先添加表格文件</td></tr>';
+    $('mgCount').textContent = rows.length + ' 个 Sheet';
+    $('mgPreviewWrap').classList.toggle('hidden', !mergeSources.length);
+    $('mgRun').disabled = !rows.length;
+
+    // 总表名与已有 Sheet 冲突时也能在 UI 上看出（生成时会自动去重）
+    return rows;
+  }
+
+  // 总表：把所有源的行纵向拼接，按表头对齐
+  function buildTotalSheet(rows, opts) {
+    // 基准表头 = 第一个源的第一行
+    var baseHeader = [];
+    var firstSrc = null;
+    for (var i = 0; i < rows.length; i++) {
+      var aoa = rows[i].src.aoa;
+      if (aoa && aoa.length) {
+        firstSrc = rows[i];
+        // 基准表头 = 第一个非空源的第一行（逐列取文本）
+        baseHeader = (aoa[0] || []).map(function (v) { return cellToText(v); });
+        break;
+      }
+    }
+    if (!firstSrc) return null;
+
+    var outHeader = baseHeader.slice();
+    if (opts.sourceCol) outHeader.push('来源文件');
+
+    // 跳过表头时：总表用基准表头单独起一行，此后每个源都跳过自己的表头行；
+    // 不跳过时：所有行原样拼接（含各源的表头行），此时不再额外预置表头行。
+    var outRows = opts.skipHeader ? [outHeader] : [];
+    var totalDataRows = 0;
+    var fallbackAlign = [];   // 表头完全对不上的源，按位置对齐
+
+    rows.forEach(function (r, idx) {
+      var aoa = r.src.aoa || [];
+      if (!aoa.length) return;
+      var header = aoa[0].map(function (v) { return cellToText(v); });
+
+      // 建立 列名 -> 列索引 映射
+      var colMap = {};
+      header.forEach(function (h, c) {
+        if (h !== '' && colMap[h] === undefined) colMap[h] = c;
+      });
+      var matched = baseHeader.filter(function (h) { return h !== '' && colMap[h] !== undefined; }).length;
+      var alignByName = matched > 0;
+
+      if (!alignByName && idx > 0) fallbackAlign.push(r.src.sheetName);
+
+      // 跳过表头时，每个源都从第 2 行开始取，避免首个源的表头被拼接两次
+      var startRow = opts.skipHeader ? 1 : 0;
+      for (var rr = startRow; rr < aoa.length; rr++) {
+        var srcRow = aoa[rr] || [];
+        var outRow;
+        if (alignByName) {
+          outRow = baseHeader.map(function (h) {
+            var c = colMap[h];
+            return c === undefined ? '' : srcRow[c];
+          });
+        } else {
+          // 按位置对齐
+          outRow = [];
+          for (var c2 = 0; c2 < baseHeader.length; c2++) outRow.push(srcRow[c2]);
+        }
+        if (opts.sourceCol) outRow.push(r.src.fileName);
+        outRows.push(outRow);
+        totalDataRows++;
+      }
+    });
+
+    return { aoa: outRows, dataRows: totalDataRows, fallbackAlign: fallbackAlign };
+  }
+
+  // ---------- 合：事件绑定 ----------
+  bindDrop('mergeDrop', 'mergeFile', addMergeFiles);
+
+  $('mergeFileList').addEventListener('click', function (e) {
+    var btn = e.target;
+    if (!btn || !btn.getAttribute) return;
+    var fn = btn.getAttribute('data-rmfile');
+    if (!fn) return;
+    mergeSources = mergeSources.filter(function (s) { return s.fileName !== fn; });
+    mergeOverrides = {};
+    renderMergeList();
+    renderMergePreview();
+    if (!mergeSources.length) setStatus('mgStatus', '');
+  });
+
+  ['mgNameMode', 'mgIncludeHidden', 'mgSkipEmpty', 'mgTotal'].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      $('mgTotalOpts').classList.toggle('hidden', !$('mgTotal').checked);
+      if (mergeSources.length) renderMergePreview();
+    });
+  });
+  ['mgSkipHeader', 'mgSourceCol', 'mgTotalName'].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      if (mergeSources.length) renderMergePreview();
+    });
+  });
+
+  $('mgPreview').addEventListener('input', function (e) {
+    var t = e.target;
+    if (!t || !t.getAttribute) return;
+    var idx = t.getAttribute('data-i');
+    if (idx === null || idx === undefined) return;
+    mergeOverrides[idx] = t.value;
+  });
+
+  $('mgClear').addEventListener('click', function () {
+    mergeSources = [];
+    mergeOverrides = {};
+    $('mergeFileList').innerHTML = '';
+    $('mgPreview').innerHTML = '<tr><td colspan="6" class="empty">请先添加表格文件</td></tr>';
+    $('mgPreviewWrap').classList.add('hidden');
+    $('mgRun').disabled = true;
+    $('mgNameMode').value = 'auto';
+    $('mgTotalName').value = '总表';
+    $('mgIncludeHidden').checked = false;
+    $('mgSkipEmpty').checked = true;
+    $('mgTotal').checked = false;
+    $('mgSkipHeader').checked = true;
+    $('mgSourceCol').checked = true;
+    $('mgTotalOpts').classList.add('hidden');
+    setStatus('mgStatus', '');
+    progress('mgProgress', null);
+  });
+
+  $('mgRun').addEventListener('click', function () {
+    var rows = renderMergePreview();
+    if (!rows.length) return;
+
+    var btn = $('mgRun');
+    btn.disabled = true;
+    setStatus('mgStatus', '正在合并 ...');
+    progress('mgProgress', 8);
+
+    setTimeout(function () {
+      try {
+        var outWb = XLSX.utils.book_new();
+
+        // 1) 每个源 Sheet 原样搬进新工作簿
+        rows.forEach(function (r, i) {
+          XLSX.utils.book_append_sheet(outWb, r.src.ws, r.name);
+          progress('mgProgress', 10 + Math.round((i + 1) / rows.length * 60));
+        });
+
+        // 2) 可选：额外生成总表
+        var totalInfo = null;
+        if ($('mgTotal').checked) {
+          progress('mgProgress', 78);
+          var totalOpts = {
+            skipHeader: $('mgSkipHeader').checked,
+            sourceCol: $('mgSourceCol').checked,
+          };
+          totalInfo = buildTotalSheet(rows, totalOpts);
+          if (totalInfo) {
+            var tws = XLSX.utils.aoa_to_sheet(totalInfo.aoa);
+            tws['!cols'] = totalInfo.aoa[0].map(function () { return { wch: 16 }; });
+            var totalName = uniqueSheetName($('mgTotalName').value || '总表', {}, '总表');
+            XLSX.utils.book_append_sheet(outWb, tws, totalName);
+            totalInfo.sheetName = totalName;
+          }
+        }
+
+        progress('mgProgress', 92);
+        var outName = '合并结果_' + rows.length + '个Sheet.xlsx';
+        XLSX.writeFile(outWb, outName, { bookType: 'xlsx' });
+        progress('mgProgress', 100);
+
+        var msg = '完成！共合并 ' + rows.length + ' 个工作表';
+        if (totalInfo) {
+          msg += '，另附总表「' + totalInfo.sheetName + '」（' + totalInfo.dataRows + ' 行）';
+          if (totalInfo.fallbackAlign.length) {
+            msg += '；其中 ' + totalInfo.fallbackAlign.length + ' 个表头未匹配上，已按列位置对齐';
+          }
+        }
+        setStatus('mgStatus', msg + '，已下载：' + outName, 'ok');
+        toast('合并完成');
+        setTimeout(function () { progress('mgProgress', null); }, 800);
+      } catch (err) {
+        setStatus('mgStatus', '合并失败：' + err.message, 'err');
+        progress('mgProgress', null);
+      } finally {
+        btn.disabled = false;
+      }
+    }, 30);
+  });
+
+  // ================= 拆：一 → 多 =================
+  var splitState = { wb: null, fileName: '', fileBase: '', sheets: [] };
+  var splitOverrides = {};   // index -> 文件名
+  var splitChecked = {};     // index -> bool
+
+  function addSplitFile(fileList) {
+    var picked = filterExcel(fileList);
+    if (picked.bad.length) toast('已忽略 ' + picked.bad.length + ' 个非表格文件');
+    if (!picked.ok.length) return;
+    var file = picked.ok[0];
+
+    setStatus('spStatus', '正在解析 ' + file.name + ' ...');
+    progress('spProgress', 20);
+
+    readFileAsArray(file).then(function (data) {
+      var wb = parseWorkbook(data, file.name);
+      var hidden = hiddenSheetMap(wb);
+      splitState = {
+        wb: wb,
+        fileName: file.name,
+        fileBase: stripExt(file.name),
+        sheets: wb.SheetNames.map(function (sn) {
+          var st = sheetStats(wb.Sheets[sn]);
+          return {
+            name: sn,
+            ws: wb.Sheets[sn],
+            rows: st.rows,
+            cols: st.cols,
+            isEmpty: st.isEmpty,
+            hidden: !!hidden[sn.toLowerCase()],
+          };
+        }),
+      };
+      splitOverrides = {};
+      splitChecked = {};
+      renderSplitList();
+      renderSplitPreview();
+      progress('spProgress', 100);
+      setStatus('spStatus', '已载入 ' + splitState.sheets.length + ' 个工作表：' + splitState.sheets.join('、'), 'ok');
+      setTimeout(function () { progress('spProgress', null); }, 600);
+    }).catch(function (err) {
+      setStatus('spStatus', '出错：' + err.message, 'err');
+      progress('spProgress', null);
+    });
+  }
+
+  function renderSplitList() {
+    if (!splitState.wb) { $('splitFileList').innerHTML = ''; return; }
+    $('splitFileList').innerHTML =
+      '<div class="fileitem">' +
+      '<span class="fname">📄 ' + escapeHtml(splitState.fileName) + '</span>' +
+      '<span class="fmeta">' + splitState.sheets.length + ' 个 Sheet</span>' +
+      '<button class="rm" id="spRmFile">移除</button>' +
+      '</div>';
+    var rm = $('spRmFile');
+    if (rm) {
+      rm.addEventListener('click', function () {
+        splitState = { wb: null, fileName: '', fileBase: '', sheets: [] };
+        splitOverrides = {};
+        splitChecked = {};
+        renderSplitList();
+        renderSplitPreview();
+        setStatus('spStatus', '');
+      });
+    }
+  }
+
+  function activeSplitSheets() {
+    var includeHidden = $('spIncludeHidden').checked;
+    var skipEmpty = $('spSkipEmpty').checked;
+    return splitState.sheets.map(function (s, i) {
+      return { sheet: s, index: i };
+    }).filter(function (o) {
+      if (!includeHidden && o.sheet.hidden) return false;
+      if (skipEmpty && o.sheet.isEmpty) return false;
+      return true;
+    });
+  }
+
+  function splitOutputName(sheetName) {
+    var mode = $('spNameMode').value;
+    if (mode === 'filesheet') {
+      return fileNameSafe(splitState.fileBase) + '_' + fileNameSafe(sheetName);
+    }
+    return fileNameSafe(sheetName);
+  }
+
+  function renderSplitPreview() {
+    if (!splitState.wb) {
+      $('spPreview').innerHTML = '<tr><td colspan="5" class="empty">请先选择一个表格文件</td></tr>';
+      $('spPreviewWrap').classList.add('hidden');
+      $('spRun').disabled = true;
+      return [];
+    }
+
+    var actives = activeSplitSheets();
+    var used = {};
+    var rows = actives.map(function (o) {
+      var override = splitOverrides[o.index];
+      var want = (override !== undefined && String(override).trim() !== '')
+        ? String(override).trim()
+        : splitOutputName(o.sheet.name);
+      var base = fileNameSafe(stripExt(want));
+      var name = uniqueFileName(base, used);
+      var checked = splitChecked[o.index] === undefined ? true : !!splitChecked[o.index];
+      return { sheet: o.sheet, index: o.index, file: name, checked: checked };
+    });
+
+    var html = rows.map(function (r, i) {
+      return '<tr>' +
+        '<td><input type="checkbox" data-chk="' + r.index + '"' + (r.checked ? ' checked' : '') + '></td>' +
+        '<td>' + escapeHtml(r.sheet.name) + '</td>' +
+        '<td><input type="text" class="name-input" data-f="' + r.index + '" value="' + escapeAttr(r.file) + '"></td>' +
+        '<td class="num">' + r.sheet.rows + '</td>' +
+        '<td class="num">' + r.sheet.cols + '</td>' +
+        '</tr>';
+    }).join('');
+
+    $('spPreview').innerHTML = html || '<tr><td colspan="5" class="empty">没有可导出的工作表（可能被隐藏或空白过滤掉了）</td></tr>';
+    var sel = rows.filter(function (r) { return r.checked; }).length;
+    $('spCount').textContent = '已选 ' + sel + ' / ' + rows.length;
+    $('spPreviewWrap').classList.remove('hidden');
+    $('spRun').disabled = !sel;
+    return rows;
+  }
+
+  bindDrop('splitDrop', 'splitFile', addSplitFile);
+
+  ['spNameMode', 'spIncludeHidden', 'spSkipEmpty'].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      if (splitState.wb) renderSplitPreview();
+    });
+  });
+
+  $('spPreview').addEventListener('input', function (e) {
+    var t = e.target;
+    if (!t || !t.getAttribute) return;
+    var f = t.getAttribute('data-f');
+    if (f !== null && f !== undefined) { splitOverrides[f] = t.value; return; }
+  });
+
+  $('spPreview').addEventListener('change', function (e) {
+    var t = e.target;
+    if (!t || !t.getAttribute) return;
+    var c = t.getAttribute('data-chk');
+    if (c !== null && c !== undefined) { splitChecked[c] = t.checked; renderSplitPreview(); return; }
+    if (t.id === 'spAll') {
+      var on = t.checked;
+      activeSplitSheets().forEach(function (o) { splitChecked[o.index] = on; });
+      renderSplitPreview();
+    }
+  });
+
+  $('spClear').addEventListener('click', function () {
+    splitState = { wb: null, fileName: '', fileBase: '', sheets: [] };
+    splitOverrides = {};
+    splitChecked = {};
+    renderSplitList();
+    renderSplitPreview();
+    $('spNameMode').value = 'filesheet';
+    $('spOutMode').value = 'zip';
+    $('spIncludeHidden').checked = false;
+    $('spSkipEmpty').checked = true;
+    setStatus('spStatus', '');
+    progress('spProgress', null);
+  });
+
+  $('spRun').addEventListener('click', function () {
+    var rows = renderSplitPreview().filter(function (r) { return r.checked; });
+    if (!rows.length) return;
+
+    var btn = $('spRun');
+    btn.disabled = true;
+    var mode = $('spOutMode').value;
+    setStatus('spStatus', mode === 'zip' ? '正在拆分并打包 ...' : '正在拆分 ...');
+    progress('spProgress', 8);
+
+    setTimeout(function () {
+      try {
+        // 每个 Sheet → 一个独立工作簿（直接复用原 Sheet 对象，保留内容/公式/列宽）
+        var filesObj = {};
+        var blobs = [];
+        rows.forEach(function (r, i) {
+          var one = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(one, r.sheet.ws, cleanSheetName(r.sheet.name, 'Sheet1'));
+          var buf = XLSX.write(one, { type: 'array', bookType: 'xlsx' });
+          filesObj[r.file + '.xlsx'] = new Uint8Array(buf);
+          blobs.push({ name: r.file + '.xlsx', buf: buf });
+          progress('spProgress', 10 + Math.round((i + 1) / rows.length * 70));
+        });
+
+        if (mode === 'zip') {
+          if (typeof fflate === 'undefined') {
+            setStatus('spStatus', '压缩库未加载，已改为逐个下载。', 'err');
+            mode = 'each';
+          } else {
+            progress('spProgress', 88);
+            var zipped = fflate.zipSync(filesObj, { level: 6 });
+            var zipName = fileNameSafe(splitState.fileBase) + '_拆分成' + rows.length + '个文件.zip';
+            downloadBlob(new Blob([zipped], { type: 'application/zip' }), zipName);
+            progress('spProgress', 100);
+            setStatus('spStatus', '完成！共 ' + rows.length + ' 个文件，已打包下载：' + zipName, 'ok');
+            toast('拆分完成，共 ' + rows.length + ' 个文件');
+            btn.disabled = false;
+            setTimeout(function () { progress('spProgress', null); }, 800);
+            return;
+          }
+        }
+
+        // 逐个下载
+        var i2 = 0;
+        function next() {
+          if (i2 >= blobs.length) {
+            progress('spProgress', 100);
+            setStatus('spStatus', '完成！共下载 ' + blobs.length + ' 个文件。若浏览器拦截了，请点地址栏右侧允许多个下载后重试。', 'ok');
+            toast('拆分完成，共 ' + blobs.length + ' 个文件');
+            btn.disabled = false;
+            setTimeout(function () { progress('spProgress', null); }, 800);
+            return;
+          }
+          var b = blobs[i2];
+          downloadBlob(new Blob([b.buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), b.name);
+          i2++;
+          progress('spProgress', 10 + Math.round(i2 / blobs.length * 85));
+          setTimeout(next, 350);
+        }
+        next();
+      } catch (err) {
+        setStatus('spStatus', '拆分失败：' + err.message, 'err');
+        progress('spProgress', null);
+        btn.disabled = false;
+      }
+    }, 30);
+  });
+
+  // ---------- 调试桥：供自动化测试调用核心逻辑 ----------
+  if (typeof window !== 'undefined') {
+    window.__MS_DEBUG = {
+      sheetStats: sheetStats,
+      defaultSheetNames: defaultSheetNames,
+      buildTotalSheet: buildTotalSheet,
+      uniqueSheetName: uniqueSheetName,
+      uniqueFileName: uniqueFileName,
+      cleanSheetName: cleanSheetName,
+      hiddenSheetMap: hiddenSheetMap,
+      splitOutputName: splitOutputName,
+      setMergeSources: function (arr) { mergeSources = arr; },
+      getMergeSources: function () { return mergeSources; },
+      setSplitState: function (st) { splitState = st; },
+      getSplitState: function () { return splitState; },
+    };
+  }
+})();
+</script>
+</body>
+</html>
