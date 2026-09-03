@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>一键添加目录页</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5f6f8;
+    color: #1f2329;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 22px; margin: 4px 0 4px; }
+  .sub { color: #6b7280; font-size: 13px; margin-bottom: 16px; }
+  section { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; }
+  .hint { font-size: 13px; color: #667085; background: #f0f6ff; border: 1px solid #d6e4ff; padding: 10px 12px; border-radius: 8px; margin: 0 0 14px; }
+  .warn { color:#b54708; background:#fffaeb; border:1px solid #fedf89; padding:10px 12px; border-radius:8px; font-size:13px; margin-bottom:12px; }
+  .warn.hidden, .hidden { display: none; }
+  label { display: block; font-size: 13px; font-weight: 600; color: #344054; margin: 12px 0 6px; }
+  input[type="file"] { width: 100%; font-size: 14px; font-family: inherit; padding: 8px; border: 1px dashed #b6c2d4; border-radius: 8px; background: #fafbfc; }
+  select, input[type="number"], input[type="text"] {
+    width: 100%; font-size: 14px; font-family: inherit; padding: 8px 10px;
+    border: 1px solid #d0d5dd; border-radius: 8px; background: #fff; color: #1f2329;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+  .btn {
+    display: inline-block; border: none; background: #2563eb; color: #fff;
+    padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;
+    margin-top: 12px;
+  }
+  .btn:disabled { background: #b6c2d4; cursor: not-allowed; }
+  .btn.secondary { background: #eef2f6; color: #344054; }
+  .status { font-size: 13px; color: #344054; margin-top: 12px; min-height: 20px; }
+  .status.err { color: #d92d20; }
+  .status.ok { color: #067647; }
+  .progress { height: 8px; background: #e5e7eb; border-radius: 6px; margin-top: 12px; overflow: hidden; }
+  .progress.hidden { display: none; }
+  .progress .bar { height: 100%; width: 0; background: #16a34a; transition: width .15s; }
+  .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #344054; margin-right: 14px; margin-top: 8px; }
+  .chk input { width: 15px; height: 15px; margin: 0; }
+  table.grid { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 10px; }
+  table.grid th, table.grid td { border: 1px solid #e5e7eb; padding: 6px 8px; text-align: left; vertical-align: middle; }
+  table.grid th { background: #f7f8fa; font-weight: 600; }
+  table.grid td.num, table.grid th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .scroll { max-height: 320px; overflow: auto; border: 1px solid #e5e7eb; border-radius: 8px; }
+  .scroll table.grid { margin-top: 0; border: none; }
+  .scroll table.grid th { position: sticky; top: 0; z-index: 1; }
+  .empty { color: #98a2b3; font-size: 13px; padding: 12px 0; }
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+    background: #1f2329; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 14px;
+    z-index: 50; opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+  .toast.hidden { display: none; }
+  .badge { display:inline-block; background:#eef2f6; color:#344054; border-radius:6px; padding:2px 8px; font-size:12px; margin-left:6px; }
+  input.name-input { width: 100%; font-size: 13px; padding: 5px 8px; border: 1px solid #d0d5dd; border-radius: 6px; font-family: inherit; }
+  .note { font-size: 12px; color: #667085; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📑 一键添加目录页</h1>
+  <div class="sub">在表格最前面插入一页可点击的作业目录 · 每个表头右上角自动生成「返回目录」（全程本地处理，不上传）</div>
+
+  <div id="libWarn" class="warn hidden"></div>
+
+  <section>
+    <p class="hint">
+      上传表格 → 工具会在<b>所有工作表最前面插入一页「目录」</b>：
+      每个 Sheet <b>有表头就取表头内容</b>作为目录名，<b>没有表头就用 Sheet 名</b>；
+      点击目录里的名称即可<b>跳到对应工作表</b>；
+      同时在每个 Sheet <b>表头右上角放一个「返回目录」</b>，点一下回到目录页。
+    </p>
+
+    <label for="tocFile">① 选择表格文件（XLSX / XLSM / XLS / CSV）</label>
+    <input type="file" id="tocFile" accept=".xlsx,.xlsm,.xls,.csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv">
+
+    <div class="grid2">
+      <div>
+        <label for="tocSheetName">② 目录页名称</label>
+        <input type="text" id="tocSheetName" value="目录" maxlength="31" disabled>
+      </div>
+      <div>
+        <label for="tocHeaderRow">② 表头所在行（填 0 表示无表头）</label>
+        <input type="number" id="tocHeaderRow" min="0" value="1" disabled>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div>
+        <label for="tocNameMode">③ 目录项名称取自</label>
+        <select id="tocNameMode" disabled>
+          <option value="auto">自动：有表头用表头，没表头用 Sheet 名</option>
+          <option value="header">尽量用表头（无表头时才用 Sheet 名）</option>
+          <option value="sheet">始终用 Sheet 名</option>
+        </select>
+      </div>
+      <div>
+        <label for="tocNameSource">③ 表头有多个内容时取</label>
+        <select id="tocNameSource" disabled>
+          <option value="first">第一个非空单元格</option>
+          <option value="join">整行非空内容拼接</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="margin-top:6px;">
+      <label>④ 目录页要包含什么</label>
+      <div>
+        <label class="chk"><input type="checkbox" id="tocIndex" checked> 序号列</label>
+        <label class="chk"><input type="checkbox" id="tocRows" checked> 数据行数列</label>
+        <label class="chk"><input type="checkbox" id="tocBackLink" checked> 表头右上角「返回目录」</label>
+        <label class="chk"><input type="checkbox" id="tocIncludeHidden"> 包含隐藏的工作表</label>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div>
+        <label for="tocBackText">⑤ 返回按钮文字</label>
+        <input type="text" id="tocBackText" value="← 返回目录" maxlength="40" disabled>
+      </div>
+      <div>
+        <label for="tocTitle">⑤ 目录页标题</label>
+        <input type="text" id="tocTitle" value="作业目录" maxlength="40" disabled>
+      </div>
+    </div>
+
+    <div id="tocPreviewWrap" class="hidden" style="margin-top:16px;">
+      <label>目录预览 <span class="badge" id="tocCount"></span></label>
+      <div class="scroll">
+        <table class="grid">
+          <thead><tr>
+            <th style="width:44px;">#</th>
+            <th style="width:22%;">Sheet 名</th>
+            <th>目录显示名称（可直接改）</th>
+            <th class="num" style="width:90px;">数据行数</th>
+            <th class="num" style="width:70px;">列数</th>
+          </tr></thead>
+          <tbody id="tocPreview"></tbody>
+        </table>
+      </div>
+      <p class="note">提示：名称改完直接点「生成并下载」即可，改动会以输入顺序为准。</p>
+    </div>
+
+    <div class="row-inline">
+      <button id="tocRun" class="btn" disabled>📑 生成并下载</button>
+      <button id="tocReset" class="btn secondary">重置</button>
+    </div>
+
+    <div id="tocStatus" class="status"></div>
+    <div id="tocProgress" class="progress hidden"><div class="bar"></div></div>
+  </section>
+
+  <p class="note" style="margin-top:14px;">
+    说明：目录项与返回按钮都是 Excel 自带的 <b>HYPERLINK 跳转公式</b>，在 Excel / WPS 中单击即可跳转。
+    因所用表格库为免费版，无法给文字套蓝色下划线样式，但点击跳转功能不受影响。
+  </p>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="lib/xlsx.full.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ---------- 基础工具 ----------
+  var $ = function (id) { return document.getElementById(id); };
+  var toastTimer = null;
+
+  function toast(msg) {
+    var el = $('toast');
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(function () { el.classList.add('show'); });
+    } else {
+      el.classList.add('show');
+    }
+    if (typeof clearTimeout === 'function') clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () {
+      el.classList.remove('show');
+      setTimeout(function () { el.classList.add('hidden'); }, 220);
+    }, 2200);
+  }
+
+  function setStatus(msg, kind) {
+    var el = $('tocStatus');
+    el.textContent = msg || '';
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+
+  function progress(pct) {
+    var box = $('tocProgress');
+    if (pct === null) { box.classList.add('hidden'); box.querySelector('.bar').style.width = '0'; return; }
+    box.classList.remove('hidden');
+    box.querySelector('.bar').style.width = Math.max(0, Math.min(100, pct)) + '%';
+  }
+
+  // 依赖检查
+  if (typeof XLSX === 'undefined') {
+    $('libWarn').textContent = '表格解析库加载失败：请确认 tools/lib/xlsx.full.min.js 存在。';
+    $('libWarn').classList.remove('hidden');
+    return;
+  }
+
+  // ---------- 通用表格处理 ----------
+  function readWorkbook(file) {
+    return new Promise(function (resolve, reject) {
+      var fr = new FileReader();
+      fr.onerror = function () { reject(new Error('文件读取失败：' + file.name)); };
+      fr.onload = function (e) {
+        try {
+          var wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true });
+          if (!wb.SheetNames || !wb.SheetNames.length) throw new Error('未找到任何工作表');
+          resolve(wb);
+        } catch (err) {
+          reject(new Error('解析失败（' + file.name + '）：' + err.message));
+        }
+      };
+      fr.readAsArrayBuffer(file);
+    });
+  }
+
+  function isBlankVal(v) {
+    if (v === null || v === undefined) return true;
+    if (typeof v === 'string' && v.trim() === '') return true;
+    return false;
+  }
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+
+  function cellToText(v) {
+    if (v === null || v === undefined) return '';
+    if (v instanceof Date) {
+      if (isNaN(v.getTime())) return '';
+      var y = v.getFullYear(), m = pad2(v.getMonth() + 1), d = pad2(v.getDate());
+      var h = v.getHours(), mi = v.getMinutes(), s = v.getSeconds();
+      if (h || mi || s) return y + '-' + m + '-' + d + ' ' + pad2(h) + ':' + pad2(mi) + ':' + pad2(s);
+      return y + '-' + m + '-' + d;
+    }
+    if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';
+    return String(v).trim();
+  }
+
+  // Sheet 名清洗：Excel 限制 31 字符、禁用 []:*?/\ 、不可为空
+  function cleanSheetName(name) {
+    var s = String(name == null ? '' : name);
+    s = s.replace(/[\[\]:*?\/\\]/g, '_').replace(/^'+|'+$/g, '').trim();
+    if (!s) s = '目录';
+    if (s.length > 31) s = s.slice(0, 31);
+    return s;
+  }
+
+  // 若与已有 Sheet 重名，追加 _2 / _3 ...（Excel 不区分大小写）
+  function uniqueSheetName(name, usedLower) {
+    var base = cleanSheetName(name);
+    var candidate = base, i = 2;
+    while (usedLower[candidate.toLowerCase()]) {
+      var suffix = '_' + i;
+      candidate = base.slice(0, Math.max(1, 31 - suffix.length)) + suffix;
+      i++;
+    }
+    usedLower[candidate.toLowerCase()] = true;
+    return candidate;
+  }
+
+  function stripExt(name) { return String(name).replace(/\.[^.]+$/, ''); }
+
+  function fileNameSafe(name) {
+    return String(name == null ? '' : name).replace(/[\\\/:*?"<>|]/g, '_').trim() || '表格';
+  }
+
+  // 公式里引用工作表名：用单引号包裹，内部单引号写成两个
+  function qn(name) {
+    return "'" + String(name).replace(/'/g, "''") + "'";
+  }
+
+  // 公式里字符串常量：双引号写成两个
+  function esc(text) {
+    return String(text == null ? '' : text).replace(/"/g, '""');
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function escapeAttr(s) {
+    return escapeHtml(s).replace(/"/g, '&quot;');
+  }
+
+  // ---------- 分析工作表 ----------
+  // 返回该表的信息：表头单元格文本、行数、列数
+  function analyzeSheet(ws, headerRow) {
+    var info = { headerCells: [], rowCount: 0, colCount: 0, hasHeader: false, headerRealRow: 0 };
+    if (!ws) return info;
+    var ref = ws['!ref'];
+    if (!ref) return info;
+
+    var rg = XLSX.utils.decode_range(ref);
+    info.colCount = rg.e.c - rg.s.c + 1;
+
+    // 表头所在行（0-based）：用户指定行号，超出范围则夹到有效区间；填 0 表示无表头
+    var r;
+    if (headerRow > 0) {
+      r = Math.min(Math.max(headerRow - 1, rg.s.r), rg.e.r);
+    } else {
+      // 无表头模式：不取表头内容，但返回按钮仍放在第一行右侧
+      r = rg.s.r;
+    }
+    info.headerRealRow = r;
+
+    // 收集该行非空单元格（无表头模式 headerRow=0 时不取，目录名回退为 Sheet 名）
+    var cells = [];
+    if (headerRow > 0) {
+      for (var c = rg.s.c; c <= rg.e.c; c++) {
+        var addr = XLSX.utils.encode_cell({ r: r, c: c });
+        var cell = ws[addr];
+        if (!cell) continue;
+        var txt = cellToText(cell.v);
+        if (txt === '') continue;
+        cells.push(txt);
+      }
+    }
+    info.headerCells = cells;
+    info.hasHeader = cells.length > 0;
+
+    // 数据行数：表头行之后的非空行数
+    var count = 0;
+    for (var rr = r + 1; rr <= rg.e.r; rr++) {
+      var empty = true;
+      for (var cc = rg.s.c; cc <= rg.e.c; cc++) {
+        var a2 = XLSX.utils.encode_cell({ r: rr, c: cc });
+        var cell2 = ws[a2];
+        if (cell2 && cellToText(cell2.v) !== '') { empty = false; break; }
+      }
+      if (!empty) count++;
+    }
+    info.rowCount = count;
+    return info;
+  }
+
+  // 重算工作表有效区域（删除单元格后使用）
+  function recomputeRef(ws) {
+    var minR = Infinity, minC = Infinity, maxR = -1, maxC = -1;
+    Object.keys(ws).forEach(function (k) {
+      if (k.charAt(0) === '!') return;
+      var a;
+      try { a = XLSX.utils.decode_cell(k); } catch (e) { return; }
+      if (a.r < minR) minR = a.r;
+      if (a.c < minC) minC = a.c;
+      if (a.r > maxR) maxR = a.r;
+      if (a.c > maxC) maxC = a.c;
+    });
+    if (maxR < 0) { delete ws['!ref']; return; }
+    ws['!ref'] = XLSX.utils.encode_range({ s: { r: minR, c: minC }, e: { r: maxR, c: maxC } });
+  }
+
+  // 清理上一次生成的返回按钮：删除指定行上、位于「真实数据区右侧」的 HYPERLINK 单元格。
+  // 这样重复生成时按钮不会一列列往右累积。
+  function removeBackLinks(ws, rowIndex) {
+    if (!ws) return;
+    var keys = Object.keys(ws).filter(function (k) { return k.charAt(0) !== '!'; });
+
+    // 真实数据区的最大列：排除所有 HYPERLINK 公式单元格
+    var maxDataCol = -1;
+    keys.forEach(function (k) {
+      var cell = ws[k];
+      if (cell && cell.f && String(cell.f).indexOf('HYPERLINK') === 0) return;
+      var a;
+      try { a = XLSX.utils.decode_cell(k); } catch (e) { return; }
+      if (a.c > maxDataCol) maxDataCol = a.c;
+    });
+
+    var removed = false;
+    keys.forEach(function (k) {
+      var cell = ws[k];
+      if (!cell || !cell.f || String(cell.f).indexOf('HYPERLINK') !== 0) return;
+      var a;
+      try { a = XLSX.utils.decode_cell(k); } catch (e) { return; }
+      if (a.r !== rowIndex) return;
+      if (a.c <= maxDataCol) return;
+      delete ws[k];
+      removed = true;
+    });
+
+    if (removed) recomputeRef(ws);
+  }
+
+  // 判断某工作表是否隐藏（来自 workbook.xml 的 Hidden 标记）
+  function hiddenSheetMap(wb) {
+    var map = {};
+    if (wb && wb.Workbook && wb.Workbook.Sheets) {
+      wb.Workbook.Sheets.forEach(function (s) {
+        if (s && s.name) map[s.name.toLowerCase()] = !!s.Hidden;
+      });
+    }
+    return map;
+  }
+
+  // 依据当前选项，算出每个工作表的目录项
+  function computeItems(wb, opts) {
+    var items = [];
+    if (!wb) return items;
+    var hidden = hiddenSheetMap(wb);
+    var tocLower = String(opts.tocName || '').toLowerCase();
+
+    wb.SheetNames.forEach(function (name) {
+      // 跳过目录页自身（重新生成时避免把它也列进目录）
+      if (name.toLowerCase() === tocLower) return;
+      if (!opts.includeHidden && hidden[name.toLowerCase()]) return;
+      var info = analyzeSheet(wb.Sheets[name], opts.headerRow);
+      var display;
+      // hasHeader 已包含「headerRow>0 且首行有内容」两层判断，无表头时自动回退为 Sheet 名
+      var useHeader = info.hasHeader && (opts.nameMode === 'header' || opts.nameMode === 'auto');
+      if (useHeader) {
+        display = opts.nameSource === 'join' ? info.headerCells.join(' ') : info.headerCells[0];
+      } else {
+        display = name;
+      }
+      display = String(display || '').trim();
+      if (!display) display = name;
+      if (opts.nameSource === 'join' && display.length > 60) display = display.slice(0, 60);
+      items.push({
+        sheet: name,
+        name: display,
+        rowCount: info.rowCount,
+        colCount: info.colCount,
+        hasHeader: info.hasHeader,
+        fromHeader: useHeader && info.headerCells.length > 0,
+      });
+    });
+    return items;
+  }
+
+  // ---------- 核心：生成目录页 + 返回按钮 ----------
+  // opts: { tocName, title, headerRow, withIndex, withRows, backLink, backText, items }
+  function processWorkbook(wb, opts) {
+    var origNames = wb.SheetNames.slice();
+
+    // 已存在同名目录页 → 直接替换（避免反复生成累积成 目录、目录_2 ...）
+    var replaced = [];
+    var remain = [];
+    var tocLower = String(opts.tocName || '').toLowerCase();
+    origNames.forEach(function (n) {
+      if (n.toLowerCase() === tocLower) replaced.push(n); else remain.push(n);
+    });
+
+    // 目录页名与其余工作表冲突时自动加后缀
+    var usedLower = {};
+    remain.forEach(function (n) { usedLower[n.toLowerCase()] = true; });
+    var finalTocName = uniqueSheetName(opts.tocName, usedLower);
+
+    // 先删掉旧目录页（否则会被同名覆盖后又被 delete 误删）
+    replaced.forEach(function (n) { delete wb.Sheets[n]; });
+
+    var items = opts.items || [];
+
+    // 每个工作表表头右上角写「返回目录」
+    var backText = opts.backText || '← 返回目录';
+    var backCount = 0;
+    if (opts.backLink) {
+      items.forEach(function (it) {
+        var target = wb.Sheets[it.sheet];
+        if (!target) return;
+        var r, c, nr;
+        if (target['!ref']) {
+          nr = XLSX.utils.decode_range(target['!ref']);
+          r = opts.headerRow > 0 ? Math.min(Math.max(opts.headerRow - 1, nr.s.r), nr.e.r) : nr.s.r;
+          // 先清掉上一次生成的返回按钮，避免重复生成时一列列往右累积
+          removeBackLinks(target, r);
+          nr = XLSX.utils.decode_range(target['!ref']);
+          c = nr.e.c + 1;
+        } else {
+          nr = { s: { r: 0, c: 0 }, e: { r: 0, c: 0 } };
+          r = 0; c = 0;
+        }
+        var addr = XLSX.utils.encode_cell({ r: r, c: c });
+        target[addr] = {
+          t: 's',
+          v: backText,
+          f: 'HYPERLINK("#' + qn(finalTocName) + '!A1","' + esc(backText) + '")',
+        };
+        target['!ref'] = XLSX.utils.encode_range({
+          s: { r: Math.min(nr.s.r, r), c: Math.min(nr.s.c, c) },
+          e: { r: Math.max(nr.e.r, r), c: Math.max(nr.e.c, c) },
+        });
+        backCount++;
+      });
+    }
+
+    // 组装目录页内容
+    var aoa = [];
+    aoa.push([opts.title || '作业目录']);
+    var head = [];
+    if (opts.withIndex) head.push('序号');
+    head.push('目录');
+    if (opts.withRows) head.push('数据行数');
+    aoa.push(head);
+
+    var nameCol = opts.withIndex ? 1 : 0;
+    items.forEach(function (it, i) {
+      var row = [];
+      if (opts.withIndex) row.push(i + 1);
+      row.push(it.name);
+      if (opts.withRows) row.push(it.rowCount);
+      aoa.push(row);
+    });
+
+    var ws = XLSX.utils.aoa_to_sheet(aoa);
+    var cols = [];
+    if (opts.withIndex) cols.push({ wch: 6 });
+    cols.push({ wch: 44 });
+    if (opts.withRows) cols.push({ wch: 12 });
+    ws['!cols'] = cols;
+
+    // 名称列改成可点击的 HYPERLINK 公式
+    items.forEach(function (it, i) {
+      var addr = XLSX.utils.encode_cell({ r: 2 + i, c: nameCol });
+      ws[addr] = {
+        t: 's',
+        v: it.name,
+        f: 'HYPERLINK("#' + qn(it.sheet) + '!A1","' + esc(it.name) + '")',
+      };
+    });
+
+    // 挂到工作簿并置顶
+    wb.Sheets[finalTocName] = ws;
+    var newNames = [finalTocName].concat(remain);
+    wb.SheetNames = newNames;
+    if (wb.Workbook && wb.Workbook.Sheets) {
+      var map = {};
+      wb.Workbook.Sheets.forEach(function (s) { if (s && s.name) map[s.name] = s; });
+      wb.Workbook.Sheets = newNames.map(function (n) { return map[n] || { name: n }; });
+    }
+
+    return { tocName: finalTocName, count: items.length, backCount: backCount, replaced: replaced };
+  }
+
+  // ---------- 页面状态与交互 ----------
+  var state = { data: null, fileName: '', previewWb: null };
+  var overrides = {}; // 用户手动改过的目录项名称：index -> 文本
+
+  function currentOpts() {
+    var headerRow = parseInt($('tocHeaderRow').value, 10);
+    if (isNaN(headerRow) || headerRow < 0) headerRow = 1;
+    return {
+      tocName: cleanSheetName($('tocSheetName').value || '目录'),
+      title: ($('tocTitle').value || '作业目录').trim() || '作业目录',
+      headerRow: headerRow,
+      nameMode: $('tocNameMode').value,
+      nameSource: $('tocNameSource').value,
+      withIndex: $('tocIndex').checked,
+      withRows: $('tocRows').checked,
+      backLink: $('tocBackLink').checked,
+      includeHidden: $('tocIncludeHidden').checked,
+      backText: ($('tocBackText').value || '← 返回目录').trim() || '← 返回目录',
+    };
+  }
+
+  // 每次都从原始字节重新解析，保证重复点击不会累积目录页/返回按钮
+  function freshWorkbook() {
+    if (!state.data) return null;
+    return XLSX.read(state.data, { type: 'array', cellDates: true });
+  }
+
+  function itemsWithOverrides(wb, opts) {
+    var items = computeItems(wb, opts);
+    items.forEach(function (it, i) {
+      if (overrides[i] !== undefined && String(overrides[i]).trim() !== '') it.name = String(overrides[i]).trim();
+    });
+    return items;
+  }
+
+  function renderPreview() {
+    if (!state.previewWb) return [];
+    var opts = currentOpts();
+    var items = itemsWithOverrides(state.previewWb, opts);
+
+    var html = items.map(function (it, i) {
+      return '<tr>' +
+        '<td>' + (i + 1) + '</td>' +
+        '<td>' + escapeHtml(it.sheet) + '</td>' +
+        '<td><input type="text" class="name-input" data-i="' + i + '" value="' + escapeAttr(it.name) + '"></td>' +
+        '<td class="num">' + it.rowCount + '</td>' +
+        '<td class="num">' + it.colCount + '</td>' +
+        '</tr>';
+    }).join('');
+
+    $('tocPreview').innerHTML = html || '<tr><td colspan="5" class="empty">没有可用于生成目录的工作表</td></tr>';
+    $('tocCount').textContent = items.length + ' 个工作表';
+    $('tocPreviewWrap').classList.toggle('hidden', !items.length);
+    $('tocRun').disabled = !items.length;
+    return items;
+  }
+
+  function setControlsEnabled(on) {
+    ['tocSheetName', 'tocHeaderRow', 'tocNameMode', 'tocNameSource',
+      'tocBackText', 'tocTitle'].forEach(function (id) { $(id).disabled = !on; });
+  }
+
+  // 文件选择
+  $('tocFile').addEventListener('change', function (e) {
+    var file = e.target.files && e.target.files[0];
+    if (!file) return;
+    overrides = {};
+    setStatus('正在解析 ' + file.name + ' ...');
+    progress(20);
+
+    var fr = new FileReader();
+    fr.onerror = function () {
+      setStatus('文件读取失败：' + file.name, 'err');
+      progress(null);
+    };
+    fr.onload = function (ev) {
+      try {
+        var data = new Uint8Array(ev.target.result);
+        var wb = XLSX.read(data, { type: 'array', cellDates: true });
+        if (!wb.SheetNames || !wb.SheetNames.length) throw new Error('未找到任何工作表');
+        state.data = data;
+        state.fileName = file.name;
+        state.previewWb = wb;
+        setControlsEnabled(true);
+        renderPreview();
+        progress(100);
+        setStatus('已载入 ' + wb.SheetNames.length + ' 个工作表：' + wb.SheetNames.join('、'), 'ok');
+        setTimeout(function () { progress(null); }, 600);
+      } catch (err) {
+        setStatus('解析失败：' + err.message, 'err');
+        progress(null);
+        $('tocPreviewWrap').classList.add('hidden');
+        $('tocRun').disabled = true;
+      }
+    };
+    fr.readAsArrayBuffer(file);
+  });
+
+  // 选项变化 → 重算预览
+  ['tocSheetName', 'tocHeaderRow', 'tocNameMode', 'tocNameSource',
+    'tocIndex', 'tocRows', 'tocBackLink', 'tocIncludeHidden'].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      if (!state.previewWb) return;
+      renderPreview();
+    });
+  });
+
+  // 目录项名称可直接在表格里改（事件委托，重渲染后依然有效）
+  $('tocPreview').addEventListener('input', function (e) {
+    var t = e.target;
+    if (!t || !t.getAttribute) return;
+    var idx = t.getAttribute('data-i');
+    if (idx === null || idx === undefined) return;
+    overrides[idx] = t.value;
+  });
+
+  // 生成并下载
+  $('tocRun').addEventListener('click', function () {
+    if (!state.data) return;
+    var btn = $('tocRun');
+    btn.disabled = true;
+    setStatus('正在生成目录页 ...');
+    progress(10);
+
+    setTimeout(function () {
+      try {
+        var opts = currentOpts();
+        var wb = freshWorkbook();
+        if (!wb) throw new Error('工作簿已失效，请重新选择文件');
+
+        // 用预览时算好的名字（含用户手改）
+        opts.items = itemsWithOverrides(wb, opts);
+        if (!opts.items.length) throw new Error('没有可生成目录的工作表');
+
+        progress(45);
+        var res = processWorkbook(wb, opts);
+        progress(80);
+
+        var outName = fileNameSafe(stripExt(state.fileName)) + '_带目录.xlsx';
+        XLSX.writeFile(wb, outName, { bookType: 'xlsx' });
+        progress(100);
+
+        var msg = '完成！已插入「' + res.tocName + '」页，共 ' + res.count + ' 个目录项';
+        if (res.backCount) msg += '，' + res.backCount + ' 个返回按钮';
+        if (res.replaced.length) msg += '（已替换原有的「' + res.replaced.join('、') + '」页）';
+        setStatus(msg + '，已下载：' + outName, 'ok');
+        toast('目录页已生成');
+        setTimeout(function () { progress(null); }, 800);
+      } catch (err) {
+        setStatus('生成失败：' + err.message, 'err');
+        progress(null);
+      } finally {
+        btn.disabled = false;
+      }
+    }, 30);
+  });
+
+  // 重置
+  $('tocReset').addEventListener('click', function () {
+    state = { data: null, fileName: '', previewWb: null };
+    overrides = {};
+    $('tocFile').value = '';
+    $('tocSheetName').value = '目录';
+    $('tocHeaderRow').value = '1';
+    $('tocNameMode').value = 'auto';
+    $('tocNameSource').value = 'first';
+    $('tocBackText').value = '← 返回目录';
+    $('tocTitle').value = '作业目录';
+    $('tocIndex').checked = true;
+    $('tocRows').checked = true;
+    $('tocBackLink').checked = true;
+    $('tocIncludeHidden').checked = false;
+    $('tocPreview').innerHTML = '<tr><td colspan="5" class="empty">请先选择文件</td></tr>';
+    $('tocPreviewWrap').classList.add('hidden');
+    $('tocRun').disabled = true;
+    setControlsEnabled(false);
+    setStatus('');
+    progress(null);
+  });
+
+  // 调试桥：供自动化测试调用核心逻辑
+  if (typeof window !== 'undefined') {
+    window.__TOC_DEBUG = {
+      analyzeSheet: analyzeSheet,
+      computeItems: computeItems,
+      processWorkbook: processWorkbook,
+      qn: qn,
+      esc: esc,
+      cleanSheetName: cleanSheetName,
+    };
+  }
+})();
+</script>
+</body>
+</html>

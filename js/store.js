@@ -247,7 +247,7 @@ const Store = (function () {
   // ============================================
   function init() {
     // 初始化文章（带种子版本；升级时按 id 合并：新增/覆盖内置文章，保留用户自建文章）
-    const ARTICLE_SEED_VER = 'v20260902-excelsplit';
+    const ARTICLE_SEED_VER = 'v20260903-exceltoc';
     if (localStorage.getItem('blog_articles_seed_ver') !== ARTICLE_SEED_VER) {
       // 以 id 为键合并：仅「补全缺失」的内置文章，绝不覆盖已存储（可能被管理员改过日期/内容）的文章，
       // 用户在界面自建的文章（id 不在内置清单内）予以保留，避免被清掉。
@@ -559,6 +559,14 @@ const Store = (function () {
         description: '按某一列的不同内容一键拆成多个 Sheet（可选打包成多个文件的 ZIP），或把多个 Sheet / 文件合并回一张总表，支持按表头智能对齐',
         builtin: true,
         src: 'tools/excel-split-merge.html',
+      },
+      {
+        id: 'tool_exceltoc',
+        name: '一键添加目录页',
+        icon: '📑',
+        description: '在所有工作表最前面插入一页可点击跳转的目录：有表头取表头为名称、无表头用 Sheet 名，并在每个表头右上角加「返回目录」按钮',
+        builtin: true,
+        src: 'tools/excel-toc.html',
       },
     ];
 
