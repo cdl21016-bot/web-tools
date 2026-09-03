@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文本拆合</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5f6f8;
+    color: #1f2329;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 22px; margin: 4px 0 4px; }
+  .sub { color: #6b7280; font-size: 13px; margin-bottom: 16px; }
+  section { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+  .hint { font-size: 13px; color: #667085; background: #f0f6ff; border: 1px solid #d6e4ff; padding: 10px 12px; border-radius: 8px; margin: 0 0 14px; }
+  .warn { color:#b54708; background:#fffaeb; border:1px solid #fedf89; padding:10px 12px; border-radius:8px; font-size:13px; margin-bottom:12px; }
+  .warn.hidden, .hidden { display: none; }
+  label { display: block; font-size: 13px; font-weight: 600; color: #344054; margin: 12px 0 6px; }
+  select, input[type="text"], input[type="number"] {
+    width: 100%; font-size: 14px; font-family: inherit; padding: 8px 10px;
+    border: 1px solid #d0d5dd; border-radius: 8px; background: #fff; color: #1f2329;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+  .btn {
+    display: inline-block; border: none; background: #2563eb; color: #fff;
+    padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;
+    margin-top: 12px; margin-right: 8px;
+  }
+  .btn:disabled { background: #b6c2d4; cursor: not-allowed; }
+  .btn.secondary { background: #eef2f6; color: #344054; }
+  .status { font-size: 13px; color: #344054; margin-top: 12px; min-height: 20px; }
+  .status.err { color: #d92d20; }
+  .status.ok { color: #067647; }
+  .progress { height: 8px; background: #e5e7eb; border-radius: 6px; margin-top: 12px; overflow: hidden; }
+  .progress.hidden { display: none; }
+  .progress .bar { height: 100%; width: 0; background: #16a34a; transition: width .15s; }
+  .note { font-size: 12px; color: #667085; margin-top: 8px; }
+  .collist { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 4px 10px; margin-top: 6px; max-height: 200px; overflow: auto; border: 1px solid #eef2f6; border-radius: 8px; padding: 10px; }
+  .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: #344054; }
+  .chk input { width: 15px; height: 15px; margin: 0; }
+  table.grid { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 10px; }
+  table.grid th, table.grid td { border: 1px solid #e5e7eb; padding: 6px 8px; text-align: left; vertical-align: middle; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  table.grid th { background: #f7f8fa; font-weight: 600; }
+  .scroll { max-height: 360px; overflow: auto; border: 1px solid #e5e7eb; border-radius: 8px; margin-top: 12px; }
+  .scroll table.grid { margin-top: 0; border: none; }
+  .scroll table.grid th { position: sticky; top: 0; z-index: 1; }
+  .empty { color: #98a2b3; font-size: 13px; padding: 12px 0; }
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+    background: #1f2329; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 14px;
+    z-index: 50; opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+  .toast.hidden { display: none; }
+  .badge { display:inline-block; background:#eef2f6; color:#344054; border-radius:6px; padding:2px 8px; font-size:12px; margin-left:6px; }
+
+  /* 模式切换 */
+  .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  .tab {
+    flex: 1; text-align: center; padding: 10px; border-radius: 10px; cursor: pointer;
+    background: #eef2f6; color: #344054; font-weight: 600; font-size: 14px; user-select: none;
+    border: 2px solid transparent;
+  }
+  .tab.active { background: #2563eb; color: #fff; }
+
+  /* 拖拽区 */
+  .drop {
+    border: 2px dashed #b6c2d4; border-radius: 12px; background: #fafbfc;
+    padding: 22px 16px; text-align: center; cursor: pointer; transition: all .15s;
+  }
+  .drop:hover { border-color: #2563eb; background: #f0f6ff; }
+  .drop.drag { border-color: #2563eb; background: #e0edff; }
+  .drop .big { font-size: 28px; line-height: 1; margin-bottom: 6px; }
+  .drop .t1 { font-size: 14px; font-weight: 600; color: #344054; }
+  .drop .t2 { font-size: 12px; color: #667085; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📜 文本拆合</h1>
+  <div class="sub">按分隔符把一列文本拆成多列 / 把多列文本合并成带分隔符的一列 · 纯本地处理，不上传服务器</div>
+
+  <div id="libWarn" class="warn hidden"></div>
+
+  <!-- ================= 上传 ================= -->
+  <section id="uploadSection">
+    <div class="drop" id="drop">
+      <div class="big">📥</div>
+      <div class="t1">点击或拖拽 Excel 文件到这里</div>
+      <div class="t2">支持 .xlsx / .xlsm / .xls / .csv（单个文件即可用于下方拆分与合并）</div>
+    </div>
+    <input type="file" id="file" accept=".xlsx,.xlsm,.xls,.csv" class="hidden">
+    <div id="sheetRow" class="hidden">
+      <label>工作表（Sheet）</label>
+      <select id="sheetSel"></select>
+    </div>
+  </section>
+
+  <!-- ================= 模式切换 ================= -->
+  <div class="tabs">
+    <div class="tab active" data-mode="split">✂️ 拆分：一列 → 多列</div>
+    <div class="tab" data-mode="merge">🧩 合并：多列 → 一列</div>
+  </div>
+
+  <!-- ================= 拆分 ================= -->
+  <section id="paneSplit" class="">
+    <p class="hint">
+      <b>拆分</b>：选择一列，输入分隔符（如逗号、空格、<code>|</code>），工具会在该列<b>右侧插入若干列</b>，
+      把每个单元格按分隔符拆出的每段文本依次填入；以整列中<b>最多的段数</b>决定插入多少列，不足的行留空。
+    </p>
+    <div class="grid2">
+      <div>
+        <label>要拆分的列</label>
+        <select id="spCol"></select>
+      </div>
+      <div>
+        <label>分隔符</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="spSep" placeholder="如 逗号 / 空格 / |" style="flex:1;">
+          <select id="spSepPreset" style="width:120px;">
+            <option value="">常用</option>
+            <option value=",">逗号 ,</option>
+            <option value=" ">空格</option>
+            <option value="|">竖线 |</option>
+            <option value=";">分号 ;</option>
+            <option value="\t">制表符 Tab</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="note">提示：分隔符按字面分割，支持多字符（如 <code>||</code>）；连续分隔符会产生空段。空格请在输入框直接输入一个空格，或从「常用」选「空格」。</div>
+    <div>
+      <button class="btn" id="spPreview">预览结果</button>
+      <button class="btn secondary" id="spRun">生成并下载</button>
+    </div>
+    <div class="status" id="spStatus"></div>
+    <div class="progress hidden" id="spProgress"><div class="bar"></div></div>
+    <div class="note" id="spInfo"></div>
+    <div class="scroll hidden" id="spBox"><table class="grid" id="spGrid"></table></div>
+  </section>
+
+  <!-- ================= 合并 ================= -->
+  <section id="paneMerge" class="hidden">
+    <p class="hint">
+      <b>合并</b>：勾选多列，输入分隔符，选择<b>新列插入位置</b>，工具把这几列的文本依次用分隔符连接，
+      填入新插入的一列（原列<b>保留</b>，相当于「复制并拼接」）。
+    </p>
+    <label>选择要合并的列（可多选）</label>
+    <div class="collist" id="mgCols"></div>
+    <div class="grid2">
+      <div>
+        <label>分隔符</label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="mgSep" placeholder="如 逗号 / 空格 / |" style="flex:1;">
+          <select id="mgSepPreset" style="width:120px;">
+            <option value="">常用</option>
+            <option value=",">逗号 ,</option>
+            <option value=" ">空格</option>
+            <option value="|">竖线 |</option>
+            <option value=";">分号 ;</option>
+            <option value="\t">制表符 Tab</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label>新列插入位置</label>
+        <select id="mgInsertAt"></select>
+      </div>
+    </div>
+    <div class="note">合并顺序按列从左到右（A→B→C）。「插入位置」指新列放在哪一列的前方；选「末尾」则追加到最后一列之后。</div>
+    <div>
+      <button class="btn" id="mgPreview">预览结果</button>
+      <button class="btn secondary" id="mgRun">生成并下载</button>
+    </div>
+    <div class="status" id="mgStatus"></div>
+    <div class="progress hidden" id="mgProgress"><div class="bar"></div></div>
+    <div class="scroll hidden" id="mgBox"><table class="grid" id="mgGrid"></table></div>
+  </section>
+</div>
+<div class="toast hidden" id="toast"></div>
+
+<script src="lib/xlsx.full.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  function $(id) { return (typeof document !== 'undefined') ? document.getElementById(id) : null; }
+  function toast(msg) {
+    var t = $('toast'); if (!t) return;
+    t.textContent = msg; t.classList.remove('hidden'); t.classList.add('show');
+    setTimeout(function () { t.classList.remove('show'); }, 1800);
+  }
+  function setStatus(id, msg, kind) {
+    var el = $(id); if (!el) return;
+    el.textContent = msg || '';
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+  function progress(id, pct) {
+    var el = $(id); if (!el) return;
+    if (pct === null || pct === undefined) { el.classList.add('hidden'); return; }
+    el.classList.remove('hidden');
+    var bar = el.firstElementChild; if (bar) bar.style.width = pct + '%';
+  }
+
+  if (typeof XLSX === 'undefined') {
+    var lw = $('libWarn');
+    if (lw) { lw.classList.remove('hidden'); lw.textContent = '⚠️ 表格处理库未加载（lib/xlsx.full.min.js）。请确认该文件与本页面在同一目录。'; }
+  }
+
+  // ---------- 通用工具 ----------
+  function colLetter(idx) {
+    var s = '', n = idx + 1;
+    while (n > 0) { var m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); }
+    return s;
+  }
+  function valToStr(v) {
+    if (v === null || v === undefined) return '';
+    if (typeof v === 'number') return String(v);
+    if (v instanceof Date) {
+      var y = v.getFullYear(), mo = String(v.getMonth() + 1).padStart(2, '0'), d = String(v.getDate()).padStart(2, '0');
+      return y + '-' + mo + '-' + d;
+    }
+    return String(v);
+  }
+  function sheetToAoa(ws) {
+    if (!ws || !ws['!ref']) return [];
+    try {
+      return XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', blankrows: false, raw: true });
+    } catch (e) { return []; }
+  }
+  function colCountOf(aoa) {
+    var m = 0;
+    for (var i = 0; i < aoa.length; i++) { var r = aoa[i] || []; if (r.length > m) m = r.length; }
+    return m;
+  }
+  function headerName(aoa, i) {
+    if (!aoa.length) return '';
+    var v = aoa[0][i];
+    return (v === null || v === undefined || v === '') ? '' : valToStr(v);
+  }
+  function colLabel(i, aoa) {
+    var nm = headerName(aoa, i);
+    return colLetter(i) + (nm ? ' · ' + nm : '');
+  }
+
+  // ---------- 核心：拆分一列 ----------
+  // aoa: 二维数组；colIndex: 0-based；sep: 分隔符字符串
+  // 返回 { aoa: 新二维数组, maxParts: 插入列数 }
+  function splitColumn(aoa, colIndex, sep) {
+    if (!aoa || !aoa.length) return { aoa: aoa || [], maxParts: 0 };
+    if (colIndex < 0) return { aoa: aoa, maxParts: 0 };
+    var safeSep = (sep === undefined || sep === null) ? '' : String(sep);
+    var maxParts = 0;
+    var partsByRow = new Array(aoa.length);
+    for (var r = 0; r < aoa.length; r++) {
+      var row = aoa[r] || [];
+      var cell = valToStr(row[colIndex]);
+      var parts = (safeSep === '') ? [cell] : cell.split(safeSep);
+      partsByRow[r] = parts;
+      if (parts.length > maxParts) maxParts = parts.length;
+    }
+    if (maxParts <= 0) maxParts = 1;
+    var newAoa = new Array(aoa.length);
+    for (var r2 = 0; r2 < aoa.length; r2++) {
+      var src = aoa[r2] || [];
+      var left = src.slice(0, colIndex + 1);   // 含源列
+      var right = src.slice(colIndex + 1);
+      var ins = partsByRow[r2];
+      var padded = new Array(maxParts);
+      for (var k = 0; k < maxParts; k++) padded[k] = (k < ins.length) ? ins[k] : '';
+      newAoa[r2] = left.concat(padded, right);
+    }
+    return { aoa: newAoa, maxParts: maxParts };
+  }
+
+  // ---------- 核心：合并多列 ----------
+  // aoa: 二维数组；colIndices: 0-based 数组（可乱序）；sep: 分隔符；insertAtCol: 0-based 插入位置（=列数表示末尾）
+  function mergeColumns(aoa, colIndices, sep, insertAtCol) {
+    if (!aoa || !aoa.length) return aoa || [];
+    var idx = (colIndices || []).slice().sort(function (a, b) { return a - b; });
+    if (!idx.length) return aoa;
+    var safeSep = (sep === undefined || sep === null) ? '' : String(sep);
+    var at = (insertAtCol === undefined || insertAtCol === null) ? colCountOf(aoa) : insertAtCol;
+    var newAoa = new Array(aoa.length);
+    for (var r = 0; r < aoa.length; r++) {
+      var row = aoa[r] || [];
+      var parts = idx.map(function (ci) { return valToStr(row[ci]); });
+      var joined = parts.join(safeSep);
+      var left = row.slice(0, at);
+      var right = row.slice(at);
+      newAoa[r] = left.concat([joined], right);
+    }
+    return newAoa;
+  }
+
+  // ---------- 状态 ----------
+  var state = { wb: null, sheetName: '', aoa: [], fileName: '', fileBase: '' };
+  var splitResult = null;   // { aoa, maxParts }
+  var mergeResult = null;   // aoa
+
+  // ---------- 读取文件 ----------
+  function readFileAsArray(file) {
+    return new Promise(function (resolve, reject) {
+      var fr = new FileReader();
+      fr.onerror = function () { reject(new Error('读取失败：' + file.name)); };
+      fr.onload = function (ev) { resolve(new Uint8Array(ev.target.result)); };
+      fr.readAsArrayBuffer(file);
+    });
+  }
+  function parseWorkbook(data, label) {
+    var wb;
+    try { wb = XLSX.read(data, { type: 'array', cellDates: true, cellStyles: true }); }
+    catch (e) { throw new Error('解析失败（' + label + '）：' + e.message); }
+    if (!wb || !wb.SheetNames || !wb.SheetNames.length) throw new Error('没有找到任何工作表（' + label + '）');
+    return wb;
+  }
+
+  function loadSheet(name) {
+    state.sheetName = name;
+    var ws = state.wb.Sheets[name];
+    state.aoa = sheetToAoa(ws);
+    splitResult = null; mergeResult = null;
+    rebuildColUI();
+    setStatus('spStatus', ''); setStatus('mgStatus', '');
+    $('spInfo') && ($('spInfo').textContent = '');
+    $('spBox') && $('spBox').classList.add('hidden');
+    $('mgBox') && $('mgBox').classList.add('hidden');
+  }
+
+  function rebuildColUI() {
+    var cols = colCountOf(state.aoa);
+    if (cols <= 0) return;
+    // 拆分：源列下拉
+    var sp = $('spCol');
+    if (sp) {
+      var html = '';
+      for (var i = 0; i < cols; i++) html += '<option value="' + i + '">' + colLabel(i, state.aoa) + '</option>';
+      sp.innerHTML = html;
+    }
+    // 合并：多列勾选
+    var box = $('mgCols');
+    if (box) {
+      var h = '';
+      for (var j = 0; j < cols; j++) {
+        h += '<label class="chk"><input type="checkbox" value="' + j + '"> ' + colLabel(j, state.aoa) + '</label>';
+      }
+      box.innerHTML = h;
+    }
+    // 合并：插入位置
+    var ins = $('mgInsertAt');
+    if (ins) {
+      var ih = '';
+      for (var k = 0; k < cols; k++) ih += '<option value="' + k + '">在 ' + colLetter(k) + ' 列前方</option>';
+      ih += '<option value="' + cols + '">在末尾（最后一列之后）</option>';
+      ins.innerHTML = ih;
+    }
+  }
+
+  function getSep(inputId, presetId) {
+    var inp = $(inputId);
+    return inp ? inp.value : '';
+  }
+
+  function renderGrid(tableId, boxId, aoa, maxRows) {
+    var tbl = $(tableId), box = $(boxId);
+    if (!tbl) return;
+    if (!aoa || !aoa.length) { if (box) box.classList.add('hidden'); return; }
+    var cols = colCountOf(aoa);
+    var head = '<tr>';
+    for (var c = 0; c < cols; c++) head += '<th>' + colLetter(c) + '</th>';
+    head += '</tr>';
+    var body = '';
+    var n = Math.min(aoa.length, maxRows || 30);
+    for (var r = 0; r < n; r++) {
+      var row = aoa[r] || [];
+      body += '<tr>';
+      for (var c2 = 0; c2 < cols; c2++) {
+        var v = row[c2];
+        body += '<td>' + (v === null || v === undefined ? '' : String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')) + '</td>';
+      }
+      body += '</tr>';
+    }
+    tbl.innerHTML = head + body;
+    if (box) box.classList.remove('hidden');
+  }
+
+  function downloadAoa(aoa, name) {
+    var ws = XLSX.utils.aoa_to_sheet(aoa);
+    var wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, '结果');
+    XLSX.writeFile(wb, name, { bookType: 'xlsx' });
+  }
+
+  // ---------- 上传绑定 ----------
+  function bindDrop() {
+    var zone = $('drop'), input = $('file');
+    if (!zone || !input) return;
+    zone.addEventListener('click', function (e) { if (e.target === input) return; input.click(); });
+    input.addEventListener('click', function (e) { e.stopPropagation(); });
+    input.addEventListener('change', function () {
+      if (input.files && input.files.length) handleFile(input.files[0]);
+      input.value = '';
+    });
+    ['dragenter', 'dragover'].forEach(function (ev) {
+      zone.addEventListener(ev, function (e) { e.preventDefault(); e.stopPropagation(); zone.classList.add('drag'); });
+    });
+    ['dragleave', 'dragend'].forEach(function (ev) {
+      zone.addEventListener(ev, function (e) { e.preventDefault(); e.stopPropagation(); zone.classList.remove('drag'); });
+    });
+    zone.addEventListener('drop', function (e) {
+      e.preventDefault(); e.stopPropagation(); zone.classList.remove('drag');
+      var dt = e.dataTransfer;
+      if (dt && dt.files && dt.files.length) handleFile(dt.files[0]);
+    });
+  }
+
+  function handleFile(file) {
+    if (!/\.(xlsx|xlsm|xls|csv)$/i.test(file.name)) { toast('请上传 Excel / CSV 文件'); return; }
+    if (typeof XLSX === 'undefined') { setStatus('spStatus', '表格处理库未加载，无法解析。', 'err'); return; }
+    setStatus('spStatus', '正在解析 ' + file.name + ' ...');
+    state.fileBase = file.name.replace(/\.[^.]+$/, '');
+    readFileAsArray(file).then(function (data) {
+      var wb = parseWorkbook(data, file.name);
+      state.wb = wb;
+      var names = wb.SheetNames;
+      var sel = $('sheetSel');
+      if (names.length > 1) {
+        if (sel) {
+          var h = '';
+          names.forEach(function (nm) { h += '<option value="' + nm.replace(/"/g, '&quot;') + '">' + nm + '</option>'; });
+          sel.innerHTML = h;
+          sel.onchange = function () { loadSheet(sel.value); };
+          $('sheetRow').classList.remove('hidden');
+        }
+      } else if (sel) {
+        $('sheetRow').classList.add('hidden');
+      }
+      loadSheet(names[0]);
+      setStatus('spStatus', '已载入「' + names[0] + '」，共 ' + state.aoa.length + ' 行。请在下方选择拆分或合并。', 'ok');
+      toast('载入成功');
+    }).catch(function (err) {
+      setStatus('spStatus', err.message, 'err');
+    });
+  }
+
+  // ---------- Tab 切换 ----------
+  var currentMode = 'split';
+  Array.prototype.forEach.call((typeof document !== 'undefined') ? document.querySelectorAll('.tab') : [], function (tab) {
+    tab.addEventListener('click', function () {
+      var mode = tab.getAttribute('data-mode');
+      if (mode === currentMode) return;
+      currentMode = mode;
+      Array.prototype.forEach.call(document.querySelectorAll('.tab'), function (t) {
+        t.classList.toggle('active', t.getAttribute('data-mode') === mode);
+      });
+      $('paneSplit').classList.toggle('hidden', mode !== 'split');
+      $('paneMerge').classList.toggle('hidden', mode !== 'merge');
+    });
+  });
+
+  // ---------- 分隔符预设 ----------
+  function bindSepPreset(presetId, inputId) {
+    var sel = $(presetId), inp = $(inputId);
+    if (!sel || !inp) return;
+    sel.addEventListener('change', function () {
+      if (sel.value) inp.value = sel.value;
+    });
+  }
+
+  // ---------- 拆分：预览 / 下载 ----------
+  $('spPreview').addEventListener('click', function () {
+    if (!state.aoa.length) { setStatus('spStatus', '请先上传文件。', 'err'); return; }
+    var col = parseInt($('spCol').value, 10);
+    var sep = getSep('spSep');
+    splitResult = splitColumn(state.aoa, col, sep);
+    renderGrid('spGrid', 'spBox', splitResult.aoa, 30);
+    $('spInfo').textContent = '预览：将在「' + colLetter(col) + '」列右侧插入 ' + splitResult.maxParts + ' 列。';
+    setStatus('spStatus', '预览已生成，可在下方生成并下载。', 'ok');
+  });
+  $('spRun').addEventListener('click', function () {
+    if (!state.aoa.length) { setStatus('spStatus', '请先上传文件。', 'err'); return; }
+    var col = parseInt($('spCol').value, 10);
+    var sep = getSep('spSep');
+    splitResult = splitColumn(state.aoa, col, sep);
+    var name = '文本拆合_拆分_' + (state.fileBase || '结果') + '.xlsx';
+    try { downloadAoa(splitResult.aoa, name); setStatus('spStatus', '已下载：' + name + '（插入 ' + splitResult.maxParts + ' 列）', 'ok'); toast('下载完成'); }
+    catch (e) { setStatus('spStatus', '生成失败：' + e.message, 'err'); }
+  });
+
+  // ---------- 合并：预览 / 下载 ----------
+  $('mgPreview').addEventListener('click', function () {
+    if (!state.aoa.length) { setStatus('mgStatus', '请先上传文件。', 'err'); return; }
+    var checks = $('mgCols').querySelectorAll('input[type=checkbox]:checked');
+    if (!checks.length) { setStatus('mgStatus', '请至少勾选一列。', 'err'); return; }
+    var cols = [];
+    Array.prototype.forEach.call(checks, function (c) { cols.push(parseInt(c.value, 10)); });
+    var sep = getSep('mgSep');
+    var at = parseInt($('mgInsertAt').value, 10);
+    mergeResult = mergeColumns(state.aoa, cols, sep, at);
+    renderGrid('mgGrid', 'mgBox', mergeResult, 30);
+    setStatus('mgStatus', '预览已生成，可在下方生成并下载。', 'ok');
+  });
+  $('mgRun').addEventListener('click', function () {
+    if (!state.aoa.length) { setStatus('mgStatus', '请先上传文件。', 'err'); return; }
+    var checks = $('mgCols').querySelectorAll('input[type=checkbox]:checked');
+    if (!checks.length) { setStatus('mgStatus', '请至少勾选一列。', 'err'); return; }
+    var cols = [];
+    Array.prototype.forEach.call(checks, function (c) { cols.push(parseInt(c.value, 10)); });
+    var sep = getSep('mgSep');
+    var at = parseInt($('mgInsertAt').value, 10);
+    mergeResult = mergeColumns(state.aoa, cols, sep, at);
+    var name = '文本拆合_合并_' + (state.fileBase || '结果') + '.xlsx';
+    try { downloadAoa(mergeResult, name); setStatus('mgStatus', '已下载：' + name, 'ok'); toast('下载完成'); }
+    catch (e) { setStatus('mgStatus', '生成失败：' + e.message, 'err'); }
+  });
+
+  // ---------- 初始化 ----------
+  bindDrop();
+  bindSepPreset('spSepPreset', 'spSep');
+  bindSepPreset('mgSepPreset', 'mgSep');
+
+  // ---------- 调试桥：供自动化测试调用核心逻辑 ----------
+  if (typeof window !== 'undefined') {
+    window.__TXTSM_DEBUG = {
+      splitColumn: splitColumn,
+      mergeColumns: mergeColumns,
+      valToStr: valToStr,
+      colLetter: colLetter,
+      colCountOf: colCountOf,
+      sheetToAoa: sheetToAoa,
+      aoaToBuffer: function (aoa, sheetName) {
+        var ws = XLSX.utils.aoa_to_sheet(aoa);
+        var wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, sheetName || 'Sheet1');
+        return XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
+      },
+      getState: function () { return state; },
+      setState: function (st) { state = st; },
+    };
+  }
+})();
+</script>
+</body>
+</html>
