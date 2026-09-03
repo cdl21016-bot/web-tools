@@ -62,12 +62,6 @@ const App = (function () {
       .replace(/\n/g, '<br>');
   }
 
-  function formatDate(dateStr) {
-    const d = new Date(dateStr);
-    const months = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
-    return `${d.getFullYear()}年${months[d.getMonth()]}${d.getDate()}日`;
-  }
-
   function formatSize(bytes) {
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -303,10 +297,6 @@ const App = (function () {
             <div class="article-card-tags">
               ${a.tags.slice(0, 2).map((t) => `<span class="tag" data-tag="${escapeHtml(t)}">${escapeHtml(t)}</span>`).join('')}
             </div>
-            <span class="article-card-date">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              ${a.date}
-            </span>
           </div>
         </div>
       </article>
@@ -381,16 +371,9 @@ const App = (function () {
           <h1 class="article-detail-title">${escapeHtml(article.title)}</h1>
           <div class="article-detail-meta">
             <span class="meta-item">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              <span id="articleDateText">${formatDate(article.date)}</span>
-            </span>
-            <span class="meta-item">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               ${escapeHtml(article.author || '效率工坊')}
             </span>
-            ${isAdmin() ? `
-              <button class="btn btn-outline btn-sm" id="editDateBtn" title="手动修改本文的更新日期">🗓 修改日期</button>
-            ` : ''}
           </div>
           <div class="article-detail-tags">
             ${article.tags.map((t) => `<span class="tag" data-tag="${escapeHtml(t)}">${escapeHtml(t)}</span>`).join('')}
@@ -444,74 +427,10 @@ const App = (function () {
       });
     });
 
-    // 绑定「修改日期」
-    const editDateBtn = document.getElementById('editDateBtn');
-    if (editDateBtn) {
-      editDateBtn.addEventListener('click', () => showEditDateModal(article));
-    }
-
     // 绑定标签点击
     bindTagClicks();
 
     scrollToTop();
-  }
-
-  // 手动修改文章更新日期
-  function showEditDateModal(article) {
-    const overlay = document.createElement('div');
-    overlay.className = 'tool-modal-overlay';
-    overlay.innerHTML = `
-      <div class="tool-modal" style="max-width:420px;width:92%;">
-        <div class="tool-modal-head">
-          <span class="tool-modal-title">修改更新日期</span>
-          <div class="tool-modal-tools">
-            <button class="tool-modal-close" id="dateClose" title="关闭">✕</button>
-          </div>
-        </div>
-        <div style="padding:20px;">
-          <div class="form-group">
-            <label class="form-label">更新日期</label>
-            <input type="date" class="form-input" id="dateInput" value="${escapeHtml(article.date || '')}">
-          </div>
-          <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;">
-            <button class="btn btn-primary" id="dateSave">保存</button>
-            <button class="btn btn-outline" id="dateCancel">取消</button>
-            <button class="btn btn-outline" id="dateToday" style="margin-left:auto;">设为今天</button>
-          </div>
-        </div>
-      </div>`;
-    document.body.appendChild(overlay);
-    document.body.style.overflow = 'hidden';
-
-    const close = () => {
-      overlay.remove();
-      document.body.style.overflow = '';
-    };
-
-    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
-    overlay.querySelector('#dateClose').addEventListener('click', close);
-    overlay.querySelector('#dateCancel').addEventListener('click', close);
-    overlay.querySelector('#dateToday').addEventListener('click', () => {
-      overlay.querySelector('#dateInput').value = new Date().toISOString().slice(0, 10);
-    });
-    overlay.querySelector('#dateSave').addEventListener('click', () => {
-      const val = overlay.querySelector('#dateInput').value;
-      if (!val) {
-        showToast('请选择日期', 'error');
-        return;
-      }
-      try {
-        Store.saveArticle({ id: article.id, date: val });
-        // 局部更新详情页日期，避免整页重渲染导致滚动位置丢失
-        const dateText = document.getElementById('articleDateText');
-        if (dateText) dateText.textContent = formatDate(val);
-        showToast('更新日期已修改', 'success');
-        close();
-      } catch (err) {
-        showToast('保存失败：' + (err.message || '未知错误'), 'error');
-        console.error(err);
-      }
-    });
   }
 
   // ============================================
