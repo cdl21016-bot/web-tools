@@ -214,6 +214,27 @@ const Store = (function () {
     return result;
   }
 
+  // 管理员通过后台「编辑应用」更新官方目录（边缘函数 -> KV），对所有人实时可见
+  async function updateOfficialApp(appData) {
+    const key = (typeof localStorage !== 'undefined') ? (localStorage.getItem('adminKey') || '') : '';
+    const res = await fetch('/api/apps', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': key },
+      body: JSON.stringify(appData || {}),
+    });
+    if (!res.ok) {
+      const msg = await res.text().catch(() => '');
+      throw new Error((msg || '更新失败') + ' (' + res.status + ')');
+    }
+    const result = await res.json();
+    if (result && result.app) {
+      const idx = officialApps.findIndex((a) => a.id === result.app.id);
+      if (idx !== -1) officialApps[idx] = result.app;
+      else officialApps.unshift(result.app);
+    }
+    return result;
+  }
+
   // 管理员通过后台「删除应用」从官方目录移除（边缘函数 -> KV），对所有人实时可见
   async function deleteOfficialApp(id) {
     const key = (typeof localStorage !== 'undefined') ? (localStorage.getItem('adminKey') || '') : '';
@@ -673,6 +694,7 @@ const Store = (function () {
     getApp,
     saveApp,
     addOfficialApp,
+    updateOfficialApp,
     deleteOfficialApp,
     deleteApp,
     getAppCategories,

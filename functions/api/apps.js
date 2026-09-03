@@ -42,6 +42,8 @@ export async function onRequestPost(context) {
     name: String(body.name || ""),
     description: String(body.description || ""),
     link: String(body.link || ""),
+    link2: String(body.link2 || ""),
+    link2Label: String(body.link2Label || "备用链接"),
     introHtml: String(body.introHtml || ""),
     introFileName: String(body.introFileName || ""),
     icon: body.icon || "📦",
@@ -55,6 +57,46 @@ export async function onRequestPost(context) {
   apps.unshift(app);
   await env[KV].put("apps", JSON.stringify(apps));
   return Response.json({ ok: true, app });
+}
+
+export async function onRequestPut(context) {
+  const { env, request } = context;
+  const key = request.headers.get("x-admin-key");
+  if (!key || key !== env.ADMIN_KEY) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+  let body;
+  try { body = await request.json(); } catch (e) {
+    return new Response("Bad Request", { status: 400 });
+  }
+  const { id } = body || {};
+  if (!id) {
+    return new Response("id required", { status: 400 });
+  }
+  const apps = await readApps(env, request);
+  const idx = apps.findIndex((a) => a.id === id);
+  if (idx === -1) {
+    return new Response("Not Found", { status: 404 });
+  }
+  const target = apps[idx];
+  const updated = {
+    ...target,
+    name: String(body.name || target.name || ""),
+    description: String(body.description !== undefined ? body.description : (target.description || "")),
+    link: String(body.link !== undefined ? body.link : (target.link || "")),
+    link2: String(body.link2 !== undefined ? body.link2 : (target.link2 || "")),
+    link2Label: String(body.link2Label !== undefined ? body.link2Label : (target.link2Label || "备用链接")),
+    introHtml: String(body.introHtml !== undefined ? body.introHtml : (target.introHtml || "")),
+    introFileName: String(body.introFileName !== undefined ? body.introFileName : (target.introFileName || "")),
+    icon: body.icon !== undefined ? body.icon : (target.icon || "📦"),
+    email: String(body.email !== undefined ? body.email : (target.email || "")),
+    wechat: String(body.wechat !== undefined ? body.wechat : (target.wechat || "")),
+    price: Number(body.price !== undefined ? body.price : (target.price || 0)),
+    chargeMode: body.chargeMode === "paid" || target.chargeMode === "paid" ? "paid" : "free",
+  };
+  apps[idx] = updated;
+  await env[KV].put("apps", JSON.stringify(apps));
+  return Response.json({ ok: true, app: updated });
 }
 
 export async function onRequestDelete(context) {

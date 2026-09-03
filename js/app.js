@@ -11,10 +11,11 @@ const App = (function () {
   const navMenu = document.getElementById('navMenu');
   const backToTop = document.getElementById('backToTop');
   const navbar = document.getElementById('navbar');
+  let editingApp = null; // 应用编辑模式当前对象
 
   // ============================================
    // Markdown 配置
-   // ============================================
+  // ============================================
   function initMarkdown() {
     if (typeof marked !== 'undefined') {
       marked.setOptions({
@@ -646,14 +647,19 @@ const App = (function () {
 
         ${isAdmin() ? `
           <div class="app-upload-form" id="uploadForm">
-            <h3 style="font-size:18px;font-weight:700;margin-bottom:20px;">添加应用</h3>
+            <h3 style="font-size:18px;font-weight:700;margin-bottom:20px;" id="appFormTitle">添加应用</h3>
             <div class="form-group">
               <label class="form-label">应用名称 *</label>
               <input type="text" class="form-input" id="appName" placeholder="如：Snipaste">
             </div>
             <div class="form-group">
-              <label class="form-label">应用链接 *</label>
+              <label class="form-label">应用链接 1 *</label>
               <input type="url" class="form-input" id="appLink" placeholder="https://...">
+            </div>
+            <div class="form-group">
+              <label class="form-label">应用链接 2 · 选填</label>
+              <input type="url" class="form-input" id="appLink2" placeholder="https://..." style="margin-bottom:8px;">
+              <input type="text" class="form-input" id="appLink2Label" placeholder="按钮文字，如：百度网盘 / 夸克网盘（留空显示「备用链接」）">
             </div>
             <div class="form-group">
               <label class="form-label">简单说明</label>
@@ -695,6 +701,7 @@ const App = (function () {
             </div>
             <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
               <button class="btn btn-primary" id="uploadBtn">添加应用</button>
+              <button class="btn btn-outline" id="uploadCancelBtn" style="display:none;">取消编辑</button>
             </div>
           </div>
         ` : `
@@ -738,7 +745,10 @@ const App = (function () {
         <p class="app-card-desc">${escapeHtml(a.description || '暂无描述')}</p>
         <div class="app-card-actions">
           <button class="btn btn-primary btn-sm" data-app-detail="${a.id}">查看详情</button>
-          ${showDelete ? `<button class="btn btn-danger btn-sm" data-delete="${a.id}">删除</button>` : ''}
+          ${showDelete ? `
+            <button class="btn btn-outline btn-sm" data-edit="${a.id}">✏️ 编辑</button>
+            <button class="btn btn-danger btn-sm" data-delete="${a.id}">删除</button>
+          ` : ''}
         </div>
       </div>
     `
@@ -748,8 +758,17 @@ const App = (function () {
 
   function bindAppGridEvents(appGrid) {
     appGrid.addEventListener('click', async (e) => {
+      const editBtn = e.target.closest('[data-edit]');
       const deleteBtn = e.target.closest('[data-delete]');
       const detailBtn = e.target.closest('[data-app-detail]');
+
+      // 编辑按钮优先，回填表单并进入编辑模式
+      if (editBtn) {
+        e.stopPropagation();
+        const app = Store.getApp(editBtn.getAttribute('data-edit'));
+        if (app) startAppEdit(app);
+        return;
+      }
 
       // 删除按钮优先，避免点击卡片内部的删除时误开详情
       if (deleteBtn) {
@@ -781,6 +800,79 @@ const App = (function () {
     });
   }
 
+  // 进入应用编辑模式：回填表单并切换按钮文案
+  function startAppEdit(app) {
+    const formTitle = document.getElementById('appFormTitle');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const cancelBtn = document.getElementById('uploadCancelBtn');
+    const introInfo = document.getElementById('introInfo');
+
+    editingApp = app;
+    if (formTitle) formTitle.textContent = '编辑应用';
+    if (uploadBtn) uploadBtn.textContent = '保存修改';
+    if (cancelBtn) cancelBtn.style.display = '';
+
+    document.getElementById('appName').value = app.name || '';
+    document.getElementById('appLink').value = app.link || '';
+    document.getElementById('appLink2').value = app.link2 || '';
+    document.getElementById('appLink2Label').value = app.link2Label || '';
+    document.getElementById('appDesc').value = app.description || '';
+    document.getElementById('appEmail').value = app.email || '';
+    document.getElementById('appWechat').value = app.wechat || '';
+
+    const chargeRadios = document.querySelectorAll('input[name="appCharge"]');
+    const priceGroup = document.getElementById('appPriceGroup');
+    const priceInput = document.getElementById('appPrice');
+    const isPaid = app.chargeMode === 'paid' || app.price > 0;
+    chargeRadios.forEach((r) => { r.checked = (r.value === 'paid') === isPaid; });
+    if (priceGroup) priceGroup.style.display = isPaid ? 'block' : 'none';
+    if (priceInput) priceInput.value = app.price > 0 ? app.price : '';
+
+    if (introInfo) {
+      introInfo.innerHTML = app.introFileName
+        ? `<strong>介绍文件：</strong>${escapeHtml(app.introFileName)}（重新上传可替换）`
+        : `<span style="color:var(--text-secondary);">当前无介绍文件，重新上传可替换</span>`;
+    }
+
+    const form = document.getElementById('uploadForm');
+    if (form && form.scrollIntoView) form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // 退出应用编辑模式：清空表单并恢复按钮文案
+  function cancelAppEdit() {
+    const formTitle = document.getElementById('appFormTitle');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const cancelBtn = document.getElementById('uploadCancelBtn');
+    const introInfo = document.getElementById('introInfo');
+
+    editingApp = null;
+    if (formTitle) formTitle.textContent = '添加应用';
+    if (uploadBtn) {
+      uploadBtn.textContent = '添加应用';
+      uploadBtn.disabled = false;
+    }
+    if (cancelBtn) cancelBtn.style.display = 'none';
+
+    document.getElementById('appName').value = '';
+    document.getElementById('appLink').value = '';
+    document.getElementById('appLink2').value = '';
+    document.getElementById('appLink2Label').value = '';
+    document.getElementById('appDesc').value = '';
+    document.getElementById('appEmail').value = '';
+    document.getElementById('appWechat').value = '';
+
+    const chargeRadios = document.querySelectorAll('input[name="appCharge"]');
+    const priceGroup = document.getElementById('appPriceGroup');
+    const priceInput = document.getElementById('appPrice');
+    chargeRadios.forEach((r) => { r.checked = r.value === 'free'; });
+    if (priceGroup) priceGroup.style.display = 'none';
+    if (priceInput) priceInput.value = '';
+
+    const introInput = document.getElementById('appIntroInput');
+    if (introInput) introInput.value = '';
+    if (introInfo) introInfo.innerHTML = '';
+  }
+
   // 应用详情弹窗：展示链接 + HTML 介绍说明
   function showAppDetailModal(app) {
     const overlay = document.createElement('div');
@@ -795,9 +887,17 @@ const App = (function () {
         </div>
         <div style="padding:20px;">
           <p style="margin:0 0 16px;color:var(--text-secondary);line-height:1.6;">${escapeHtml(app.description || '暂无描述')}</p>
-          <div style="margin-bottom:16px;padding:12px 14px;background:var(--bg-hover);border-radius:var(--radius-sm);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-            <a class="btn btn-primary" href="${escapeHtml(app.link || '#')}" target="_blank" rel="noopener" ${app.link ? '' : 'disabled style="pointer-events:none;opacity:0.5;"'}>前往应用 ↗</a>
-            <span style="font-size:13px;color:var(--text-secondary);word-break:break-all;">${escapeHtml(app.link || '未填写链接')}</span>
+          <div style="margin-bottom:16px;display:flex;flex-direction:column;gap:10px;">
+            <div style="padding:12px 14px;background:var(--bg-hover);border-radius:var(--radius-sm);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <a class="btn btn-primary" href="${escapeHtml(app.link || '#')}" target="_blank" rel="noopener" ${app.link ? '' : 'disabled style="pointer-events:none;opacity:0.5;"'}>前往应用 ↗</a>
+              <span style="font-size:13px;color:var(--text-secondary);word-break:break-all;">${escapeHtml(app.link || '未填写链接')}</span>
+            </div>
+            ${app.link2 ? `
+            <div style="padding:12px 14px;background:var(--bg-hover);border-radius:var(--radius-sm);display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <a class="btn btn-outline" href="${escapeHtml(app.link2)}" target="_blank" rel="noopener">${escapeHtml(app.link2Label || '备用链接')} ↗</a>
+              <span style="font-size:13px;color:var(--text-secondary);word-break:break-all;">${escapeHtml(app.link2)}</span>
+            </div>
+            ` : ''}
           </div>
           ${app.wechat || app.email ? `
           <div style="margin-bottom:16px;padding:14px 16px;background:var(--accent-light);border:1px solid var(--accent);border-radius:var(--radius-md);">
@@ -891,10 +991,17 @@ const App = (function () {
       });
     }
 
-    // 确认添加
+    const cancelBtn = document.getElementById('uploadCancelBtn');
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', () => cancelAppEdit());
+    }
+
+    // 确认添加 / 保存编辑
     uploadBtn.addEventListener('click', async () => {
       const name = document.getElementById('appName').value.trim();
       const link = (document.getElementById('appLink') || {}).value.trim();
+      const link2 = (document.getElementById('appLink2') || {}).value.trim();
+      const link2Label = (document.getElementById('appLink2Label') || {}).value.trim();
       const desc = document.getElementById('appDesc').value.trim();
       const email = (document.getElementById('appEmail') || {}).value.trim();
       const wechat = (document.getElementById('appWechat') || {}).value.trim();
@@ -928,52 +1035,93 @@ const App = (function () {
         const f = introInput.files[0];
         introFileName = f.name;
         introHtml = await f.text();
+      } else if (editingApp) {
+        introHtml = editingApp.introHtml || '';
+        introFileName = editingApp.introFileName || '';
       }
 
       uploadBtn.disabled = true;
-      uploadBtn.textContent = '添加中...';
+      uploadBtn.textContent = editingApp ? '保存中...' : '添加中...';
 
       try {
-        const adminKey = (typeof localStorage !== 'undefined') ? (localStorage.getItem('adminKey') || '') : '';
-        if (adminKey) {
-          try {
-            await Store.addOfficialApp({
-              name: name, description: desc, link: link,
-              email: email, wechat: wechat,
-              introHtml: introHtml, introFileName: introFileName,
-              icon: '📦',
-              price: price, chargeMode: chargeMode,
+        if (editingApp) {
+          // 编辑模式：区分官方 / 个人应用
+          const patch = {
+            id: editingApp.id,
+            name,
+            description: desc,
+            link,
+            link2,
+            link2Label,
+            email,
+            wechat,
+            introHtml,
+            introFileName,
+            icon: editingApp.icon || '📦',
+            price,
+            chargeMode,
+          };
+          if (editingApp.official === true && isAdmin()) {
+            try {
+              await Store.updateOfficialApp(patch);
+              showToast('应用已更新（官方目录）', 'success');
+            } catch (e) {
+              showToast('更新官方目录失败：' + (e.message || '未知错误'), 'error');
+              uploadBtn.disabled = false;
+              uploadBtn.textContent = '保存修改';
+              return;
+            }
+          } else {
+            Store.saveApp({
+              ...patch,
+              uploadDate: editingApp.uploadDate || new Date().toISOString().slice(0, 10),
+              hasFile: false,
             });
-            showToast('应用添加成功，并已发布到官方目录（全员实时可见）！', 'success');
-          } catch (e) {
-            showToast('发布官方目录失败：' + (e.message || '未知错误'), 'error');
-            uploadBtn.disabled = false;
-            uploadBtn.textContent = '添加应用';
-            return;
+            showToast('应用已更新', 'success');
           }
+          cancelAppEdit();
         } else {
-          Store.saveApp({
+          // 新增模式
+          const adminKey = (typeof localStorage !== 'undefined') ? (localStorage.getItem('adminKey') || '') : '';
+          const appPayload = {
             name: name,
             description: desc,
             link: link,
+            link2: link2,
+            link2Label: link2Label,
             email: email,
             wechat: wechat,
             introHtml: introHtml,
             introFileName: introFileName,
             icon: '📦',
-            uploadDate: new Date().toISOString().slice(0, 10),
-            hasFile: false,
             price: price,
             chargeMode: chargeMode,
-          });
-          showToast('应用添加成功！', 'success');
+          };
+          if (adminKey) {
+            try {
+              await Store.addOfficialApp(appPayload);
+              showToast('应用添加成功，并已发布到官方目录（全员实时可见）！', 'success');
+            } catch (e) {
+              showToast('发布官方目录失败：' + (e.message || '未知错误'), 'error');
+              uploadBtn.disabled = false;
+              uploadBtn.textContent = '添加应用';
+              return;
+            }
+          } else {
+            Store.saveApp({
+              ...appPayload,
+              uploadDate: new Date().toISOString().slice(0, 10),
+              hasFile: false,
+            });
+            showToast('应用添加成功！', 'success');
+          }
         }
         renderApps();
       } catch (err) {
-        showToast('添加失败：' + (err.message || '未知错误'), 'error');
+        showToast((editingApp ? '保存' : '添加') + '失败：' + (err.message || '未知错误'), 'error');
         console.error(err);
         uploadBtn.disabled = false;
-        uploadBtn.textContent = '添加应用';
+        uploadBtn.textContent = editingApp ? '保存修改' : '添加应用';
       }
     });
 
