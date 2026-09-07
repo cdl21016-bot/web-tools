@@ -11,6 +11,7 @@ const Store = (function () {
     theme: 'blog_theme',
     downloadCounts: 'blog_download_counts',
     homeTools: 'blog_home_tools',
+    homeToolsOrder: 'blog_home_tools_order',
   };
 
   const MAX_HOME_TOOLS = 24; // 主页最多展示 24 个在线工具窗口（4 页，每页 6 格）
@@ -461,7 +462,19 @@ const Store = (function () {
     tools[idx] = tools[next];
     tools[next] = tmp;
     setJSON(STORAGE_KEYS.homeTools, tools);
+    saveHomeToolsOrder(); // 持久化当前顺序, 防止下次 init() 被 ensureHomeTools() 重置
     return next;
+  }
+
+  // 读取管理员期望的工具展示顺序 (id 数组). 首次访问或未设置时返回 null.
+  function getHomeToolsOrder() {
+    return getJSON(STORAGE_KEYS.homeToolsOrder, null);
+  }
+
+  // 保存当前工具顺序到独立键, 用于 ensureHomeTools() 排序.
+  function saveHomeToolsOrder() {
+    const ids = getHomeTools().map((t) => t.id);
+    setJSON(STORAGE_KEYS.homeToolsOrder, ids);
   }
 
   // 首次访问时预置两个内置工具（PKG 随机字符串生成器、书法字体生成器）
@@ -624,23 +637,65 @@ const Store = (function () {
     ];
 
     // 每次初始化都确保内置工具存在（按 id upsert），同时保留用户上传的工具。
+    // 管理员通过 ↑↓ 调整的顺序由 STORAGE_KEYS.homeToolsOrder 持久化，本函数优先按此顺序组装。
     function ensureHomeTools() {
       const existing = getHomeTools();
       const existingBuiltinIds = new Set(
         existing.filter((t) => t.builtin).map((t) => t.id)
       );
       const userTools = existing.filter((t) => !t.builtin);
-      const merged = BUILTIN_TOOLS.slice();
+
       // 内置工具元数据以代码定义为准升级（修复名称/描述/图标变更后旧 localStorage 不刷新），
       // 同时保留用户可能额外追加的字段（如自定义标签）。
-      BUILTIN_TOOLS.forEach((def, i) => {
+      const builtinMap = new Map();
+      BUILTIN_TOOLS.forEach((def) => {
         if (existingBuiltinIds.has(def.id)) {
           const old = existing.find((t) => t.id === def.id);
-          merged[i] = Object.assign({}, old, def);
+          builtinMap.set(def.id, Object.assign({}, old, def));
+        } else {
+          builtinMap.set(def.id, def);
         }
       });
-      const capped = merged.concat(userTools).slice(0, MAX_HOME_TOOLS);
+
+      const orderList = getHomeToolsOrder();
+      let ordered;
+      if (orderList && orderList.length > 0) {
+        // 按管理员保存的顺序组装: 已存在的工具按 orderList 排列,
+        // 新出现的（不在 orderList 中）按 BUILTIN_TOOLS 顺序追加, 用户上传的也按 orderList 排.
+        const allMap = new Map();
+        builtinMap.forEach((t, id) => allMap.set(id, t));
+        userTools.forEach((t) => allMap.set(t.id, t));
+
+        const used = new Set();
+        ordered = [];
+        orderList.forEach((id) => {
+          if (allMap.has(id) && !used.has(id)) {
+            ordered.push(allMap.get(id));
+            used.add(id);
+          }
+        });
+        // 补全: 新增的内置按 BUILTIN_TOOLS 顺序, 用户工具按原顺序
+        BUILTIN_TOOLS.forEach((def) => {
+          if (!used.has(def.id) && allMap.has(def.id)) {
+            ordered.push(allMap.get(def.id));
+            used.add(def.id);
+          }
+        });
+        userTools.forEach((t) => {
+          if (!used.has(t.id)) {
+            ordered.push(t);
+            used.add(t.id);
+          }
+        });
+      } else {
+        // 无 order 历史: 按 BUILTIN_TOOLS 数组顺序 + 用户工具
+        ordered = BUILTIN_TOOLS.map((def) => builtinMap.get(def.id)).concat(userTools);
+      }
+
+      const capped = ordered.slice(0, MAX_HOME_TOOLS);
       setJSON(STORAGE_KEYS.homeTools, capped);
+      // 首次跑（之前没 order 时）把当前顺序写进去, 之后所有 init() 都会按它排.
+      if (!orderList) saveHomeToolsOrder();
     }
 
     ensureHomeTools();
