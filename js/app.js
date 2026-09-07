@@ -155,18 +155,19 @@ const App = (function () {
 
       ${renderHomeTools()}
 
-      <!-- 广告投放预留窗口 -->
+      <!-- 广告投放窗口 · 广告主：东莞市雷德传感技术有限公司（一氧化碳传感器）
+           如需下线：整块删除即可，不影响其它逻辑 -->
       <div class="ad-slot" id="adSlot">
-        <div class="ad-slot-inner">
-          <div class="ad-slot-label">
-            <span class="ad-slot-icon">📢</span>
-            <span class="ad-slot-text">广告位</span>
-          </div>
-          <div class="ad-slot-content">
-            <div class="ad-slot-title">此处为广告投放预留位</div>
-            <div class="ad-slot-desc">支持横幅广告 · 轮播广告 · 推广链接</div>
-          </div>
-          <div class="ad-slot-size">推荐尺寸 728×90</div>
+        <div class="ad-slot-inner" style="padding:14px 18px;">
+          <a class="ldsad ldsad-banner" href="/ads/leader-sensor/index.html" target="_blank" rel="noopener nofollow sponsored" data-ad-track="leader-sensor-banner">
+            <span class="ldsad-adtag">AD · 广告</span>
+            <span class="ldsad-mark"><i class="ldsad-logo"></i></span>
+            <span class="ldsad-bmain">
+              <span class="ldsad-btitle">一氧化碳传感器<em>源头厂家</em> · 10年寿命 · 高抗干扰零误报</span>
+              <span class="ldsad-bsub">电化学原理 · 0~10000ppm · &lt;50s 响应 · <b>UL2034 / EN50291 / RoHS</b> 认证路径成熟</span>
+            </span>
+            <span class="ldsad-bcta">免费选型 →</span>
+          </a>
         </div>
       </div>
 
@@ -1501,10 +1502,23 @@ const App = (function () {
     overlay.innerHTML = `
       <div class="ad-modal">
         <div class="ad-label">广告 · AD</div>
-        <div class="ad-box">
-          <div class="ad-box-title">🎯 推荐：高效办公好物</div>
-          <div class="ad-box-desc">此处为广告投放位，可替换为你的联盟推广链接 / Google AdSense / 自定义 HTML。</div>
-          <div class="ad-ph">[ 广告位 300×250 ]</div>
+        <div class="ad-box" style="padding:0;background:none;border:0;">
+          <a class="ldsad ldsad-box" href="/ads/leader-sensor/index.html" target="_blank" rel="noopener nofollow sponsored" data-ad-track="leader-sensor-box">
+            <span class="ldsad-boxhead">
+              <span class="m"><i class="ldsad-logo"></i></span>
+              <span class="t">雷德传感技术<small>LEADER SENSOR TECH</small></span>
+              <span class="ad">AD</span>
+            </span>
+            <span class="ldsad-boxttl">一氧化碳传感器<br><em>源头厂家 · 20年+</em></span>
+            <span class="ldsad-list">
+              <span>电化学长寿命 5~10 年</span>
+              <span>抗甲烷/乙醇等干扰 · 零误报</span>
+              <span>UL2034 · EN50291 · EN54-31</span>
+            </span>
+            <span class="ldsad-models"><i>LDCS3119</i><i>LDCS2819</i><i>LDCS1511</i></span>
+            <span class="ldsad-boxcta">申请样品 / 获取规格书</span>
+            <span class="ldsad-boxfoot">www.dgleadersensor.com · 广告</span>
+          </a>
         </div>
         <button class="btn btn-primary" id="adContinue" style="width:100%;margin-top:14px;">继续下载</button>
         <div class="ad-skip">下载即将开始，感谢支持本站 ❤</div>
@@ -1639,6 +1653,26 @@ const App = (function () {
   }
 
   // ============================================
+  // 广告点击埋点（事件委托，广告创意替换后无需改动此处）
+  // 上报方式：① 有 gtag 则发 GA 事件 ② 设置 window.__AD_BEACON__ 为接口地址则 sendBeacon
+  // ============================================
+  function initAdTracking() {
+    document.addEventListener('click', function (e) {
+      var el = e.target && e.target.closest ? e.target.closest('[data-ad-track]') : null;
+      if (!el) return;
+      var adId = el.getAttribute('data-ad-track');
+      var href = el.getAttribute('href') || '';
+      var payload = { ad_id: adId, link_url: href, ts: Date.now() };
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', 'ad_click', payload);
+      }
+      if (typeof window.__AD_BEACON__ === 'string' && window.__AD_BEACON__) {
+        try { navigator.sendBeacon(window.__AD_BEACON__, JSON.stringify(payload)); } catch (err) { /* ignore */ }
+      }
+    });
+  }
+
+  // ============================================
    // 启动
    // ============================================
   async function init() {
@@ -1650,6 +1684,7 @@ const App = (function () {
     if (typeof Store.ready === 'function') {
       try { await Store.ready(); } catch (e) { /* 加载失败则回退内置示例 */ }
     }
+    initAdTracking();
     initRouter();
   }
 
