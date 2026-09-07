@@ -1158,11 +1158,12 @@ const App = (function () {
           ? `<div class="tool-card-cover"><img src="${escapeHtml(t.cover)}" alt="${escapeHtml(t.name)}"><div class="tool-card-cover-icon">${escapeHtml(t.icon || '🧰')}</div></div>`
           : `<div class="tool-card-icon">${escapeHtml(t.icon || '🧰')}</div>`;
         slots.push(`
-          <div class="tool-card${t.cover ? ' has-cover' : ''}" data-open-card="${t.id}">
+          <div class="tool-card${t.cover ? ' has-cover' : ''}" data-open-card="${t.id}"${admin ? ` draggable="true" data-tool-id="${t.id}"` : ''}>
             ${coverHtml}
             <h3 class="tool-card-name">${escapeHtml(t.name)}</h3>
             <p class="tool-card-desc">${escapeHtml(t.description || '')}</p>
             <div class="tool-card-actions">
+              ${admin ? `<button class="btn btn-outline btn-sm tool-pin-btn" data-pin-tool="${t.id}" title="置顶到第一格">⏫</button>` : ''}
               ${admin ? `<button class="btn btn-outline btn-sm tool-move-btn" data-move-tool="${t.id}" data-dir="-1" ${i === 0 ? 'disabled' : ''} title="上移">↑</button>` : ''}
               ${admin ? `<button class="btn btn-outline btn-sm tool-move-btn" data-move-tool="${t.id}" data-dir="1" ${i === tools.length - 1 ? 'disabled' : ''} title="下移">↓</button>` : ''}
               <button class="btn btn-primary btn-sm" data-open="${t.id}">打开</button>
@@ -1204,12 +1205,14 @@ const App = (function () {
   }
 
   function renderHomeTools() {
+    const admin = isAdmin();
     return `
       <div class="section-header" style="margin-top:8px;">
         <h2 class="section-title">🛠️ 在线工具</h2>
       </div>
       <div id="homeToolsWrap">
         ${renderToolsGridInner()}
+        ${admin ? `<div class="tool-admin-bar"><button class="btn btn-outline btn-sm" data-reset-order title="一键恢复默认展示顺序">🔄 重置顺序</button><span class="tool-admin-hint">拖拽卡片排序，或点 ⏫ 置顶 / ↑↓ 微调</span></div>` : ''}
         ${renderToolsPager()}
         <input type="file" id="toolFileInput" accept=".html,.htm,text/html" style="display:none;">
       </div>
@@ -1308,6 +1311,90 @@ const App = (function () {
         refreshHomeTools();
       });
     });
+
+    // 置顶：把工具移到第一格
+    grid.querySelectorAll('[data-pin-tool]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-pin-tool');
+        Store.pinHomeTool(id);
+        homeToolPage = 1;
+        refreshHomeTools();
+        showToast('已置顶', 'success');
+      });
+    });
+
+    // 重置顺序：一键恢复代码默认顺序
+    const resetBtn = wrap.querySelector('[data-reset-order]');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm('确定重置为默认展示顺序？管理员调整过的顺序将被清空。')) {
+          Store.resetHomeToolsOrder();
+          homeToolPage = 1;
+          refreshHomeTools();
+          showToast('已重置为默认顺序', 'success');
+        }
+      });
+    }
+
+    // 拖拽排序（仅管理员）：拖动卡片到目标卡片上即插到其前面；拖到上传占位卡落到末尾
+    if (admin) {
+      grid.querySelectorAll('.tool-card[data-tool-id]').forEach((card) => {
+        card.addEventListener('dragstart', (e) => {
+          e.dataTransfer.effectAllowed = 'move';
+          try { e.dataTransfer.setData('text/plain', card.getAttribute('data-tool-id')); } catch (err) {}
+          card.classList.add('dragging');
+        });
+        card.addEventListener('dragend', () => {
+          card.classList.remove('dragging');
+          grid.querySelectorAll('.tool-card').forEach((c) => c.classList.remove('drag-over'));
+        });
+        card.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          card.classList.add('drag-over');
+        });
+        card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+        card.addEventListener('drop', (e) => {
+          e.preventDefault();
+          card.classList.remove('drag-over');
+          const dragId = e.dataTransfer.getData('text/plain');
+          const targetId = card.getAttribute('data-tool-id');
+          if (dragId && targetId && dragId !== targetId) {
+            const newIndex = Store.reorderHomeToolBefore(dragId, targetId);
+            if (newIndex !== null) {
+              const targetPage = Math.floor(newIndex / TOOL_PER_PAGE) + 1;
+              homeToolPage = targetPage;
+              refreshHomeTools();
+            }
+          }
+        });
+      });
+      grid.querySelectorAll('.tool-upload').forEach((slot) => {
+        slot.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          slot.classList.add('drag-over');
+        });
+        slot.addEventListener('dragleave', () => slot.classList.remove('drag-over'));
+        slot.addEventListener('drop', (e) => {
+          e.preventDefault();
+          slot.classList.remove('drag-over');
+          const dragId = e.dataTransfer.getData('text/plain');
+          const tools = Store.getHomeTools();
+          if (dragId && tools.length) {
+            const lastId = tools[tools.length - 1].id;
+            const newIndex = Store.reorderHomeToolBefore(dragId, lastId);
+            if (newIndex !== null) {
+              const targetPage = Math.floor(newIndex / TOOL_PER_PAGE) + 1;
+              homeToolPage = targetPage;
+              refreshHomeTools();
+            }
+          }
+        });
+      });
+    }
 
     if (fileInput) {
       fileInput.addEventListener('change', (e) => {

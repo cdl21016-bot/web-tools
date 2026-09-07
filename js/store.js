@@ -477,6 +477,39 @@ const Store = (function () {
     setJSON(STORAGE_KEYS.homeToolsOrder, ids);
   }
 
+  // 把 id 移到 targetId 之前（拖拽排序用）。返回新索引，失败返回 null。
+  function reorderHomeToolBefore(id, targetId) {
+    if (id === targetId) return null;
+    const tools = getHomeTools();
+    const from = tools.findIndex((t) => t.id === id);
+    const to = tools.findIndex((t) => t.id === targetId);
+    if (from === -1 || to === -1) return null;
+    const [item] = tools.splice(from, 1);
+    const newTo = tools.findIndex((t) => t.id === targetId); // 删除源后重新定位
+    tools.splice(newTo, 0, item);
+    setJSON(STORAGE_KEYS.homeTools, tools);
+    saveHomeToolsOrder();
+    return newTo;
+  }
+
+  // 置顶某个工具（移到最前）。已在最前则返回 0，失败返回 null。
+  function pinHomeTool(id) {
+    const tools = getHomeTools();
+    const idx = tools.findIndex((t) => t.id === id);
+    if (idx === -1) return null;
+    if (idx === 0) return 0;
+    const [item] = tools.splice(idx, 1);
+    tools.unshift(item);
+    setJSON(STORAGE_KEYS.homeTools, tools);
+    saveHomeToolsOrder();
+    return 0;
+  }
+
+  // 重置展示顺序为代码默认（BUILTIN_TOOLS 数组顺序）。
+  // ensureHomeTools() 定义在 seedHomeTools() 内部，本函数通过闭包变量在
+  // seedHomeTools() 运行时被赋值（见下方），避免在 IIFE 顶层访问不到它。
+  let _resetHomeToolsOrder = null;
+
   // 首次访问时预置两个内置工具（PKG 随机字符串生成器、书法字体生成器）
   function seedHomeTools() {
     // 内置工具清单（按 id 固定）。新增内置工具时在此追加即可。
@@ -699,6 +732,13 @@ const Store = (function () {
     }
 
     ensureHomeTools();
+
+    // 重置顺序：删除管理员自定义的顺序键，由 ensureHomeTools() 回退到默认。
+    _resetHomeToolsOrder = function () {
+      localStorage.removeItem(STORAGE_KEYS.homeToolsOrder);
+      ensureHomeTools();
+      return getHomeTools().map((t) => t.id);
+    };
   }
 
   // ============================================
@@ -767,6 +807,10 @@ const Store = (function () {
     saveHomeTool,
     updateHomeTool,
     moveHomeTool,
+    reorderHomeToolBefore,
+    pinHomeTool,
+    resetHomeToolsOrder: _resetHomeToolsOrder,
+    getHomeToolsOrder,
     deleteHomeTool,
     MAX_HOME_TOOLS,
     // 主题
