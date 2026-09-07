@@ -167,6 +167,28 @@ const Store = (function () {
   let _readyResolvers = [];
   let _readyDone = false;
 
+  // ============================================
+  // 管理员期望的内置工具展示顺序（随站发布，所有访客共享）
+  // 优先级：用户本地 homeToolsOrder > 此处的 remoteHomeToolsOrder > 代码 BUILTIN_TOOLS
+  // ============================================
+  let remoteHomeToolsOrder = null;        // null = 尚未加载完成或加载失败
+  let _remoteOrderLoaded = false;         // 远端加载流程已结束（不论成败）
+  let _remoteOrderResolvers = [];         // 等待远端加载完成的回调列表
+
+  function _markRemoteOrderLoaded() {
+    _remoteOrderLoaded = true;
+    _remoteOrderResolvers.forEach((r) => r(Array.isArray(remoteHomeToolsOrder) ? remoteHomeToolsOrder : []));
+    _remoteOrderResolvers = [];
+  }
+
+  // 供 UI 等待远端顺序加载完成：用户若已动手调过顺序，本地仍有优先权，本回调只是通知"远端已就绪"
+  function whenRemoteOrderReady() {
+    return new Promise((res) => {
+      if (_remoteOrderLoaded) res(Array.isArray(remoteHomeToolsOrder) ? remoteHomeToolsOrder : []);
+      else _remoteOrderResolvers.push(res);
+    });
+  }
+
   function _markReady() {
     _readyDone = true;
     _readyResolvers.forEach((r) => r());
@@ -196,6 +218,86 @@ const Store = (function () {
           .catch(() => { officialApps = []; });
       })
       .then(() => { migrateLegacyApps(); _markReady(); });
+  }
+
+  // 加载管理员期望的内置工具顺序（用于跨设备同步）。
+  // 数据源优先级：① /api/home-tools-order（边缘 KV，管理员在线上改的顺序实时存这里）
+  //               ② data/home-tools-order.json（随站打包的静态种子，KV 不可用时兜底）
+  // 覆盖策略：
+  //   - 普通访客：云端顺序一旦可用就覆盖本地（访客没有调整入口，本地顺序只是历史快照，
+  //     若不覆盖，管理员后续改的顺序对老访客永远不生效）
+  //   - 管理员本机：本地优先（管理员是编辑者，本地最新；调整后会立刻 POST 推回云端）
+  // 异步、失败静默回退。
+  function loadRemoteHomeToolsOrder() {
+    const applyRemote = (order) => {
+      const localOrder = getJSON(STORAGE_KEYS.homeToolsOrder, null);
+      const isAdmin = (typeof localStorage !== 'undefined') && !!localStorage.getItem('adminKey');
+      if (isAdmin) return order;                    // 管理员：本地即真源，不回拉
+      if (!order || !order.length) return order;    // 云端为空：保持现状
+      if (localOrder && localOrder.join('\n') === order.join('\n')) return order; // 一致：跳过
+      // 普通访客：按云端顺序重排（内置项按 order，远端未列出的补在末尾；用户上传工具始终垫底）
+      if (typeof _ensureHomeTools !== 'function') return order; // seedHomeTools 未跑完，异常防御
+      _ensureHomeTools();
+      const tools = getHomeTools();
+      const builtin = tools.filter((t) => t.builtin);
+      const userTools = tools.filter((t) => !t.builtin);
+      const orderIndex = new Map(order.map((id, i) => [id, i]));
+      const orderedBuiltin = builtin.slice().sort((a, b) => {
+        const ai = orderIndex.has(a.id) ? orderIndex.get(a.id) : Number.MAX_SAFE_INTEGER;
+        const bi = orderIndex.has(b.id) ? orderIndex.get(b.id) : Number.MAX_SAFE_INTEGER;
+        return ai - bi;
+      });
+      const ordered = orderedBuiltin.concat(userTools);
+      const capped = ordered.slice(0, MAX_HOME_TOOLS);
+      setJSON(STORAGE_KEYS.homeTools, capped);
+      setJSON(STORAGE_KEYS.homeToolsOrder, capped.map((t) => t.id));
+      // 通知 UI 重新渲染（如已绑定）
+      if (typeof window !== 'undefined' && typeof window.__refreshHomeToolsAfterRemoteOrder === 'function') {
+        try { window.__refreshHomeToolsAfterRemoteOrder(); } catch (e) {}
+      }
+      return order;
+    };
+    return fetch('/api/home-tools-order', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((obj) => {
+        const order = Array.isArray(obj && obj.order) ? obj.order.filter((s) => typeof s === 'string') : null;
+        if (order && order.length) return applyRemote(order);
+        throw new Error('empty');
+      })
+      .catch(() =>
+        // KV 不可用 / 未部署 Functions：回退随站静态种子
+        fetch('data/home-tools-order.json', { cache: 'no-cache' })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((obj) => {
+            const order = Array.isArray(obj && obj.builtinOrder) ? obj.builtinOrder.filter((s) => typeof s === 'string') : null;
+            return applyRemote(order && order.length ? order : null);
+          })
+          .catch(() => null)
+      )
+      .then((order) => {
+        remoteHomeToolsOrder = order && order.length ? order : null;
+        return remoteHomeToolsOrder;
+      })
+      .finally(() => { _markRemoteOrderLoaded(); });
+  }
+
+  // 管理员把当前顺序推送到云端（KV），所有设备下次打开即生效。
+  // 需要 localStorage 里有 adminKey；失败返回 false（仍保留本机顺序）。
+  function publishHomeToolsOrder() {
+    const key = (typeof localStorage !== 'undefined') ? (localStorage.getItem('adminKey') || '') : '';
+    if (!key) return Promise.resolve(false);
+    const order = getHomeTools().filter((t) => t.builtin).map((t) => t.id);
+    return fetch('/api/home-tools-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': key },
+      body: JSON.stringify({ order }),
+    })
+      .then((r) => {
+        if (!r.ok) { console.warn('[store] 顺序云端同步失败:', r.status); return false; }
+        remoteHomeToolsOrder = order;
+        return true;
+      })
+      .catch((e) => { console.warn('[store] 顺序云端同步异常:', e); return false; });
   }
 
   // 管理员通过后台「添加应用」写回官方目录（边缘函数 -> KV），对所有人实时可见
@@ -287,6 +389,9 @@ const Store = (function () {
 
     // 初始化首页小工具（确保内置工具齐全，并保留用户上传）
     seedHomeTools();
+
+    // 加载远端顺序（跨设备同步）。失败/无网络时静默回退到代码默认；不会覆盖已有的本地顺序。
+    loadRemoteHomeToolsOrder();
   }
 
   // ============================================
@@ -505,10 +610,39 @@ const Store = (function () {
     return 0;
   }
 
+  // 导出管理员期望的工具展示顺序为 JSON 字符串（仅含 builtin id，便于跨设备同步）。
+  // 用户上传的工具是个性化数据，不在此 JSON 里；他们仍用本地 homeToolsOrder 保留。
+  function exportHomeToolsOrderJson() {
+    const tools = getHomeTools();
+    const builtinOrder = tools.filter((t) => t.builtin).map((t) => t.id);
+    const today = new Date().toISOString().slice(0, 10);
+    return JSON.stringify({
+      version: 'v' + today.replace(/-/g, ''),
+      builtinOrder,
+    }, null, 2);
+  }
+
+  // 在浏览器端下载导出 JSON（管理员点「📤 发布到全网」时调用）。
+  function downloadHomeToolsOrder() {
+    const json = exportHomeToolsOrderJson();
+    const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'home-tools-order.json';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 300);
+    return json;
+  }
+
   // 重置展示顺序为代码默认（BUILTIN_TOOLS 数组顺序）。
   // ensureHomeTools() 定义在 seedHomeTools() 内部，本函数通过闭包变量在
   // seedHomeTools() 运行时被赋值（见下方），避免在 IIFE 顶层访问不到它。
   let _resetHomeToolsOrder = null;
+  // ensureHomeTools 定义在 seedHomeTools() 内部，IIFE 顶层访问不到；
+  // seedHomeTools() 运行时把引用赋到这里，供 loadRemoteHomeToolsOrder 使用（同 _resetHomeToolsOrder 模式）。
+  let _ensureHomeTools = null;
 
   // 首次访问时预置两个内置工具（PKG 随机字符串生成器、书法字体生成器）
   function seedHomeTools() {
@@ -727,11 +861,17 @@ const Store = (function () {
 
       const capped = ordered.slice(0, MAX_HOME_TOOLS);
       setJSON(STORAGE_KEYS.homeTools, capped);
-      // 首次跑（之前没 order 时）把当前顺序写进去, 之后所有 init() 都会按它排.
-      if (!orderList) saveHomeToolsOrder();
+      // 注：原先的"if (!orderList) saveHomeToolsOrder();" 已经移除；
+      // 因为 ensureHomeTools 在 init() 同步阶段就会跑，会先把 homeToolsOrder 写入 BUILTIN_TOOLS 顺序，
+      // 导致异步 loadRemoteHomeToolsOrder() 看 homeToolsOrder 不为 null → 不再覆盖远端 → 跨设备同步失败。
+      // 现在 homeToolsOrder 的写入完全交给：① 用户主动调整 (moveHomeTool/pinHomeTool/reorderHomeToolBefore)；
+      //                                       ② 远端顺序生效 (loadRemoteHomeToolsOrder)；
+      //                                       ③ resetHomeToolsOrder() 按 reset 路径触发。
+      // 完全没设置 homeToolsOrder 时，下次进首页仍按当前 homeTools 顺序展示，效果相同。
     }
 
     ensureHomeTools();
+    _ensureHomeTools = ensureHomeTools; // 暴露给 IIFE 顶层（loadRemoteHomeToolsOrder 用）
 
     // 重置顺序：删除管理员自定义的顺序键，由 ensureHomeTools() 回退到默认。
     _resetHomeToolsOrder = function () {
@@ -802,6 +942,7 @@ const Store = (function () {
     deleteApp,
     getAppCategories,
     ready,
+    init,
     // 首页小工具
     getHomeTools,
     saveHomeTool,
@@ -811,6 +952,10 @@ const Store = (function () {
     pinHomeTool,
     resetHomeToolsOrder: _resetHomeToolsOrder,
     getHomeToolsOrder,
+    exportHomeToolsOrderJson,
+    downloadHomeToolsOrder,
+    whenRemoteOrderReady,
+    publishHomeToolsOrder,
     deleteHomeTool,
     MAX_HOME_TOOLS,
     // 主题

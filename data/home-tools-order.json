@@ -1,0 +1,24 @@
+{
+  "version": "2026-09-07-v1",
+  "builtinOrder": [
+    "tool_pkg",
+    "tool_cal",
+    "tool_qr",
+    "tool_pdf",
+    "tool_format",
+    "tool_gif",
+    "tool_upscale",
+    "tool_zodiac",
+    "tool_pyfmt",
+    "tool_fortune",
+    "tool_pycmd",
+    "tool_ratecalc",
+    "tool_typo",
+    "tool_excelsplit",
+    "tool_exceltoc",
+    "tool_excelmulti",
+    "tool_txtsm",
+    "tool_imagic",
+    "tool_electric"
+  ]
+}

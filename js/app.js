@@ -1230,6 +1230,20 @@ const App = (function () {
     bindHomeTools();
   }
 
+  // 管理员调整顺序后把新顺序推送到云端（KV），让所有设备下次打开即生效
+  function syncHomeToolsOrderToCloud() {
+    if (!isAdmin()) return;
+    Store.publishHomeToolsOrder().then((ok) => {
+      showToast(ok ? '顺序已同步云端，其他设备打开即生效' : '⚠️ 云端同步失败，仅本机生效', ok ? 'success' : 'error');
+    });
+  }
+
+  // 远端（云端/种子）顺序加载完成后重排了本地工具 —— 绑定回调刷新首页工具区
+  // （store.js 在普通访客拉到云端顺序时会调用 window.__refreshHomeToolsAfterRemoteOrder）
+  window.__refreshHomeToolsAfterRemoteOrder = function () {
+    try { refreshHomeTools(); } catch (e) { /* 首页未渲染时静默 */ }
+  };
+
   function bindHomeTools() {
     const grid = document.querySelector('.tools-grid');
     if (!grid) return;
@@ -1309,6 +1323,7 @@ const App = (function () {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }
         refreshHomeTools();
+        syncHomeToolsOrderToCloud();
       });
     });
 
@@ -1321,6 +1336,7 @@ const App = (function () {
         homeToolPage = 1;
         refreshHomeTools();
         showToast('已置顶', 'success');
+        syncHomeToolsOrderToCloud();
       });
     });
 
@@ -1329,11 +1345,12 @@ const App = (function () {
     if (resetBtn) {
       resetBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (confirm('确定重置为默认展示顺序？管理员调整过的顺序将被清空。')) {
+        if (confirm('确定重置为默认展示顺序？管理员调整过的顺序将被清空（所有设备同步回默认）。')) {
           Store.resetHomeToolsOrder();
           homeToolPage = 1;
           refreshHomeTools();
           showToast('已重置为默认顺序', 'success');
+          syncHomeToolsOrderToCloud();
         }
       });
     }
@@ -1367,6 +1384,7 @@ const App = (function () {
               const targetPage = Math.floor(newIndex / TOOL_PER_PAGE) + 1;
               homeToolPage = targetPage;
               refreshHomeTools();
+              syncHomeToolsOrderToCloud();
             }
           }
         });
@@ -1390,6 +1408,7 @@ const App = (function () {
               const targetPage = Math.floor(newIndex / TOOL_PER_PAGE) + 1;
               homeToolPage = targetPage;
               refreshHomeTools();
+              syncHomeToolsOrderToCloud();
             }
           }
         });
