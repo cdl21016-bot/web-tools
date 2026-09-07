@@ -613,6 +613,14 @@ const Store = (function () {
         builtin: true,
         src: 'tools/image-magic.html',
       },
+      {
+        id: 'tool_electric',
+        name: '电工小工具',
+        icon: '⚡',
+        description: '输入负载功率自动选电线平方、空开与漏保型号；也可反查现有配置是否合适，还能估算材料用量与造价、导出施工单',
+        builtin: true,
+        src: 'tools/electrician-toolkit.html',
+      },
     ];
 
     // 每次初始化都确保内置工具存在（按 id upsert），同时保留用户上传的工具。

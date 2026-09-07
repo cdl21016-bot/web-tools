@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>电工小工具 · 电线空开漏保选型与校验</title>
+<style>
+:root{
+  --primary:#1e6fd9; --primary-dark:#1557ad;
+  --accent:#f5a623; --danger:#d93a2b; --warn:#e08a00; --ok:#0e8a5f;
+  --bg:#f2f6fb; --card:#ffffff; --text:#1f2a37; --muted:#6b7785; --border:#dfe8f2;
+}
+*{box-sizing:border-box;}
+body{margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--bg); color:var(--text); line-height:1.6; -webkit-text-size-adjust:100%;}
+header{background:linear-gradient(135deg,#1e6fd9,#123a72); color:#fff; padding:22px 16px; text-align:center;}
+header h1{margin:0; font-size:22px; letter-spacing:.5px;}
+header p{margin:5px 0 0; font-size:13px; opacity:.92;}
+.wrap{max-width:880px; margin:0 auto; padding:16px 14px 60px;}
+.tabs{display:flex; gap:8px; margin:14px 0;}
+.tab{flex:1; text-align:center; padding:11px 4px; border:1px solid var(--border); border-radius:11px;
+  font-size:14px; font-weight:600; background:#fff; color:var(--muted); cursor:pointer; transition:.12s; font-family:inherit;}
+.tab.active{background:var(--primary); border-color:var(--primary); color:#fff;}
+.card{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px 18px; margin-bottom:14px;}
+.card h2{margin:0 0 4px; font-size:16px; color:var(--primary-dark);}
+.card h3{margin:14px 0 6px; font-size:14px; color:var(--text);}
+.sub{font-size:12px; color:var(--muted); margin:0 0 10px;}
+.row{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin:10px 0;}
+.row > label{flex:0 0 96px; font-size:14px; color:var(--text);}
+.row .ctl{flex:1; min-width:140px; display:flex; align-items:center; gap:8px;}
+input[type=number],input[type=text],select{font-family:inherit; padding:9px 11px; border:1px solid var(--border);
+  border-radius:9px; font-size:14px; background:#fff; color:var(--text); width:100%;}
+input:focus,select:focus{outline:none; border-color:var(--primary); box-shadow:0 0 0 3px rgba(30,111,217,.15);}
+.unit{font-size:12px; color:var(--muted); white-space:nowrap;}
+.seg{display:inline-flex; border:1px solid var(--border); border-radius:9px; overflow:hidden; width:100%;}
+.seg button{flex:1; border:none; background:#fff; padding:9px 6px; font-size:13px; cursor:pointer; font-family:inherit; color:var(--muted);}
+.seg button + button{border-left:1px solid var(--border);}
+.seg button.active{background:var(--primary); color:#fff;}
+.hint{font-size:12px; color:var(--muted); margin-top:4px; line-height:1.5;}
+.presets{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px;}
+.preset{padding:4px 10px; border:1px solid var(--border); border-radius:999px; font-size:12px; background:#fff;
+  color:var(--muted); cursor:pointer; font-family:inherit;}
+.preset:hover{border-color:var(--primary); color:var(--primary);}
+.calc-btn{width:100%; margin-top:12px; padding:13px; border:none; border-radius:11px; font-size:15px;
+  font-weight:700; background:var(--primary); color:#fff; cursor:pointer; font-family:inherit;}
+.calc-btn:hover{background:var(--primary-dark);}
+.hidden{display:none;}
+.rrow{display:flex; justify-content:space-between; align-items:baseline; gap:10px; padding:9px 2px; border-bottom:1px dashed var(--border);}
+.rrow:last-child{border-bottom:none;}
+.rrow .k{font-size:13px; color:var(--muted);}
+.rrow .v{font-size:16px; font-weight:700; color:var(--primary-dark); font-variant-numeric:tabular-nums; text-align:right;}
+.rrow .v small{font-size:12px; color:var(--muted); font-weight:400;}
+.big-res{display:flex; gap:10px; flex-wrap:wrap; margin-bottom:8px;}
+.big{flex:1; min-width:130px; background:#f5f9ff; border:1px solid #d9e6fa; border-radius:12px; padding:10px 12px; text-align:center;}
+.big .n{font-size:11px; color:var(--muted);}
+.big .num{font-size:24px; font-weight:800; color:var(--primary-dark); font-variant-numeric:tabular-nums; line-height:1.25;}
+.big .num small{font-size:13px; font-weight:600;}
+.note{font-size:12px; color:var(--muted); background:#f5f9ff; border-left:3px solid var(--primary);
+  border-radius:0 9px 9px 0; padding:9px 11px; margin-top:10px; line-height:1.6;}
+.note b{color:var(--primary-dark);}
+ul.tips{margin:6px 0 0; padding-left:18px; font-size:12px; color:var(--muted); line-height:1.7;}
+.model{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:14px; background:#eef4ff; color:#123a72;
+  border-radius:7px; padding:3px 7px; display:inline-block; margin-top:3px; word-break:break-all;}
+/* 校验清单 */
+.check{border:1px solid var(--border); border-radius:11px; padding:11px 13px; margin-bottom:9px; display:flex; gap:10px;}
+.check .ico{flex:0 0 22px; font-size:16px; line-height:1.5; text-align:center;}
+.check .bd{flex:1;}
+.check .t{font-size:14px; font-weight:600;}
+.check .d{font-size:12px; color:var(--muted); line-height:1.6;}
+.check.ok{background:#f1faf6; border-color:#c9ecdb;} .check.ok .ico{color:var(--ok);} .check.ok .t{color:var(--ok);}
+.check.warn{background:#fff9ee; border-color:#f6e2b8;} .check.warn .ico{color:var(--warn);} .check.warn .t{color:var(--warn);}
+.check.bad{background:#fdf3f1; border-color:#f6cfc9;} .check.bad .ico{color:var(--danger);} .check.bad .t{color:var(--danger);}
+.verdict{border-radius:12px; padding:13px 15px; text-align:center; font-size:17px; font-weight:800; margin-bottom:12px;}
+.verdict.ok{background:#e9f8f1; color:var(--ok); border:1px solid #c9ecdb;}
+.verdict.warn{background:#fff6e6; color:var(--warn); border:1px solid #f6e2b8;}
+.verdict.bad{background:#fdeeeb; color:var(--danger); border:1px solid #f6cfc9;}
+.verdict small{display:block; font-size:12px; font-weight:400; color:var(--muted); margin-top:3px;}
+/* 表格 */
+.tw{overflow-x:auto; margin-top:6px; border:1px solid var(--border); border-radius:10px;}
+table{width:100%; border-collapse:collapse; font-size:13px; min-width:420px;}
+th,td{padding:7px 9px; text-align:center; border-bottom:1px solid var(--border); font-variant-numeric:tabular-nums;}
+th{background:var(--primary); color:#fff; font-weight:600; position:sticky; top:0;}
+tr:nth-child(even){background:#f7fafd;}
+td.hl{background:#fff4dd; font-weight:700; color:#8a5a00;}
+/* 材料与费用 */
+.btn-row{display:flex; gap:8px; margin-top:12px; flex-wrap:wrap;}
+.ghost-btn{flex:1; min-width:130px; padding:11px; border:1px solid var(--primary); background:#fff; color:var(--primary);
+  border-radius:10px; font-size:14px; font-weight:600; cursor:pointer; font-family:inherit;}
+.ghost-btn:hover{background:#eef4ff;}
+.mtable{width:100%; border-collapse:collapse; font-size:13px; margin-top:6px;}
+.mtable th{background:#eef4ff; color:var(--primary-dark); font-weight:600;}
+.mtable td,.mtable th{padding:7px 8px; border-bottom:1px solid var(--border); text-align:right; font-variant-numeric:tabular-nums;}
+.mtable td:first-child,.mtable th:first-child{text-align:left;}
+.mtable tr.total td{font-weight:800; background:#fff8e8; color:#8a5a00; border-bottom:none;}
+.mtable tr.sub td{color:var(--muted); font-size:12px;}
+footer.note-bar{text-align:center; font-size:12px; color:var(--muted); padding:6px 10px 20px; line-height:1.7;}
+@media (max-width:520px){
+  .row > label{flex:0 0 100%; font-size:13px;}
+  .big .num{font-size:21px;}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ 电工小工具</h1>
+  <p>输入功率自动选电线平方 / 空开 / 漏保 · 也可反查现有配置是否合适</p>
+</header>
+
+<div class="wrap">
+  <div class="tabs">
+    <button class="tab active" data-tab="fwd">正向选型</button>
+    <button class="tab" data-tab="rev">反向校验</button>
+    <button class="tab" data-tab="ref">速查表</button>
+  </div>
+
+  <!-- ============ 正向选型 ============ -->
+  <section id="tab-fwd">
+    <div class="card">
+      <h2>① 负载参数</h2>
+      <p class="sub">不知道功率？点下方常用电器快速填入</p>
+      <div class="row">
+        <label>负载功率</label>
+        <div class="ctl">
+          <input type="number" id="f_p" value="6" min="0" step="0.1" inputmode="decimal">
+          <select id="f_punit" style="flex:0 0 78px;">
+            <option value="1000" selected>kW</option>
+            <option value="1">W</option>
+          </select>
+        </div>
+      </div>
+      <div class="presets" id="f_presets"></div>
+
+      <div class="row" style="margin-top:14px;">
+        <label>供电系统</label>
+        <div class="ctl">
+          <div class="seg" id="f_sys">
+            <button data-sys="1" class="active">单相 220V</button>
+            <button data-sys="3">三相 380V</button>
+            <button data-sys="1x380">单相 380V</button>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <label>负载性质</label>
+        <div class="ctl">
+          <select id="f_type">
+            <option value="res">阻性（照明 / 电热 / 热水器）</option>
+            <option value="ind" selected>感性（普通混合负载 / 家用电器）</option>
+            <option value="motor">电动机 / 压缩机（启动电流大）</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <label>功率因数</label>
+        <div class="ctl">
+          <input type="number" id="f_cos" value="0.85" min="0.5" max="1" step="0.01">
+          <span class="unit">cosφ（阻性取 1.0）</span>
+        </div>
+      </div>
+      <div class="row">
+        <label>需用系数</label>
+        <div class="ctl">
+          <select id="f_kx">
+            <option value="1" selected>1.0　单台设备长期满载（电热水器 / 充电桩 / 电机）</option>
+            <option value="0.9">0.9　两三台设备，基本同时使用</option>
+            <option value="0.8">0.8　厨房 / 客厅等多插座支路</option>
+            <option value="0.7">0.7　全屋总进线（设备不会全开）</option>
+            <option value="0.6">0.6　大户型 / 多回路汇总干线</option>
+          </select>
+        </div>
+      </div>
+      <div class="hint">需用系数＝同时系数，按"不会所有电器一起满负荷开"折算，可有效避免线径选得过大。</div>
+    </div>
+
+    <div class="card">
+      <h2>② 敷设条件</h2>
+      <p class="sub">影响电线载流量，条件越差线径要越大</p>
+      <div class="row">
+        <label>线芯材质</label>
+        <div class="ctl">
+          <div class="seg" id="f_mat">
+            <button data-mat="cu" class="active">铜芯 BV</button>
+            <button data-mat="al">铝芯 BLV</button>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <label>敷设方式</label>
+        <div class="ctl">
+          <select id="f_lay">
+            <option value="air">明敷 / 线槽（散热好）</option>
+            <option value="pipe" selected>穿管暗敷（墙内 / 地下预埋管）</option>
+            <option value="ground">直埋 / 电缆沟</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <label>环境温度</label>
+        <div class="ctl">
+          <select id="f_temp">
+            <option value="1.06">20℃ 及以下</option>
+            <option value="1.03">25℃</option>
+            <option value="1" selected>30℃（常规）</option>
+            <option value="0.94">35℃</option>
+            <option value="0.87">40℃（夏季顶楼 / 桥架密集）</option>
+            <option value="0.79">45℃</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <label>并列回路</label>
+        <div class="ctl">
+          <select id="f_group">
+            <option value="1" selected>单回路（1 根电缆）</option>
+            <option value="0.8">2 回路并排</option>
+            <option value="0.7">3 回路并排</option>
+            <option value="0.65">4 回路并排</option>
+            <option value="0.6">5~6 回路并排</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <label>线路长度</label>
+        <div class="ctl">
+          <input type="number" id="f_len" value="30" min="0" step="1">
+          <span class="unit">米（单相按往返 2×L 计，留空则不校验压降）</span>
+        </div>
+      </div>
+      <button class="calc-btn" id="f_calc">开始选型</button>
+    </div>
+
+    <div class="card hidden" id="f_result">
+      <h2>选型结果</h2>
+      <div class="big-res">
+        <div class="big"><div class="n">计算电流 Ib</div><div class="num" id="f_ib">—</div></div>
+        <div class="big"><div class="n">所需最小截面</div><div class="num" id="f_s">—</div></div>
+      </div>
+      <div class="rrow"><span class="k">推荐电线规格</span><span class="v" id="f_cable">—</span></div>
+      <div class="rrow"><span class="k">校正后允许载流量 Iz</span><span class="v" id="f_iz">—</span></div>
+      <div class="rrow"><span class="k">推荐空开（微断）</span><span class="v" id="f_mcb">—</span></div>
+      <div class="rrow"><span class="k">推荐漏电保护</span><span class="v" id="f_rcd">—</span></div>
+      <div class="rrow"><span class="k">电压损失</span><span class="v" id="f_drop">—</span></div>
+      <div id="f_extra"></div>
+    </div>
+
+    <div class="card hidden" id="f_cost">
+      <h2>材料与费用估算</h2>
+      <p class="sub">按上面选出的规格估算用量与造价，单价可自行修改（默认值为市场参考价，仅供预算参考）</p>
+      <div class="row">
+        <label>工程名称</label>
+        <div class="ctl"><input type="text" id="c_name" value="配电回路改造"></div>
+      </div>
+      <div class="row">
+        <label>回路数量</label>
+        <div class="ctl">
+          <input type="number" id="c_n" value="1" min="1" step="1">
+          <span class="unit">个（同规格回路数量，用量与费用按倍数计）</span>
+        </div>
+      </div>
+      <div class="row">
+        <label>管材类型</label>
+        <div class="ctl">
+          <select id="c_pipe">
+            <option value="pvc" selected>PVC 阻燃穿线管（3 m/根）</option>
+            <option value="jdg">JDG 金属电线管（3 m/根）</option>
+            <option value="tray">桥架（2 m/根）</option>
+            <option value="slot">PVC 明装线槽（2 m/根）</option>
+            <option value="none">不使用管材（直埋 / 明敷护套线）</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <label>开关档次</label>
+        <div class="ctl">
+          <select id="c_brand">
+            <option value="1" selected>经济型（正泰 / 德力西 / 常熟）</option>
+            <option value="1.8">主流型（施耐德 / ABB / 西门子）</option>
+            <option value="2.8">高端型（进口系列）</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <label>电线单价</label>
+        <div class="ctl">
+          <input type="number" id="c_wp" value="5.8" min="0" step="0.1">
+          <span class="unit">元 / m（单芯每米，随截面自动带出）</span>
+        </div>
+      </div>
+      <div class="row">
+        <label>管材单价</label>
+        <div class="ctl">
+          <input type="number" id="c_pp" value="9.5" min="0" step="0.5">
+          <span class="unit">元 / 根（随管径自动带出）</span>
+        </div>
+      </div>
+      <div class="row">
+        <label>人工单价</label>
+        <div class="ctl">
+          <input type="number" id="c_lp" value="25" min="0" step="1">
+          <span class="unit">元 / m（含开槽、敷设、恢复）</span>
+        </div>
+      </div>
+      <div class="row">
+        <label>辅材费率</label>
+        <div class="ctl">
+          <input type="number" id="c_ep" value="6" min="0" step="1">
+          <span class="unit">%（接线盒、锁母、胶布、端子、胀管等）</span>
+        </div>
+      </div>
+      <div id="c_out"></div>
+      <div class="btn-row">
+        <button class="ghost-btn" id="f_print">🖨 打印施工单</button>
+        <button class="ghost-btn" id="f_download">💾 下载施工单</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 反向校验 ============ -->
+  <section id="tab-rev" class="hidden">
+    <div class="card">
+      <h2>① 现有配置</h2>
+      <p class="sub">按开关外壳上的铭牌填写，例如 C32、DZ47LE-63 C40 30mA</p>
+      <div class="row">
+        <label>空开电流</label>
+        <div class="ctl">
+          <select id="r_in" style="flex:1;"></select>
+          <span class="unit">A</span>
+        </div>
+      </div>
+      <div class="row">
+        <label>脱扣曲线</label>
+        <div class="ctl">
+          <div class="seg" id="r_curve">
+            <button data-c="B">B 型</button>
+            <button data-c="C" class="active">C 型</button>
+            <button data-c="D">D 型</button>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <label>漏保电流</label>
+        <div class="ctl">
+          <select id="r_rcdin" style="flex:1;"></select>
+          <span class="unit">A（无漏保选"无"）</span>
+        </div>
+      </div>
+      <div class="row">
+        <label>漏电动作值</label>
+        <div class="ctl">
+          <select id="r_idn">
+            <option value="0">无漏保</option>
+            <option value="30" selected>30 mA（人身防触电）</option>
+            <option value="100">100 mA（支路防火）</option>
+            <option value="300">300 mA（总配电防火）</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <label>使用场合</label>
+        <div class="ctl">
+          <select id="r_place">
+            <option value="socket" selected>普通插座 / 厨卫 / 手持电器</option>
+            <option value="light">照明回路</option>
+            <option value="main">总进线 / 楼层干线</option>
+            <option value="power">三相动力 / 固定设备</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>② 电线与负载</h2>
+      <div class="row">
+        <label>电线截面</label>
+        <div class="ctl">
+          <select id="r_s" style="flex:1;"></select>
+          <span class="unit">mm²</span>
+        </div>
+      </div>
+      <div class="row">
+        <label>线芯材质</label>
+        <div class="ctl">
+          <div class="seg" id="r_mat">
+            <button data-mat="cu" class="active">铜芯</button>
+            <button data-mat="al">铝芯</button>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <label>敷设方式</label>
+        <div class="ctl">
+          <select id="r_lay">
+            <option value="air">明敷 / 线槽</option>
+            <option value="pipe" selected>穿管暗敷</option>
+            <option value="ground">直埋 / 电缆沟</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <label>环境温度</label>
+        <div class="ctl">
+          <select id="r_temp">
+            <option value="1.06">20℃ 及以下</option>
+            <option value="1.03">25℃</option>
+            <option value="1" selected>30℃（常规）</option>
+            <option value="0.94">35℃</option>
+            <option value="0.87">40℃</option>
+            <option value="0.79">45℃</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <label>供电系统</label>
+        <div class="ctl">
+          <div class="seg" id="r_sys">
+            <button data-sys="1" class="active">单相 220V</button>
+            <button data-sys="3">三相 380V</button>
+            <button data-sys="1x380">单相 380V</button>
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <label>实际负载</label>
+        <div class="ctl">
+          <input type="number" id="r_p" value="6" min="0" step="0.1">
+          <select id="r_punit" style="flex:0 0 78px;">
+            <option value="1000" selected>kW</option>
+            <option value="1">W</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <label>负载性质</label>
+        <div class="ctl">
+          <select id="r_type">
+            <option value="res">阻性（照明 / 电热）</option>
+            <option value="ind" selected>感性（混合负载）</option>
+            <option value="motor">电动机 / 压缩机</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <label>功率因数</label>
+        <div class="ctl">
+          <input type="number" id="r_cos" value="0.85" min="0.5" max="1" step="0.01">
+        </div>
+      </div>
+      <div class="row">
+        <label>线路长度</label>
+        <div class="ctl">
+          <input type="number" id="r_len" value="30" min="0" step="1">
+          <span class="unit">米（留空不校验压降）</span>
+        </div>
+      </div>
+      <button class="calc-btn" id="r_calc">校验配置</button>
+    </div>
+
+    <div class="card hidden" id="r_result">
+      <h2>校验结果</h2>
+      <div class="verdict" id="r_verdict">—</div>
+      <div class="big-res">
+        <div class="big"><div class="n">计算电流 Ib</div><div class="num" id="r_ib">—</div></div>
+        <div class="big"><div class="n">电线载流量 Iz</div><div class="num" id="r_iz">—</div></div>
+        <div class="big"><div class="n">空开额定电流 In</div><div class="num" id="r_inshow">—</div></div>
+      </div>
+      <div id="r_checks"></div>
+      <div id="r_suggest"></div>
+      <div class="btn-row">
+        <button class="ghost-btn" id="r_print">🖨 打印检查报告</button>
+        <button class="ghost-btn" id="r_download">💾 下载检查报告</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 速查表 ============ -->
+  <section id="tab-ref" class="hidden">
+    <div class="card">
+      <h2>铜芯（BV）载流量速查表</h2>
+      <p class="sub">环境温度 30℃、导体 70℃ 条件下的近似值，单位 A</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>截面 mm²</th><th>明敷 / 线槽</th><th>穿管暗敷</th><th>常用配空开</th><th>单相 220V 约带功率</th></tr></thead>
+          <tbody id="ref_cu"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h2>铝芯（BLV / YJLV）载流量速查表</h2>
+      <p class="sub">同截面约为铜芯的 75%~80%</p>
+      <div class="tw">
+        <table>
+          <thead><tr><th>截面 mm²</th><th>明敷 / 线槽</th><th>穿管暗敷</th><th>常用配空开</th><th>单相 220V 约带功率</th></tr></thead>
+          <tbody id="ref_al"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h2>空开 / 漏保怎么选</h2>
+      <h3>脱扣曲线</h3>
+      <div class="tw"><table>
+        <thead><tr><th>曲线</th><th>瞬时脱扣</th><th>适用场景</th></tr></thead>
+        <tbody>
+          <tr><td>B 型</td><td>3~5 In</td><td>纯阻性、电子线路、长距离线路</td></tr>
+          <tr><td>C 型</td><td>5~10 In</td><td>家用通用：照明 + 插座混合，最常用</td></tr>
+          <tr><td>D 型</td><td>10~20 In</td><td>电动机、变压器、焊机等冲击电流大的负载</td></tr>
+        </tbody>
+      </table></div>
+      <h3>漏电动作电流</h3>
+      <div class="tw"><table>
+        <thead><tr><th>动作值</th><th>用途</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>30 mA</td><td>人身防触电</td><td>插座回路、厨卫、手持 / 移动电器、充电桩，强制要求</td></tr>
+          <tr><td>100 mA</td><td>支路防火</td><td>楼层 / 区域配电，防电气火灾</td></tr>
+          <tr><td>300 mA</td><td>总配电防火</td><td>总进线，宜带延时（S 型）与下级 30mA 配合</td></tr>
+        </tbody>
+      </table></div>
+      <h3>常用型号写法</h3>
+      <ul class="tips">
+        <li>微断：<span class="model">DZ47-63 C32</span>＝63 框架 / C 曲线 / 32A；正泰 NXB-63、德力西 DZ47s、施耐德 iC65N、ABB S200、西门子 5SY 同理。</li>
+        <li>漏电断路器：<span class="model">DZ47LE-63 C32 30mA</span>＝带 30mA 漏电保护的 32A C 型开关（正泰 NXBLE、德力西 DZ47sLE）。</li>
+        <li>漏电附件：<span class="model">Vigi iC65 30mA</span> 拼装在普通微断右侧，组成"空开 + 漏保"。</li>
+        <li>极数：单相支路用 1P+N 或 2P；单相总开关用 2P；三相动力用 3P，混有单相负载时用 4P / 3P+N。</li>
+      </ul>
+      <div class="note">
+        <b>选型基本式：Ib ≤ In ≤ Iz</b><br>
+        Ib 实际计算电流 ≤ In 断路器额定电流 ≤ Iz 电线允许载流量，且断路器需在 1.45×Iz 内动作；
+        压降一般不超过 5%。本工具即按此规则计算。
+      </div>
+    </div>
+  </section>
+
+  <footer class="note-bar">
+    数据依据 GB/T 16895 系列布线系统载流量与常用电工手册经验值，结果仅供设计参考。<br>
+    实际施工请由持证电工结合现场条件确认，并以产品铭牌与当地规范为准。
+  </footer>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ================= 基础数据 ================= */
+  // 铜芯 BV：截面 / 明敷 / 穿管（30℃、管内 2~4 根，取通用手册中间值）
+  var CU = [
+    {s:1.5,air:19,pipe:14},{s:2.5,air:26,pipe:19},{s:4,air:34,pipe:25},{s:6,air:43,pipe:32},
+    {s:10,air:60,pipe:44},{s:16,air:80,pipe:58},{s:25,air:105,pipe:76},{s:35,air:130,pipe:94},
+    {s:50,air:160,pipe:115},{s:70,air:200,pipe:145},{s:95,air:245,pipe:175},{s:120,air:285,pipe:200},
+    {s:150,air:325,pipe:230},{s:185,air:375,pipe:260},{s:240,air:440,pipe:305}
+  ];
+  var AL = [
+    {s:2.5,air:20,pipe:15},{s:4,air:26,pipe:19},{s:6,air:34,pipe:25},{s:10,air:47,pipe:34},
+    {s:16,air:63,pipe:45},{s:25,air:82,pipe:59},{s:35,air:100,pipe:73},{s:50,air:125,pipe:89},
+    {s:70,air:155,pipe:112},{s:95,air:190,pipe:135},{s:120,air:220,pipe:155},{s:150,air:250,pipe:179},
+    {s:185,air:290,pipe:202},{s:240,air:340,pipe:237}
+  ];
+  var RHO = {cu:0.0175, al:0.0283};           // Ω·mm²/m
+  var STD_IN = [6,10,16,20,25,32,40,50,63,80,100,125,160,200,250,315,400,500,630];
+  var MCB_COMMON = [10,16,20,25,32,40,50,63]; // 家用常见规格提示
+
+  function tbl(mat){ return mat === 'al' ? AL : CU; }
+  function f1(n){ return (Math.round(n*10)/10).toFixed(1); }
+
+  // 敷设方式基准载流量（直埋取明敷的 0.88 折算）
+  function baseIz(mat, s, lay){
+    var t = tbl(mat), row = null;
+    for (var i = 0; i < t.length; i++) if (t[i].s === s) row = t[i];
+    if (!row) return 0;
+    if (lay === 'pipe') return row.pipe;
+    if (lay === 'ground') return Math.round(row.air * 0.88);
+    return row.air;
+  }
+  // 校正后载流量
+  function izOf(mat, s, lay, kt, kg){
+    return Math.round(baseIz(mat, s, lay) * kt * kg * 10) / 10;
+  }
+  // 计算电流
+  function calcIb(P_W, sys, cos){
+    if (sys === '3') return P_W / (1.732 * 380 * cos);
+    if (sys === '1x380') return P_W / (380 * cos);
+    return P_W / (220 * cos);
+  }
+  // 压降百分比
+  function dropPct(I, L, S, mat, sys){
+    if (!(L > 0) || !(S > 0) || !(I > 0)) return null;
+    var dv = (sys === '3') ? 1.732 * I * L * RHO[mat] / S : 2 * I * L * RHO[mat] / S;
+    var U  = (sys === '1') ? 220 : 380;
+    return dv / U * 100;
+  }
+  // 取不小于 I 的标准规格（留 0.5% 容差，避免 40.04 直接跳到 50）
+  function pickIn(I){
+    for (var i = 0; i < STD_IN.length; i++) if (STD_IN[i] >= I - I * 0.005) return STD_IN[i];
+    return STD_IN[STD_IN.length - 1];
+  }
+  function frameOf(In){
+    if (In <= 63) return 63;
+    if (In <= 125) return 125;
+    if (In <= 250) return 250;
+    if (In <= 400) return 400;
+    return 630;
+  }
+  // 选满足 Iz >= In 的最小截面
+  function pickSection(mat, lay, kt, kg, In){
+    var t = tbl(mat);
+    for (var i = 0; i < t.length; i++){
+      if (izOf(mat, t[i].s, lay, kt, kg) >= In) return t[i].s;
+    }
+    return null;
+  }
+  function cableName(mat, s, sys, place){
+    var m = mat === 'al' ? 'YJLV' : 'BV';
+    if (sys === '3') return m + '-0.6/1kV 5×' + s + ' mm²（三相五线：3 火 + N + PE）';
+    else return m + '-450/750V 3×' + s + ' mm²（L + N + PE，纯照明回路可用 2×' + s + '）';
+  }
+
+  /* ================= Tab 切换 ================= */
+  var tabs = document.querySelectorAll('.tab');
+  tabs.forEach(function(b){
+    b.addEventListener('click', function(){
+      tabs.forEach(function(x){ x.classList.remove('active'); });
+      b.classList.add('active');
+      ['fwd','rev','ref'].forEach(function(k){
+        document.getElementById('tab-' + k).classList.toggle('hidden', k !== b.dataset.tab);
+      });
+      window.scrollTo({top:0, behavior:'smooth'});
+    });
+  });
+
+  /* ================= 分段按钮通用 ================= */
+  function segBind(id, cb){
+    var box = document.getElementById(id);
+    box.addEventListener('click', function(e){
+      var b = e.target.closest('button');
+      if (!b) return;
+      Array.prototype.forEach.call(box.children, function(x){ x.classList.remove('active'); });
+      b.classList.add('active');
+      cb(b);
+    });
+  }
+  function segVal(id, key){
+    var a = document.querySelector('#' + id + ' button.active');
+    return a ? a.dataset[key] : '';
+  }
+  function segSet(id, key, val){
+    Array.prototype.forEach.call(document.getElementById(id).children, function(b){
+      b.classList.toggle('active', b.dataset[key] === val);
+    });
+  }
+
+  /* ================= 常用负载预设 ================= */
+  var PRESETS = [
+    {n:'💡 全屋照明 800W', p:800, t:'res', c:1, sys:'1'},
+    {n:'❄️ 1.5P 空调 1.1kW', p:1100, t:'motor', c:0.85, sys:'1'},
+    {n:'❄️ 3P 空调 2.2kW', p:2200, t:'motor', c:0.85, sys:'1'},
+    {n:'🚿 电热水器 3kW', p:3000, t:'res', c:1, sys:'1'},
+    {n:'🚿 即热式热水器 8kW', p:8000, t:'res', c:1, sys:'1'},
+    {n:'🍳 电磁炉 2.1kW', p:2100, t:'ind', c:0.9, sys:'1'},
+    {n:'🔥 电烤箱 3.5kW', p:3500, t:'res', c:1, sys:'1'},
+    {n:'🍽️ 厨房总路 6kW', p:6000, t:'ind', c:0.85, sys:'1', kx:0.8},
+    {n:'🔌 充电桩 7kW', p:7000, t:'ind', c:0.98, sys:'1'},
+    {n:'🔌 充电桩 11kW', p:11000, t:'ind', c:0.98, sys:'3'},
+    {n:'🏠 全屋总进线 12kW', p:12000, t:'ind', c:0.85, sys:'1', kx:0.7},
+    {n:'🏭 三相动力 15kW', p:15000, t:'motor', c:0.85, sys:'3'}
+  ];
+  var pbox = document.getElementById('f_presets');
+  PRESETS.forEach(function(x){
+    var b = document.createElement('button');
+    b.className = 'preset'; b.textContent = x.n;
+    b.addEventListener('click', function(){
+      document.getElementById('f_p').value = x.p / 1000;
+      document.getElementById('f_punit').value = '1000';
+      document.getElementById('f_type').value = x.t;
+      document.getElementById('f_cos').value = x.c;
+      document.getElementById('f_kx').value = x.kx ? String(x.kx) : '1';
+      segSet('f_sys', 'sys', x.sys);
+      calcFwd();
+    });
+    pbox.appendChild(b);
+  });
+
+  /* ================= 材料与费用估算 ================= */
+  var lastFwd = null;    // 最近一次正向选型结果
+  var lastCost = null;   // 最近一次成本估算
+  var lastRev = null;    // 最近一次反向校验结果
+  var lastPriceKey = '';
+
+  var WP_CU = {1.5:1.6,2.5:2.5,4:3.9,6:5.8,10:9.8,16:15.5,25:24,35:33,50:46,70:65,95:88,120:112,150:140,185:172,240:225};
+  var WP_AL = {2.5:1.1,4:1.7,6:2.5,10:4.2,16:6.6,25:10.2,35:14,50:20,70:28,95:38,120:48,150:60,185:74,240:96};
+  var PIPE_D = {1.5:16,2.5:16,4:20,6:25,10:32,16:40,25:50,35:50,50:63,70:63,95:75,120:75,150:90,185:90,240:110};
+  var PIPE_D_CABLE = {4:32,6:32,10:40,16:50,25:50,35:63,50:63,70:75,95:90,120:90,150:110,185:110,240:125};
+  var PP = {16:3.5,20:4.5,25:6.5,32:9.5,40:14,50:20,63:30,75:42,90:55,110:75,125:95};
+  var PIPE_MUL = {pvc:1, jdg:2.6, tray:8, slot:1.6, none:0};
+  var PIPE_LEN = {pvc:3, jdg:3, tray:2, slot:2, none:0};
+  var PIPE_NAME = {pvc:'PVC 阻燃穿线管', jdg:'JDG 金属电线管', tray:'金属桥架', slot:'PVC 明装线槽', none:'不使用管材'};
+  var LABOR = {pipe:25, air:12, ground:20};
+  var LAY_NAME = {pipe:'穿管暗敷', air:'明敷 / 线槽', ground:'直埋 / 电缆沟'};
+  var TYPE_NAME = {res:'阻性（照明 / 电热）', ind:'感性（混合负载）', motor:'电动机 / 压缩机'};
+  var PLACE_NAME = {socket:'普通插座 / 厨卫', light:'照明回路', main:'总进线 / 干线', power:'三相动力'};
+
+  function mcbPrice(In){ return In <= 32 ? 18 : In <= 63 ? 26 : In <= 100 ? 60 : In <= 125 ? 110 : 260; }
+  // 桥架 / 线槽按宽×高标称，穿线管按管径
+  function pipeSpec(t, d, S){
+    if (t === 'tray') return (S <= 16 ? '100×50' : S <= 50 ? '150×100' : S <= 120 ? '200×100' : '300×100') + ' mm（2 m/根）';
+    if (t === 'slot') return (S <= 6 ? '24×14' : S <= 16 ? '39×19' : S <= 35 ? '59×22' : '99×27') + ' mm（2 m/根）';
+    return 'φ' + d + ' mm（' + (PIPE_LEN[t] || 3) + ' m/根）';
+  }
+  function rcdPrice(In, idn){ var b = In <= 32 ? 45 : In <= 63 ? 65 : In <= 100 ? 140 : In <= 125 ? 220 : 420; return idn > 30 ? b * 1.15 : b; }
+  function money(x){ var v = (Math.round(x * 100) / 100).toFixed(2); return v.replace(/\.00$/, '').replace(/(\.\d)0$/, '$1'); }
+  function pad(n){ return (n < 10 ? '0' : '') + n; }
+  function todayStr(){ var d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+
+  // 规格变化时刷新单价默认值
+  function syncPrices(F){
+    var d = (F.sys === '3') ? (PIPE_D_CABLE[F.S] || 50) : (PIPE_D[F.S] || 25);
+    var key = F.S + '-' + F.mat + '-' + d + '-' + F.lay;
+    if (key !== lastPriceKey){
+      document.getElementById('c_wp').value = (F.mat === 'al' ? WP_AL[F.S] : WP_CU[F.S]) || 10;
+      document.getElementById('c_pp').value = PP[d] || 10;
+      document.getElementById('c_lp').value = LABOR[F.lay] || 20;
+      lastPriceKey = key;
+    }
+    return d;
+  }
+
+  function calcCost(){
+    if (!lastFwd) return;
+    var F = lastFwd;
+    var d = syncPrices(F);
+    var n = Math.max(1, parseInt(document.getElementById('c_n').value) || 1);
+    var pipeType = document.getElementById('c_pipe').value;
+    var brand = parseFloat(document.getElementById('c_brand').value) || 1;
+    var cableMode = (F.sys === '3');
+    var cores = cableMode ? 5 : 3;
+    var wp = parseFloat(document.getElementById('c_wp').value) || 10;
+    var pp0 = parseFloat(document.getElementById('c_pp').value) || 10;
+    var pp = Math.round(pp0 * (PIPE_MUL[pipeType] || 0) * 10) / 10;
+    var plen = PIPE_LEN[pipeType] || 0;
+    var lp = parseFloat(document.getElementById('c_lp').value) || 20;
+    var ep = parseFloat(document.getElementById('c_ep').value) || 0;
+    var L = F.L > 0 ? F.L : 30;
+
+    var wireM = Math.ceil((L * 1.05 + 3) * cores * n);          // 5% 敷设损耗 + 两端各 1.5m 预留
+    var pipeRoot = plen > 0 ? Math.ceil(L * 1.03 / plen * n) : 0; // 3% 搭接损耗
+
+    var items = [];
+    items.push({name:(F.mat === 'al' ? 'BLV 铝芯电线' : 'BV 铜芯电线') + ' ' + F.S + ' mm²',
+      spec: cableMode ? (cores + ' 芯电缆') : ('单芯 × ' + cores + ' 根'), qty: wireM, unit:'m', price: wp, kind:'mat'});
+    if (pipeRoot > 0) items.push({name:PIPE_NAME[pipeType], spec:pipeSpec(pipeType, d, F.S), qty: pipeRoot, unit:'根', price: pp, kind:'mat'});
+    items.push({name:'微型断路器（空开）', spec:F.mcb + ' · ' + F.poles, qty:n, unit:'只', price: Math.round(mcbPrice(F.In) * brand), kind:'mat'});
+    if (F.iDn > 0) items.push({name:'漏电断路器', spec:F.rcd, qty:n, unit:'只', price: Math.round(rcdPrice(F.In, F.iDn) * brand), kind:'mat'});
+    items.push({name:'配电箱及辅件', spec:'回路标识、导轨、汇流排、接地排', qty:1, unit:'项', price: Math.round((60 + F.In) * brand), kind:'mat'});
+    items.push({name:'敷设施工人工', spec:((pipeType === 'tray' || pipeType === 'slot')
+      ? '桥架 / 线槽内敷设（明敷）' : LAY_NAME[F.lay] + (F.lay === 'pipe' ? '（含开槽与恢复）' : '')),
+      qty: Math.round(L * n), unit:'m', price: lp, kind:'labor'});
+
+    var matSum = 0, laborSum = 0;
+    items.forEach(function(it){ if (it.kind === 'mat') matSum += it.qty * it.price; else laborSum += it.qty * it.price; });
+    var extra = Math.round(matSum * ep / 100);
+    var total = matSum + laborSum + extra;
+    lastCost = {items:items, matSum:matSum, laborSum:laborSum, extra:extra, total:total, ep:ep,
+      n:n, L:L, wireM:wireM, pipeRoot:pipeRoot, pipeType:pipeType, d:d, cores:cores};
+
+    var h = '<div class="tw"><table class="mtable"><thead><tr><th>材料 / 项目</th><th>规格</th><th>用量</th><th>单价</th><th>小计</th></tr></thead><tbody>';
+    items.forEach(function(it){
+      h += '<tr><td>' + it.name + '</td><td style="text-align:left">' + it.spec + '</td><td>' + it.qty
+        + ' ' + it.unit + '</td><td>' + money(it.price) + '</td><td>' + money(it.qty * it.price) + '</td></tr>';
+    });
+    h += '<tr class="sub"><td>主材小计</td><td></td><td></td><td></td><td>' + money(matSum) + '</td></tr>';
+    h += '<tr class="sub"><td>辅材（' + ep + '%）</td><td>接线盒 / 锁母 / 胶布 / 端子</td><td></td><td></td><td>' + money(extra) + '</td></tr>';
+    h += '<tr class="sub"><td>人工小计</td><td></td><td></td><td></td><td>' + money(laborSum) + '</td></tr>';
+    h += '<tr class="total"><td>合计</td><td></td><td></td><td></td><td>¥ ' + money(total) + '</td></tr>';
+    h += '</tbody></table></div>';
+    h += '<div class="note"><b>用量口径：</b>线路长度 ' + L + ' m × ' + n + ' 回路；电线按 <b>'
+      + cores + ' 芯</b>计，含 5% 敷设损耗与两端各 1.5 m 接线预留，共 <b>' + wireM + ' m</b>；'
+      + (pipeRoot > 0 ? '管材 ' + pipeSpec(pipeType, d, F.S) + '，含 3% 搭接损耗，共 <b>' + pipeRoot + ' 根</b>；' : '本方案不使用管材；')
+      + '综合造价约 <b>¥' + money(total / (L * n)) + ' / m</b>。'
+      + '<br>单价为市场参考价，随地区、品牌与铜价波动，仅用于预算估算；开关价格已按所选档次调整。</div>';
+    document.getElementById('c_out').innerHTML = h;
+  }
+
+  /* ================= 打印 / 下载 ================= */
+  function printDoc(html){
+    var f = document.getElementById('printFrame');
+    if (!f){
+      f = document.createElement('iframe');
+      f.id = 'printFrame';
+      f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+      document.body.appendChild(f);
+    }
+    var doc = f.contentDocument || (f.contentWindow && f.contentWindow.document);
+    doc.open(); doc.write(html); doc.close();
+    setTimeout(function(){
+      try { f.contentWindow.focus(); f.contentWindow.print(); }
+      catch (e) { alert('打印失败，请改用「下载」按钮保存文件后再打印。'); }
+    }, 400);
+  }
+  function downloadHtml(filename, html){
+    try{
+      var blob = new Blob(['\ufeff' + html], {type:'text/html;charset=utf-8'});
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1500);
+    } catch(e){ alert('下载失败：' + e.message); }
+  }
+  function docShell(title, subtitle, body){
+    return '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>' + title + '</title><style>'
+      + 'body{font-family:"Microsoft YaHei","PingFang SC",SimSun,sans-serif;color:#222;margin:0;padding:26px 30px;font-size:13px;line-height:1.7;}'
+      + 'h1{font-size:21px;text-align:center;margin:0 0 4px;} .sub{text-align:center;color:#666;font-size:12px;margin-bottom:16px;}'
+      + 'h2{font-size:15px;margin:18px 0 6px;padding-left:8px;border-left:4px solid #1e6fd9;}'
+      + 'table{width:100%;border-collapse:collapse;margin-top:6px;font-size:12.5px;}'
+      + 'th,td{border:1px solid #888;padding:6px 8px;text-align:left;} th{background:#eef3fb;width:110px;font-weight:600;color:#123a72;}'
+      + 'table.list th{background:#eef3fb;text-align:center;} table.list td{text-align:center;} table.list td.l{text-align:left;}'
+      + 'tr.sum td{font-weight:700;background:#fff6e0;} .ok{color:#0e8a5f;font-weight:700;} .warn{color:#c47a00;font-weight:700;} .bad{color:#c0392b;font-weight:700;}'
+      + 'ol,ul{margin:6px 0 0;padding-left:20px;} li{margin:2px 0;}'
+      + '.sign{display:flex;gap:26px;margin-top:34px;font-size:13px;} .sign div{flex:1;} .sign p{margin:26px 0 0;border-bottom:1px solid #333;height:1px;}'
+      + '.foot{margin-top:22px;font-size:11.5px;color:#777;border-top:1px dashed #aaa;padding-top:8px;}'
+      + '@media print{body{padding:0;} .noprint{display:none;}}'
+      + '</style></head><body><h1>' + title + '</h1><div class="sub">' + subtitle + '</div>' + body
+      + '<div class="foot">本单据由「电工小工具」自动生成，数据依据 GB/T 16895 系列与常用电工手册经验值，仅供设计施工参考；实际施工应由持证电工结合现场条件确认，并以产品铭牌与当地规范为准。</div>'
+      + '</body></html>';
+  }
+
+  // 正向：施工单
+  function buildWorkOrder(){
+    if (!lastFwd || !lastCost) { alert('请先完成选型'); return ''; }
+    var F = lastFwd, C = lastCost;
+    var name = document.getElementById('c_name').value || '配电回路';
+    var sysName = F.sys === '3' ? '三相 380V' : (F.sys === '1x380' ? '单相 380V' : '单相 220V');
+    var b = '';
+    b += '<h2>一、工程概况</h2><table>'
+      + '<tr><th>工程 / 回路</th><td>' + name + '</td><th>编制日期</th><td>' + todayStr() + '</td></tr>'
+      + '<tr><th>回路数量</th><td>' + C.n + ' 个</td><th>线路长度</th><td>' + C.L + ' m</td></tr>'
+      + '<tr><th>敷设方式</th><td>' + LAY_NAME[F.lay] + '</td><th>环境温度修正</th><td>' + F.kt + '</td></tr>'
+      + '</table>';
+
+    b += '<h2>二、负载参数</h2><table>'
+      + '<tr><th>负载功率</th><td>' + money(F.P / 1000) + ' kW</td><th>供电系统</th><td>' + sysName + '</td></tr>'
+      + '<tr><th>负载性质</th><td>' + TYPE_NAME[F.type] + '</td><th>功率因数 cosφ</th><td>' + F.cos + '</td></tr>'
+      + '<tr><th>需用系数</th><td>' + F.kx + '</td><th>计算电流 Ib</th><td>' + f1(F.Ib) + ' A（满载 ' + f1(F.IbFull) + ' A）</td></tr>'
+      + '</table>';
+
+    b += '<h2>三、选型结果</h2><table>'
+      + '<tr><th>电线规格</th><td colspan="3">' + F.cable + '</td></tr>'
+      + '<tr><th>允许载流量 Iz</th><td>' + f1(F.Iz) + ' A</td><th>最小截面要求</th><td>' + F.S + ' mm²</td></tr>'
+      + '<tr><th>断路器</th><td>' + F.mcb + '（' + F.curve + ' 型 · ' + F.poles + '）</td><th>额定电流 In</th><td>' + F.In + ' A</td></tr>'
+      + '<tr><th>漏电保护</th><td>' + F.rcd + '</td><th>动作电流</th><td>' + F.iDn + ' mA</td></tr>'
+      + '<tr><th>电压损失</th><td>' + (F.drop === null ? '未校验' : f1(F.drop) + ' %（限值 5%）') + '</td><th>保护配合</th><td>Ib ≤ In ≤ Iz 成立</td></tr>'
+      + '</table>';
+
+    b += '<h2>四、材料与费用清单</h2><table class="list"><thead><tr><th>材料 / 项目</th><th>规格</th><th>用量</th><th>单价（元）</th><th>小计（元）</th></tr></thead><tbody>';
+    C.items.forEach(function(it){
+      b += '<tr><td class="l">' + it.name + '</td><td class="l">' + it.spec + '</td><td>' + it.qty + ' ' + it.unit
+        + '</td><td>' + money(it.price) + '</td><td>' + money(it.qty * it.price) + '</td></tr>';
+    });
+    b += '<tr class="sum"><td class="l">主材小计</td><td></td><td></td><td></td><td>' + money(C.matSum) + '</td></tr>';
+    b += '<tr class="sum"><td class="l">辅材（' + C.ep + '%）</td><td></td><td></td><td></td><td>' + money(C.extra) + '</td></tr>';
+    b += '<tr class="sum"><td class="l">人工小计</td><td></td><td></td><td></td><td>' + money(C.laborSum) + '</td></tr>';
+    b += '<tr class="sum"><td class="l">合计</td><td></td><td></td><td></td><td>' + money(C.total) + '</td></tr>';
+    b += '</tbody></table>';
+
+    b += '<h2>五、施工与验收要求</h2><ol>'
+      + '<li>施工前必须断开上级电源并悬挂"禁止合闸"标识，验电确认无电后方可作业。</li>'
+      + '<li>电线型号、截面、敷设方式应与本单一致；变更须经设计 / 甲方确认。</li>'
+      + '<li>管内穿线截面积（含绝缘）总和不超过管内径截面积的 40%，管内导线不得有接头。</li>'
+      + '<li>导线连接必须牢固可靠，多股线应搪锡或压接端子；端子紧固扭矩符合厂家要求。</li>'
+      + '<li>PE 线（黄绿双色）全程贯通，不得断开、不得串接，接地电阻 ≤ 4 Ω。</li>'
+      + '<li>穿管弯曲半径不小于管外径的 6 倍，弯头不超过 2 个；管线长度超过 15 m 或 2 个弯应加装过线盒。</li>'
+      + '<li>完工后测量：绝缘电阻 ≥ 0.5 MΩ（500V 兆欧表），漏保按"T"按钮试验动作正常。</li>'
+      + '<li>通电试运行 24 h，检查开关、导线接头无发热、异味、异响后方可交付。</li>'
+      + '</ol>';
+
+    b += '<div class="sign"><div>施工负责人：<p></p></div><div>验收人：<p></p></div><div>日期：<p></p></div></div>';
+    return docShell('电工施工单', name + ' · ' + sysName + ' · ' + money(F.P / 1000) + ' kW · ' + F.S + ' mm² · ' + F.mcb, b);
+  }
+
+  // 反向：检查报告
+  function buildReport(){
+    if (!lastRev) { alert('请先完成校验'); return ''; }
+    var R = lastRev;
+    var sysName = R.sys === '3' ? '三相 380V' : (R.sys === '1x380' ? '单相 380V' : '单相 220V');
+    var vtxt = R.level === 'ok' ? '<span class="ok">合格 · 可以放心使用</span>'
+      : R.level === 'warn' ? '<span class="warn">基本可用 · 建议优化</span>'
+      : '<span class="bad">存在安全隐患 · 必须整改</span>';
+    var b = '';
+    b += '<h2>一、检查结论</h2><table>'
+      + '<tr><th>总体结论</th><td>' + vtxt + '</td><th>检查日期</th><td>' + todayStr() + '</td></tr>'
+      + '<tr><th>使用场合</th><td>' + PLACE_NAME[R.place] + '</td><th>供电系统</th><td>' + sysName + '</td></tr>'
+      + '<tr><th>实际负载</th><td>' + money(R.P / 1000) + ' kW（' + TYPE_NAME[R.type] + '，cosφ=' + R.cos + '）</td>'
+      + '<th>计算电流 Ib</th><td>' + f1(R.Ib) + ' A</td></tr>'
+      + '</table>';
+
+    b += '<h2>二、现有配置</h2><table>'
+      + '<tr><th>断路器</th><td>' + R.In + ' A · ' + R.curve + ' 型</td><th>漏电保护</th><td>'
+      + (R.rcdIn && R.idn > 0 ? R.rcdIn + ' A / ' + R.idn + ' mA' : '未配置') + '</td></tr>'
+      + '<tr><th>电线</th><td>' + R.S + ' mm² ' + (R.mat === 'al' ? '铝芯' : '铜芯') + ' ' + LAY_NAME[R.lay] + '</td>'
+      + '<th>线路长度</th><td>' + (R.L > 0 ? R.L + ' m' : '未填写') + '</td></tr>'
+      + '<tr><th>电线载流量 Iz</th><td>' + f1(R.Iz) + ' A</td><th>电压损失</th><td>'
+      + (R.drop === null ? '未校验' : f1(R.drop) + ' %（限值 5%）') + '</td></tr>'
+      + '</table>';
+
+    b += '<h2>三、逐项检查</h2><table class="list"><thead><tr><th style="width:70px">判定</th><th style="width:150px">项目</th><th>说明与处理意见</th></tr></thead><tbody>';
+    R.checks.forEach(function(c){
+      var mark = c.lv === 'ok' ? '<span class="ok">合格</span>' : c.lv === 'warn' ? '<span class="warn">关注</span>' : '<span class="bad">不合格</span>';
+      b += '<tr><td>' + mark + '</td><td class="l">' + c.t + '</td><td class="l">' + String(c.d).replace(/<[^>]+>/g, '') + '</td></tr>';
+    });
+    b += '</tbody></table>';
+
+    if (R.level !== 'ok'){
+      b += '<h2>四、整改建议</h2><table>'
+        + '<tr><th>建议断路器</th><td>DZ47-' + frameOf(R.recIn) + ' ' + R.recCurve + R.recIn + '</td>'
+        + '<th>建议漏保</th><td>DZ47LE-' + frameOf(R.recIn) + ' ' + R.recCurve + R.recIn + ' ' + R.recIdn + ' mA</td></tr>'
+        + '<tr><th>建议电线</th><td colspan="3">' + cableName(R.mat, R.recS, R.sys) + '</td></tr>'
+        + '</table><ul><li>整改前必须断开上级电源，由持证电工操作。</li>'
+        + '<li>整改后复测绝缘电阻、接地连续性与漏电保护动作特性，并留存记录。</li></ul>';
+    } else {
+      b += '<h2>四、维护建议</h2><ul>'
+        + '<li>每月按一次漏电保护器上的"T"试验按钮，确认能可靠跳闸。</li>'
+        + '<li>定期检查接线端子有无松动、发黑、异味，发现异常及时处理。</li>'
+        + '<li>严禁在漏保下端把 N 线与 PE 线混接，严禁随意加大开关容量。</li>'
+        + '<li>新增大功率电器前，应重新核算回路容量。</li></ul>';
+    }
+
+    b += '<div class="sign"><div>检查人：<p></p></div><div>复核人：<p></p></div><div>日期：<p></p></div></div>';
+    return docShell('用电安全检查报告', PLACE_NAME[R.place] + ' · ' + sysName + ' · ' + money(R.P / 1000) + ' kW', b);
+  }
+
+  /* ================= 正向选型 ================= */
+  segBind('f_sys', calcFwd);
+  segBind('f_mat', calcFwd);
+
+  function calcFwd(){
+    var P = parseFloat(document.getElementById('f_p').value) * parseFloat(document.getElementById('f_punit').value);
+    var sys = segVal('f_sys', 'sys');
+    var type = document.getElementById('f_type').value;
+    var cos = parseFloat(document.getElementById('f_cos').value) || 0.85;
+    var kx = parseFloat(document.getElementById('f_kx').value) || 1;
+    var mat = segVal('f_mat', 'mat');
+    var lay = document.getElementById('f_lay').value;
+    var kt = parseFloat(document.getElementById('f_temp').value);
+    var kg = parseFloat(document.getElementById('f_group').value);
+    var L = parseFloat(document.getElementById('f_len').value);
+
+    if (!(P > 0)) { alert('请填写负载功率'); return; }
+
+    var IbFull = calcIb(P, sys, cos);        // 满载计算电流
+    var Ib = IbFull * kx;                    // 计入需用系数后的计算电流
+    // 断路器：一般负载 1.1 倍，电动机按 2 倍（避开启动冲击）
+    var In = (type === 'motor') ? pickIn(IbFull * 1.8) : pickIn(Ib * 1.1);
+    if (In < 6) In = 6;
+    // 电线：Iz >= In
+    var S = pickSection(mat, lay, kt, kg, In);
+    // 规范最小截面
+    var sMin = 2.5;
+    if (P / 1000 > 40) sMin = (mat === 'al') ? 16 : 10;
+    if (!S) { S = 240; }
+    if (S < sMin) S = sMin;
+    // 压降校验：超限则逐级加大截面（最多升 3 级）
+    var drop = dropPct(Ib, L, S, mat, sys);
+    var t = tbl(mat), idx = -1;
+    for (var i = 0; i < t.length; i++) if (t[i].s === S) idx = i;
+    var guard = 0;
+    while (drop !== null && drop > 5 && idx < t.length - 1 && guard < 5){
+      idx++; S = t[idx].s;
+      drop = dropPct(Ib, L, S, mat, sys);
+      guard++;
+    }
+    var Iz = izOf(mat, S, lay, kt, kg);
+    var curve = (type === 'motor') ? 'D' : 'C';
+    var frame = frameOf(In);
+    // 漏保
+    var iDn = 30, rcdIn = In, poles = (sys === '3') ? ((sys === '3') ? '4P / 3P+N' : '4P') : '1P+N / 2P';
+    if (In > 63) iDn = 100;
+    if (In > 200) iDn = 300;
+
+    // 输出
+    document.getElementById('f_ib').innerHTML = f1(Ib) + ' <small>A</small>'
+      + (kx < 1 ? '<div style="font-size:11px;font-weight:400;color:var(--muted)">满载 ' + f1(IbFull) + 'A × 需用系数 ' + kx + '</div>' : '');
+    document.getElementById('f_s').innerHTML = S + ' <small>mm²</small>';
+    document.getElementById('f_cable').innerHTML = '<span class="model">' + cableName(mat, S, sys) + '</span>';
+    document.getElementById('f_iz').innerHTML = f1(Iz) + ' <small>A（≥ ' + In + 'A 空开，合格）</small>';
+    document.getElementById('f_mcb').innerHTML =
+      '<span class="model">DZ47-' + frame + ' ' + curve + In + '</span><br><small style="font-weight:400">'
+      + (frame <= 63 ? '家用微断（正泰 NXB-63 / 德力西 DZ47s / 施耐德 iC65N 同规格）' : '塑壳断路器 NXM-' + frame + ' 同规格')
+      + ' · ' + poles + ' · ' + curve + ' 曲线</small>';
+    document.getElementById('f_rcd').innerHTML =
+      '<span class="model">DZ47LE-' + frame + ' ' + curve + rcdIn + ' ' + iDn + 'mA</span><br><small style="font-weight:400">'
+      + (iDn === 30 ? '人身防触电，插座 / 厨卫 / 手持电器必须 30mA' : '防火型，宜带 S 型延时与下级 30mA 配合')
+      + '</small>';
+    document.getElementById('f_drop').innerHTML = drop === null
+      ? '<small>未填写长度，未校验</small>'
+      : '<span style="color:' + (drop > 5 ? 'var(--danger)' : 'var(--ok)') + '">' + f1(drop) + ' %</span>'
+        + '<small>（' + L + 'm，限值 5%）</small>';
+
+    // 附加说明
+    var tips = [];
+    if (type === 'motor'){
+      tips.push('电动机启动电流可达额定电流的 5~7 倍，故选用 <b>D 型曲线</b>并按 1.8 倍电流选取空开；若启动频繁或重载启动，建议再放大一级。');
+    }
+    if (mat === 'al'){
+      tips.push('铝芯线接头易氧化、机械强度差，家庭装修<b>建议使用铜芯</b>；铝线接入开关端子需涂抹导电膏并使用铜铝过渡端子。');
+    }
+    if (sys === '3'){
+      tips.push('三相回路请尽量<b>均衡分配单相负载</b>，避免中性线过载；N 线截面不得小于相线的 1/2（谐波大时与相线等截面）。');
+    }
+    if (S >= 35){
+      tips.push('≥35 mm² 建议使用<b>多股软电缆（YJV）</b>而非单股硬线，便于敷设与压接端子。');
+    }
+    if (drop !== null && drop > 5){
+      tips.push('压降已超限，本结果已自动加大线径；若仍无法改善，应考虑<b>缩短供电距离或提高供电电压等级</b>。');
+    }
+    if (In >= 63 && type !== 'motor'){
+      tips.push('总电流较大，建议采用<b>分级保护</b>：总开关 63~80A，下设 16~25A 支路开关，避免一处故障全屋断电。');
+    }
+    tips.push('接地必须可靠：<b>PE 线不得断开、不得串接</b>，配电箱内 PE 排与箱体可靠连接，接地电阻 ≤ 4Ω。');
+
+    document.getElementById('f_extra').innerHTML =
+      '<div class="note"><b>选型依据：</b>'
+      + (kx < 1 ? '满载电流 ' + f1(IbFull) + 'A → 计入需用系数 ' + kx + ' 后 Ib=' + f1(Ib) + 'A' : '计算电流 Ib=' + f1(Ib) + 'A')
+      + ' → 断路器 In=' + In + 'A（'
+      + (type === 'motor' ? '1.8×满载电流，D 型避启动冲击' : '1.1×Ib，' + curve + ' 型') + '）→ 电线需满足 Iz≥In，取 '
+      + S + ' mm²（Iz=' + f1(Iz) + 'A）。<br><ul class="tips">'
+      + tips.map(function(x){ return '<li>' + x + '</li>'; }).join('') + '</ul></div>';
+
+    document.getElementById('f_result').classList.remove('hidden');
+    hi('ref_cu', S, mat === 'cu');
+    hi('ref_al', S, mat === 'al');
+
+    // 保存结果，供材料估算与施工单使用
+    lastFwd = {P:P, sys:sys, cos:cos, kx:kx, type:type, Ib:Ib, IbFull:IbFull, In:In, S:S, Iz:Iz,
+      mat:mat, lay:lay, kt:kt, kg:kg, L:(L > 0 ? L : 0), drop:drop, curve:curve, frame:frame,
+      iDn:iDn, rcdIn:rcdIn, poles:poles, mcb:'DZ47-' + frame + ' ' + curve + In,
+      rcd:'DZ47LE-' + frame + ' ' + curve + rcdIn + ' ' + iDn + 'mA', cable:cableName(mat, S, sys)};
+    document.getElementById('f_cost').classList.remove('hidden');
+    calcCost();
+  }
+  document.getElementById('f_calc').addEventListener('click', calcFwd);
+
+  // 参数变化时即时重算；负载性质变化时同步推荐功率因数
+  document.getElementById('tab-fwd').addEventListener('change', function(e){
+    if (e.target.id === 'f_type'){
+      document.getElementById('f_cos').value = (e.target.value === 'res') ? '1' : '0.85';
+    }
+    calcFwd();
+  });
+  document.getElementById('tab-rev').addEventListener('change', function(e){
+    if (e.target.id === 'r_type'){
+      document.getElementById('r_cos').value = (e.target.value === 'res') ? '1' : '0.85';
+    }
+    if (!document.getElementById('r_result').classList.contains('hidden')) calcRev();
+  });
+
+  function hi(id, S, on){
+    var tb = document.getElementById(id);
+    Array.prototype.forEach.call(tb.rows, function(r){
+      r.cells[0].classList.toggle('hl', on && parseFloat(r.cells[0].textContent) === S);
+    });
+  }
+
+  /* ================= 反向校验 ================= */
+  // 初始化下拉
+  function fillSel(id, arr, def, zeroText){
+    var s = document.getElementById(id), h = '';
+    if (zeroText) h += '<option value="0">' + zeroText + '</option>';
+    arr.forEach(function(v){ h += '<option value="' + v + '"' + (v === def ? ' selected' : '') + '>' + v + '</option>'; });
+    s.innerHTML = h;
+  }
+  fillSel('r_in', STD_IN, 32);
+  fillSel('r_rcdin', STD_IN, 40, '无漏保');
+  fillSel('r_s', [1.5,2.5,4,6,10,16,25,35,50,70,95,120,150,185,240], 4);
+
+  segBind('r_sys', calcRev);
+  segBind('r_mat', calcRev);
+  segBind('r_curve', calcRev);
+
+  function calcRev(){
+    var In = parseFloat(document.getElementById('r_in').value);
+    var curve = segVal('r_curve', 'c');
+    var rcdIn = parseFloat(document.getElementById('r_rcdin').value);
+    var idn = parseFloat(document.getElementById('r_idn').value);
+    var place = document.getElementById('r_place').value;
+    var S = parseFloat(document.getElementById('r_s').value);
+    var mat = segVal('r_mat', 'mat');
+    var lay = document.getElementById('r_lay').value;
+    var kt = parseFloat(document.getElementById('r_temp').value);
+    var sys = segVal('r_sys', 'sys');
+    var P = parseFloat(document.getElementById('r_p').value) * parseFloat(document.getElementById('r_punit').value);
+    var type = document.getElementById('r_type').value;
+    var cos = parseFloat(document.getElementById('r_cos').value) || 0.85;
+    var L = parseFloat(document.getElementById('r_len').value);
+
+    if (!(P > 0)) { alert('请填写实际负载功率'); return; }
+
+    var Ib = calcIb(P, sys, cos);
+    var Iz = izOf(mat, S, lay, kt, 1.0);
+    var drop = dropPct(Ib, L, S, mat, sys);
+
+    var checks = [], level = 'ok';
+    function add(lv, t, d){ checks.push({lv:lv, t:t, d:d}); if (lv === 'bad') level = 'bad'; else if (lv === 'warn' && level === 'ok') level = 'warn'; }
+
+    // 1 空开 vs 负载
+    if (In < Ib * 0.95){
+      add('bad', '空开容量不足',
+        '空开 In=' + In + 'A 明显小于计算电流 Ib=' + f1(Ib) + 'A，满载时会过载跳闸（热脱扣）。应更换为不小于 <b>'
+        + pickIn(Ib * 1.1) + 'A</b> 的空开，并检查电线是否匹配。');
+    } else if (In < Ib * 1.1){
+      add('warn', '空开发热偏紧，余量不足',
+        'In=' + In + 'A 仅比 Ib=' + f1(Ib) + 'A 略大，长期满载运行开关端子易发热老化。建议留 10%~20% 余量，选 <b>' + pickIn(Ib * 1.1) + 'A</b>。');
+    } else if (In > Ib * 2.5){
+      add('warn', '空开偏大，保护不灵敏',
+        'In=' + In + 'A 是 Ib=' + f1(Ib) + 'A 的 ' + f1(In / Ib) + ' 倍，过载时开关可能不动作而线已发热。建议选 <b>' + pickIn(Ib * 1.1) + 'A</b>。');
+    } else {
+      add('ok', '空开容量合适', 'In=' + In + 'A 介于 Ib=' + f1(Ib) + 'A 与电线载流量之间，兼顾了正常用电与过载保护。');
+    }
+
+    // 2 电线 vs 空开（Iz >= In）；若电线连负载电流都带不动，交给第 3 条统一提示，避免重复
+    if (Iz < Ib){
+      // 由第 3 条提示
+    } else if (Iz < In){
+      var need = pickSection(mat, lay, kt, 1.0, In);
+      add('bad', '电线偏小，存在起火隐患',
+        '电线载流量 Iz=' + f1(Iz) + 'A < 空开 In=' + In + 'A。过载时空开还没跳、电线先过热，这是最危险的配置。需换 <b>'
+        + (need || '更大') + ' mm²</b> 电线，或把空开降到 <b>' + pickIn(Iz) + 'A</b>。');
+    } else if (Iz >= Ib && Iz < In * 1.1){
+      add('warn', '电线余量偏小', 'Iz=' + f1(Iz) + 'A 与 In=' + In + 'A 非常接近，穿管高温环境下可能刚好卡边。建议线径加大一级。');
+    } else {
+      add('ok', '电线载流量满足保护要求', 'Iz=' + f1(Iz) + 'A ≥ In=' + In + 'A，满足规范 Ib ≤ In ≤ Iz。');
+    }
+
+    // 3 电线 vs 负载
+    if (Iz < Ib){
+      add('bad', '电线过载', '电线载流量 ' + f1(Iz) + 'A 小于实际电流 ' + f1(Ib)
+        + 'A，导线会持续发热、绝缘加速老化，必须加大线径或减小负载。');
+    }
+
+    // 4 脱扣曲线
+    if (type === 'motor' && curve !== 'D'){
+      add('warn', '脱扣曲线不匹配电动机负载',
+        '电动机启动电流达额定 5~7 倍，' + curve + ' 型开关易在启动瞬间误跳。建议改用 <b>D 型</b>（或按 2 倍电流选 C 型并加大一级）。');
+    } else if (type === 'res' && curve === 'D'){
+      add('warn', '脱扣曲线偏钝', '纯阻性负载用 D 型开关，短路时动作偏慢。一般照明 / 电热回路推荐 <b>C 型</b>。');
+    } else {
+      add('ok', '脱扣曲线合适', curve + ' 型适用于当前' + (type === 'motor' ? '电动机' : type === 'res' ? '阻性' : '混合') + '负载。');
+    }
+
+    // 5 漏保
+    if (!rcdIn || idn === 0){
+      if (place === 'socket'){
+        add('bad', '缺少漏电保护', '插座 / 厨卫 / 手持电器回路必须装 <b>30mA 漏电保护</b>，否则触电时无法切断电源。');
+      } else if (place === 'main'){
+        add('warn', '总进线未装漏电保护', '总配电建议装 <b>100~300mA 防火型漏保（S 型延时）</b>，与下级 30mA 分级配合。');
+      } else {
+        add('warn', '未配置漏电保护', '潮湿场所、室外、移动式设备建议补充 30mA 漏保。');
+      }
+    } else {
+      if (rcdIn < In){
+        add('bad', '漏保容量小于空开', '漏保 ' + rcdIn + 'A < 空开 ' + In + 'A，大电流时漏保会先烧毁 / 跳闸。漏保额定电流应 ≥ 空开，建议 <b>' + In + 'A 及以上</b>。');
+      } else {
+        add('ok', '漏保容量匹配', '漏保 ' + rcdIn + 'A ≥ 空开 ' + In + 'A，级间配合正常。');
+      }
+      if (place === 'socket' && idn > 30){
+        add('bad', '漏保动作值过大，不防触电', '插座 / 手持电器回路要求 <b>≤30mA</b>，当前 ' + idn + 'mA 只能防火，不能防止人身触电伤亡。');
+      } else if (place === 'main' && idn === 30){
+        add('warn', '总路 30mA 容易越级跳闸', '总进线漏保建议 <b>100~300mA 且带 S 型延时</b>，30mA 放在末端插座回路，形成分级保护。');
+      } else if (place === 'light' && idn === 30){
+        add('ok', '漏保配置合理', '照明回路 30mA 漏保可满足人身防护（灯具金属外壳须接地）。');
+      } else {
+        add('ok', '漏保动作值合适', idn + 'mA 适用于当前' + (place === 'main' ? '总配电防火' : '人身防护') + '场景。');
+      }
+    }
+
+    // 6 压降
+    if (drop === null){
+      add('warn', '未校验电压损失', '填写线路长度可校验压降，长距离线路末端电压过低会导致电机发热、灯闪。');
+    } else if (drop > 5){
+      var needS = null, t = tbl(mat);
+      for (var i = 0; i < t.length; i++){ if (dropPct(Ib, L, t[i].s, mat, sys) <= 5){ needS = t[i].s; break; } }
+      add('bad', '电压损失超标 ' + f1(drop) + '%',
+        L + 'm 线路压降 ' + f1(drop) + '%（限值 5%），末端电压偏低。需加大到 <b>' + (needS || '更大') + ' mm²</b> 或缩短供电距离。');
+    } else if (drop > 4){
+      add('warn', '压降接近上限（' + f1(drop) + '%）', '尚在 5% 内但余量不大，若后期增加负载需复核。');
+    } else {
+      add('ok', '电压损失合格', drop === null ? '' : (L + 'm 压降 ' + f1(drop) + '%，在 5% 限值内。'));
+    }
+
+    // 7 最小截面规范
+    var sMin = (place === 'main') ? (mat === 'al' ? 16 : 10) : 2.5;
+    if (S < sMin){
+      add('warn', '线径低于常规最小截面',
+        '固定敷设的' + (place === 'main' ? '进户干线' : '插座 / 支路') + '铜芯一般不小于 <b>' + sMin + ' mm²</b>，当前 ' + S + ' mm² 偏细，机械强度与远期扩容都不足。');
+    }
+
+    // 渲染
+    document.getElementById('r_ib').innerHTML = f1(Ib) + ' <small>A</small>';
+    document.getElementById('r_iz').innerHTML = f1(Iz) + ' <small>A</small>';
+    document.getElementById('r_inshow').innerHTML = In + ' <small>A ' + curve + ' 型</small>';
+
+    var vt = document.getElementById('r_verdict');
+    vt.className = 'verdict ' + level;
+    vt.innerHTML = (level === 'ok' ? '✅ 配置合格，可以放心使用'
+      : level === 'warn' ? '⚠️ 基本可用，但建议优化'
+      : '⛔ 存在安全隐患，必须整改')
+      + '<small>Ib=' + f1(Ib) + 'A · In=' + In + 'A（' + curve + ' 型）· Iz=' + f1(Iz) + 'A（' + S + 'mm² '
+      + (mat === 'cu' ? '铜' : '铝') + '芯）</small>';
+
+    document.getElementById('r_checks').innerHTML = checks.map(function(c){
+      var ico = c.lv === 'ok' ? '✅' : c.lv === 'warn' ? '⚠️' : '⛔';
+      return '<div class="check ' + c.lv + '"><div class="ico">' + ico + '</div><div class="bd"><div class="t">'
+        + c.t + '</div><div class="d">' + c.d + '</div></div></div>';
+    }).join('');
+
+    // 建议配置
+    var recIn = pickIn(Ib * (type === 'motor' ? 1.8 : 1.1));
+    var recS = pickSection(mat, lay, kt, 1.0, recIn) || 240;
+    if (recS < sMin) recS = sMin;
+    // 建议截面同样复核压降：超限则逐级加粗
+    var recDrop = dropPct(Ib, L, recS, mat, sys), tg = 0, ti = -1, tt = tbl(mat);
+    for (var q = 0; q < tt.length; q++) if (tt[q].s === recS) ti = q;
+    while (recDrop !== null && recDrop > 5 && ti < tt.length - 1 && tg < 5){
+      ti++; recS = tt[ti].s; recDrop = dropPct(Ib, L, recS, mat, sys); tg++;
+    }
+    var recCurve = (type === 'motor') ? 'D' : 'C';
+    var recIdn = (place === 'main') ? 300 : 30;
+    var bad = level !== 'ok';
+    document.getElementById('r_suggest').innerHTML = bad
+      ? '<div class="note"><b>建议整改配置：</b><br>'
+        + '空开 <span class="model">DZ47-' + frameOf(recIn) + ' ' + recCurve + recIn + '</span>　'
+        + '漏保 <span class="model">DZ47LE-' + frameOf(recIn) + ' ' + recCurve + recIn + ' ' + recIdn + 'mA</span>　'
+        + '电线 <span class="model">' + cableName(mat, recS, sys) + '</span>'
+        + '<br><span style="color:#8a5a00">整改前请断开上级电源，由持证电工操作并复测绝缘电阻与接地连续性。</span></div>'
+      : '<div class="note"><b>维护建议：</b>每月按一次漏保上的 <b>"T" 试验按钮</b>确认能正常跳闸；'
+        + '定期检查接线端子有无松动、发黑、异味；严禁在漏保下端把 N 线与 PE 线混接。</div>';
+
+    document.getElementById('r_result').classList.remove('hidden');
+    lastRev = {In:In, curve:curve, rcdIn:rcdIn, idn:idn, place:place, S:S, mat:mat, lay:lay, sys:sys,
+      P:P, type:type, cos:cos, L:(L > 0 ? L : 0), Ib:Ib, Iz:Iz, drop:drop, checks:checks, level:level,
+      recIn:recIn, recS:recS, recCurve:recCurve, recIdn:recIdn};
+  }
+  document.getElementById('r_calc').addEventListener('click', calcRev);
+
+  /* ================= 速查表渲染 ================= */
+  function renderRef(){
+    function build(id, t, mat){
+      var h = '';
+      t.forEach(function(r){
+        var In = 6;
+        for (var k = 0; k < STD_IN.length; k++) if (STD_IN[k] <= r.pipe) In = STD_IN[k];
+        var pw = Math.round(220 * In * 0.85);
+        h += '<tr><td>' + r.s + '</td><td>' + r.air + '</td><td>' + r.pipe + '</td><td>' + In + ' A</td><td>'
+          + (pw >= 1000 ? (Math.round(pw / 100) / 10) + ' kW' : pw + ' W') + '</td></tr>';
+      });
+      document.getElementById(id).innerHTML = h;
+    }
+    build('ref_cu', CU, 'cu');
+    build('ref_al', AL, 'al');
+  }
+  renderRef();
+
+  /* ================= 成本卡片与导出按钮 ================= */
+  document.getElementById('f_cost').addEventListener('change', function(e){
+    if (e.target.id === 'c_pipe' || e.target.id === 'c_brand') calcCost();
+    else calcCost();
+  });
+  document.getElementById('f_cost').addEventListener('input', calcCost);
+
+  document.getElementById('f_print').addEventListener('click', function(){
+    var h = buildWorkOrder(); if (h) printDoc(h);
+  });
+  document.getElementById('f_download').addEventListener('click', function(){
+    var h = buildWorkOrder();
+    if (h) downloadHtml('施工单-' + (document.getElementById('c_name').value || '配电回路') + '-' + todayStr() + '.html', h);
+  });
+  document.getElementById('r_print').addEventListener('click', function(){
+    var h = buildReport(); if (h) printDoc(h);
+  });
+  document.getElementById('r_download').addEventListener('click', function(){
+    var h = buildReport();
+    if (h) downloadHtml('用电安全检查报告-' + todayStr() + '.html', h);
+  });
+
+  // 首屏自动算一次
+  calcFwd();
+})();
+</script>
+</body>
+</html>
