@@ -12,6 +12,8 @@ const Store = (function () {
     downloadCounts: 'blog_download_counts',
     homeTools: 'blog_home_tools',
     homeToolsOrder: 'blog_home_tools_order',
+    // 本地顺序的"最后写入时间"（ISO），用于与云端 updatedAt 比新旧，决定谁覆盖谁
+    homeToolsOrderTs: 'blog_home_tools_order_ts',
   };
 
   const MAX_HOME_TOOLS = 24; // 主页最多展示 24 个在线工具窗口（4 页，每页 6 格）
@@ -223,20 +225,29 @@ const Store = (function () {
   // 加载管理员期望的内置工具顺序（用于跨设备同步）。
   // 数据源优先级：① /api/home-tools-order（边缘 KV，管理员在线上改的顺序实时存这里）
   //               ② data/home-tools-order.json（随站打包的静态种子，KV 不可用时兜底）
-  // 覆盖策略：
-  //   - 普通访客：云端顺序一旦可用就覆盖本地（访客没有调整入口，本地顺序只是历史快照，
-  //     若不覆盖，管理员后续改的顺序对老访客永远不生效）
-  //   - 管理员本机：本地优先（管理员是编辑者，本地最新；调整后会立刻 POST 推回云端）
+  // 覆盖策略（按时间戳比新旧，不再区分管理员/访客）：
+  //   - 云端 updatedAt > 本地 homeToolsOrderTs → 云端胜，覆盖本地（所有设备都跟随最新一次修改，
+  //     包括管理员自己的多台电脑；老版本"管理员本地优先"会导致管理员的 B 机永远不同步）
+  //   - 本地更新或云端无时间（静态种子）→ 保持本地
+  //   - 本地从未记录时间（老数据）→ 视为极旧，直接跟随云端
   // 异步、失败静默回退。
   function loadRemoteHomeToolsOrder() {
-    const applyRemote = (order) => {
+    // 返回 true 表示本地被云端覆盖了
+    const applyRemote = (order, updatedAt) => {
+      if (!order || !order.length) return false;
+      if (typeof _ensureHomeTools !== 'function') return false; // seedHomeTools 未跑完，异常防御
       const localOrder = getJSON(STORAGE_KEYS.homeToolsOrder, null);
-      const isAdmin = (typeof localStorage !== 'undefined') && !!localStorage.getItem('adminKey');
-      if (isAdmin) return order;                    // 管理员：本地即真源，不回拉
-      if (!order || !order.length) return order;    // 云端为空：保持现状
-      if (localOrder && localOrder.join('\n') === order.join('\n')) return order; // 一致：跳过
-      // 普通访客：按云端顺序重排（内置项按 order，远端未列出的补在末尾；用户上传工具始终垫底）
-      if (typeof _ensureHomeTools !== 'function') return order; // seedHomeTools 未跑完，异常防御
+      if (localOrder && localOrder.join('\n') === order.join('\n')) {
+        // 顺序一致：只把时间戳补齐，避免下次重复重排
+        setJSON(STORAGE_KEYS.homeToolsOrderTs, _tsOf(updatedAt) || new Date().toISOString());
+        return false;
+      }
+      const cloudTs = _tsOf(updatedAt);
+      const localTs = _tsOf(localStorage.getItem(STORAGE_KEYS.homeToolsOrderTs));
+      // 云端没有时间（静态种子）且本地已有顺序 → 本地优先；否则比时间戳（本地无记录视为 0）
+      if (cloudTs === 0 && localOrder) return false;
+      if (cloudTs < localTs) return false;
+      // 按云端顺序重排（内置项按 order，远端未列出的补在末尾；用户上传工具始终垫底）
       _ensureHomeTools();
       const tools = getHomeTools();
       const builtin = tools.filter((t) => t.builtin);
@@ -251,17 +262,18 @@ const Store = (function () {
       const capped = ordered.slice(0, MAX_HOME_TOOLS);
       setJSON(STORAGE_KEYS.homeTools, capped);
       setJSON(STORAGE_KEYS.homeToolsOrder, capped.map((t) => t.id));
+      setJSON(STORAGE_KEYS.homeToolsOrderTs, cloudTs ? new Date(cloudTs).toISOString() : new Date().toISOString());
       // 通知 UI 重新渲染（如已绑定）
       if (typeof window !== 'undefined' && typeof window.__refreshHomeToolsAfterRemoteOrder === 'function') {
         try { window.__refreshHomeToolsAfterRemoteOrder(); } catch (e) {}
       }
-      return order;
+      return true;
     };
     return fetch('/api/home-tools-order', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .then((obj) => {
         const order = Array.isArray(obj && obj.order) ? obj.order.filter((s) => typeof s === 'string') : null;
-        if (order && order.length) return applyRemote(order);
+        if (order && order.length) return applyRemote(order, obj && obj.updatedAt);
         throw new Error('empty');
       })
       .catch(() =>
@@ -270,22 +282,34 @@ const Store = (function () {
           .then((r) => (r.ok ? r.json() : null))
           .then((obj) => {
             const order = Array.isArray(obj && obj.builtinOrder) ? obj.builtinOrder.filter((s) => typeof s === 'string') : null;
-            return applyRemote(order && order.length ? order : null);
+            // 静态种子没有可靠时间戳（version 字符串），传 null 让本地已有顺序优先
+            return applyRemote(order && order.length ? order : null, null);
           })
-          .catch(() => null)
+          .catch(() => false)
       )
-      .then((order) => {
-        remoteHomeToolsOrder = order && order.length ? order : null;
+      .then((applied) => {
+        remoteHomeToolsOrder = getJSON(STORAGE_KEYS.homeToolsOrder, null) || null;
         return remoteHomeToolsOrder;
       })
       .finally(() => { _markRemoteOrderLoaded(); });
   }
 
+  // 把可能是 ISO 时间 / version 字符串 / null 的值统一转成毫秒；无法解析返回 0
+  function _tsOf(v) {
+    if (!v) return 0;
+    const t = Date.parse(v);
+    return isNaN(t) ? 0 : t;
+  }
+
+  // 上一次云端同步失败的原因（供 UI 提示），成功时置空
+  let lastOrderSyncError = '';
+  function getOrderSyncError() { return lastOrderSyncError; }
+
   // 管理员把当前顺序推送到云端（KV），所有设备下次打开即生效。
-  // 需要 localStorage 里有 adminKey；失败返回 false（仍保留本机顺序）。
+  // 需要 localStorage 里有 adminKey；失败返回 false，原因见 getOrderSyncError()。
   function publishHomeToolsOrder() {
     const key = (typeof localStorage !== 'undefined') ? (localStorage.getItem('adminKey') || '') : '';
-    if (!key) return Promise.resolve(false);
+    if (!key) { lastOrderSyncError = '未开启管理员模式（请点🔑输入密钥）'; return Promise.resolve(false); }
     const order = getHomeTools().filter((t) => t.builtin).map((t) => t.id);
     return fetch('/api/home-tools-order', {
       method: 'POST',
@@ -293,11 +317,26 @@ const Store = (function () {
       body: JSON.stringify({ order }),
     })
       .then((r) => {
-        if (!r.ok) { console.warn('[store] 顺序云端同步失败:', r.status); return false; }
-        remoteHomeToolsOrder = order;
-        return true;
+        if (!r.ok) {
+          lastOrderSyncError = r.status === 401
+            ? '密钥不被云端接受（401）：请点🔑重新输入管理员密钥'
+            : (r.status === 404 ? '云端接口未部署（404）：请等 Pages 部署完成再试' : '服务端错误 ' + r.status);
+          console.warn('[store] 顺序云端同步失败:', r.status);
+          return false;
+        }
+        return r.json().then((data) => {
+          remoteHomeToolsOrder = order;
+          // 记录本次同步时间，避免本机下次把云端（同一份）当成"更新"来回重排
+          setJSON(STORAGE_KEYS.homeToolsOrderTs, _tsOf(data && data.updatedAt) ? new Date(_tsOf(data.updatedAt)).toISOString() : new Date().toISOString());
+          lastOrderSyncError = '';
+          return true;
+        }).catch(() => { lastOrderSyncError = ''; return true; });
       })
-      .catch((e) => { console.warn('[store] 顺序云端同步异常:', e); return false; });
+      .catch((e) => {
+        lastOrderSyncError = '网络异常：' + (e && e.message ? e.message : e);
+        console.warn('[store] 顺序云端同步异常:', e);
+        return false;
+      });
   }
 
   // 管理员通过后台「添加应用」写回官方目录（边缘函数 -> KV），对所有人实时可见
@@ -580,6 +619,8 @@ const Store = (function () {
   function saveHomeToolsOrder() {
     const ids = getHomeTools().map((t) => t.id);
     setJSON(STORAGE_KEYS.homeToolsOrder, ids);
+    // 记录本地写入时间：本机刚改过的顺序比云端旧值更新，避免被回拉
+    setJSON(STORAGE_KEYS.homeToolsOrderTs, new Date().toISOString());
   }
 
   // 把 id 移到 targetId 之前（拖拽排序用）。返回新索引，失败返回 null。
@@ -956,6 +997,7 @@ const Store = (function () {
     downloadHomeToolsOrder,
     whenRemoteOrderReady,
     publishHomeToolsOrder,
+    getOrderSyncError,
     deleteHomeTool,
     MAX_HOME_TOOLS,
     // 主题

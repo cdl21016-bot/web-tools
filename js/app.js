@@ -1234,7 +1234,9 @@ const App = (function () {
   function syncHomeToolsOrderToCloud() {
     if (!isAdmin()) return;
     Store.publishHomeToolsOrder().then((ok) => {
-      showToast(ok ? '顺序已同步云端，其他设备打开即生效' : '⚠️ 云端同步失败，仅本机生效', ok ? 'success' : 'error');
+      if (ok) { showToast('顺序已同步云端，其他设备打开即生效', 'success'); return; }
+      const reason = (typeof Store.getOrderSyncError === 'function' ? Store.getOrderSyncError() : '') || '未知原因';
+      showToast('⚠️ 云端同步失败：' + reason, 'error');
     });
   }
 

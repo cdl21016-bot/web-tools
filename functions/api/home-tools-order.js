@@ -48,6 +48,11 @@ export async function onRequestPost(context) {
   // 清洗：仅保留字符串 id、去重、限制数量，防止异常数据撑爆 KV
   const clean = [...new Set(order.filter((id) => typeof id === "string" && id.length > 0))].slice(0, 100);
   const saved = { order: clean, updatedAt: new Date().toISOString() };
-  await env[KV].put(KEY, JSON.stringify(saved));
+  try {
+    await env[KV].put(KEY, JSON.stringify(saved));
+  } catch (e) {
+    // KV 未绑定 / 绑定名不符时走到这里；返回明确 JSON，避免请求崩成 1101 让前端无从判断
+    return Response.json({ error: "KV write failed", detail: String(e) }, { status: 500 });
+  }
   return Response.json({ ok: true, ...saved });
 }
