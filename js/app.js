@@ -1204,6 +1204,17 @@ const App = (function () {
     return `<div class="tool-pager">${btns}</div>`;
   }
 
+  // 管理员工具条（重置 / 手动同步云端 / 操作提示）
+  // 注意：refreshHomeTools() 局部刷新时也必须渲染它，否则管理员点一次 ↑↓ / 拖拽后工具条就消失了
+  function renderToolsAdminBar() {
+    if (!isAdmin()) return '';
+    return `<div class="tool-admin-bar">
+      <button class="btn btn-outline btn-sm" data-sync-order title="把当前顺序推送到云端，所有设备立即生效">☁️ 同步到云端</button>
+      <button class="btn btn-outline btn-sm" data-reset-order title="一键恢复默认展示顺序">🔄 重置顺序</button>
+      <span class="tool-admin-hint">拖拽卡片排序，或点 ⏫ 置顶 / ↑↓ 微调</span>
+    </div>`;
+  }
+
   function renderHomeTools() {
     const admin = isAdmin();
     return `
@@ -1212,7 +1223,7 @@ const App = (function () {
       </div>
       <div id="homeToolsWrap">
         ${renderToolsGridInner()}
-        ${admin ? `<div class="tool-admin-bar"><button class="btn btn-outline btn-sm" data-reset-order title="一键恢复默认展示顺序">🔄 重置顺序</button><span class="tool-admin-hint">拖拽卡片排序，或点 ⏫ 置顶 / ↑↓ 微调</span></div>` : ''}
+        ${renderToolsAdminBar()}
         ${renderToolsPager()}
         <input type="file" id="toolFileInput" accept=".html,.htm,text/html" style="display:none;">
       </div>
@@ -1225,6 +1236,7 @@ const App = (function () {
     if (!wrap) return;
     wrap.innerHTML =
       renderToolsGridInner() +
+      renderToolsAdminBar() +
       renderToolsPager() +
       '<input type="file" id="toolFileInput" accept=".html,.htm,text/html" style="display:none;">';
     bindHomeTools();
@@ -1346,6 +1358,24 @@ const App = (function () {
         syncHomeToolsOrderToCloud();
       });
     });
+
+    // 手动把当前顺序同步到云端（管理员工具条「☁️ 同步到云端」）
+    const syncOrderBtn = wrap.querySelector('[data-sync-order]');
+    if (syncOrderBtn) {
+      syncOrderBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        syncOrderBtn.disabled = true;
+        const oldText = syncOrderBtn.textContent;
+        syncOrderBtn.textContent = '⏳ 同步中…';
+        Store.publishHomeToolsOrder().then((ok) => {
+          syncOrderBtn.disabled = false;
+          syncOrderBtn.textContent = oldText;
+          if (ok) { showToast('顺序已同步云端，其他设备打开即生效', 'success'); return; }
+          const reason = (typeof Store.getOrderSyncError === 'function' ? Store.getOrderSyncError() : '') || '未知原因';
+          showToast('⚠️ 云端同步失败：' + reason, 'error');
+        });
+      });
+    }
 
     // 重置顺序：一键恢复代码默认顺序
     const resetBtn = wrap.querySelector('[data-reset-order]');
