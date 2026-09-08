@@ -9,20 +9,31 @@ const KV = "OFFICIAL_APPS";
 const KEY = "homeToolsOrder";
 
 // 读取当前云端顺序；无则回退随站打包的种子文件
+// 返回体带 kv 自检字段（ok / unbound / error:…），便于从外部 curl 判断 KV 对本接口是否可用
 async function readOrder(env, request) {
   let saved = null;
-  try { saved = await env[KV].get(KEY, "json"); } catch (e) { /* KV 未绑定或为空 */ }
-  if (saved && Array.isArray(saved.order)) return saved;
+  let kv = "unknown";
+  try {
+    if (!env[KV]) {
+      kv = "unbound";                       // KV 绑定名不存在
+    } else {
+      saved = await env[KV].get(KEY, "json");
+      kv = "ok";
+    }
+  } catch (e) {
+    kv = "error:" + String(e && e.message ? e.message : e).slice(0, 120);
+  }
+  if (saved && Array.isArray(saved.order)) return { ...saved, kv };
   try {
     const seed = await fetch(new URL("/data/home-tools-order.json", request.url));
     if (seed.ok) {
       const seedJson = await seed.json();
       if (seedJson && Array.isArray(seedJson.builtinOrder)) {
-        return { order: seedJson.builtinOrder, updatedAt: seedJson.version || null };
+        return { order: seedJson.builtinOrder, updatedAt: seedJson.version || null, kv, fromSeed: true };
       }
     }
   } catch (e) { /* ignore */ }
-  return { order: [], updatedAt: null };
+  return { order: [], updatedAt: null, kv };
 }
 
 export async function onRequestGet(context) {
@@ -33,9 +44,16 @@ export async function onRequestGet(context) {
 
 export async function onRequestPost(context) {
   const { env, request } = context;
+  // 环境变量缺失属于服务端配置问题，单独报 500，避免和"密钥输错"的 401 混淆
+  if (!env.ADMIN_KEY) {
+    return Response.json(
+      { error: "ADMIN_KEY not configured", hint: "Cloudflare Pages → Settings → Environment variables 里配置 ADMIN_KEY" },
+      { status: 500 }
+    );
+  }
   const key = request.headers.get("x-admin-key");
   if (!key || key !== env.ADMIN_KEY) {
-    return new Response("Unauthorized", { status: 401 });
+    return Response.json({ error: "Unauthorized", hint: "密钥与云端 ADMIN_KEY 不一致，请在页面点🔑重新输入" }, { status: 401 });
   }
   let body;
   try { body = await request.json(); } catch (e) {
