@@ -1246,6 +1246,11 @@ const App = (function () {
     try { refreshHomeTools(); } catch (e) { /* 首页未渲染时静默 */ }
   };
 
+  // 管理员打开首页时若自动补推了本机顺序到云端，用它提示（避免用户以为"没同步"）
+  window.__showOrderSyncToast = function (msg) {
+    try { showToast(msg, 'success'); } catch (e) {}
+  };
+
   function bindHomeTools() {
     const grid = document.querySelector('.tools-grid');
     if (!grid) return;

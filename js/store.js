@@ -232,8 +232,10 @@ const Store = (function () {
   //   - 本地从未记录时间（老数据）→ 视为极旧，直接跟随云端
   // 异步、失败静默回退。
   function loadRemoteHomeToolsOrder() {
+    let cloudTsSeen = -1; // -1 = 连云端数据都没拿到；0 = 拿到但无可靠时间戳（静态种子）
     // 返回 true 表示本地被云端覆盖了
     const applyRemote = (order, updatedAt) => {
+      cloudTsSeen = _tsOf(updatedAt);
       if (!order || !order.length) return false;
       if (typeof _ensureHomeTools !== 'function') return false; // seedHomeTools 未跑完，异常防御
       const localOrder = getJSON(STORAGE_KEYS.homeToolsOrder, null);
@@ -289,9 +291,28 @@ const Store = (function () {
       )
       .then((applied) => {
         remoteHomeToolsOrder = getJSON(STORAGE_KEYS.homeToolsOrder, null) || null;
+        // 管理员打开首页时自动补推：覆盖"同步功能上线前就调过顺序""云端还是空的"这类情况，
+        // 让管理员不必重新拖一次卡片也能把当前顺序变成全网顺序。
+        autoPublishForAdmin(cloudTsSeen);
         return remoteHomeToolsOrder;
       })
       .finally(() => { _markRemoteOrderLoaded(); });
+  }
+
+  // 管理员自动补推：仅当"云端没数据"或"本机顺序比云端新"时才推，避免用旧数据覆盖云端。
+  function autoPublishForAdmin(cloudTs) {
+    const key = (typeof localStorage !== 'undefined') ? (localStorage.getItem('adminKey') || '') : '';
+    if (!key) return;
+    const localOrder = getJSON(STORAGE_KEYS.homeToolsOrder, null);
+    if (!Array.isArray(localOrder) || !localOrder.length) return;
+    const localTs = _tsOf(localStorage.getItem(STORAGE_KEYS.homeToolsOrderTs));
+    if (cloudTs >= 0 && localTs <= cloudTs) return; // 云端已有且不比本地旧：无需推
+    publishHomeToolsOrder().then((ok) => {
+      if (!ok) return;
+      if (typeof window !== 'undefined' && typeof window.__showOrderSyncToast === 'function') {
+        try { window.__showOrderSyncToast('已自动同步本机顺序到云端，所有设备生效'); } catch (e) {}
+      }
+    });
   }
 
   // 把可能是 ISO 时间 / version 字符串 / null 的值统一转成毫秒；无法解析返回 0
