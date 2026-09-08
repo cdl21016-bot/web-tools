@@ -246,6 +246,10 @@ const Store = (function () {
       }
       const cloudTs = _tsOf(updatedAt);
       const localTs = _tsOf(localStorage.getItem(STORAGE_KEYS.homeToolsOrderTs));
+      // 管理员本机：只要本地已有顺序，永远以本地为准 —— 避免云端覆盖管理员刚改的（跨设备同步靠手动点「☁️ 同步到云端」或拖拽自动推送完成）。
+      // 普通访客：按时间戳比新旧，保证跨设备同步。
+      const isAdmin = !!(typeof localStorage !== 'undefined' && localStorage.getItem('adminKey'));
+      if (isAdmin && localOrder) return false;
       // 云端没有时间（静态种子）且本地已有顺序 → 本地优先；否则比时间戳（本地无记录视为 0）
       if (cloudTs === 0 && localOrder) return false;
       if (cloudTs < localTs) return false;
