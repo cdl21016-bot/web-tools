@@ -1266,6 +1266,7 @@ const App = (function () {
   function bindHomeTools() {
     const grid = document.querySelector('.tools-grid');
     if (!grid) return;
+    const wrap = document.getElementById('homeToolsWrap');
     const fileInput = document.getElementById('toolFileInput');
 
     // 分页翻页：点击页码局部刷新小工具区块
