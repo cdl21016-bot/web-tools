@@ -1209,9 +1209,10 @@ const App = (function () {
   function renderToolsAdminBar() {
     if (!isAdmin()) return '';
     return `<div class="tool-admin-bar">
-      <button class="btn btn-outline btn-sm" data-sync-order title="把当前顺序推送到云端，所有设备立即生效">☁️ 同步到云端</button>
+      <button class="btn btn-outline btn-sm" data-sync-order title="把当前顺序推送到 Cloudflare KV，所有设备立即生效">☁️ 同步到云端</button>
+      <button class="btn btn-outline btn-sm" data-export-order title="下载当前顺序为 home-tools-order.json，覆盖 data/ 后运行 publish-order.bat 即可 git 部署">📤 导出顺序(git)</button>
       <button class="btn btn-outline btn-sm" data-reset-order title="一键恢复默认展示顺序">🔄 重置顺序</button>
-      <span class="tool-admin-hint">拖拽卡片排序，或点 ⏫ 置顶 / ↑↓ 微调</span>
+      <span class="tool-admin-hint">拖拽卡片排序，或点 ⏫ 置顶 / ↑↓ 微调；改完先「同步到云端」，再「导出顺序」做 git 版本备份</span>
     </div>`;
   }
 
@@ -1250,6 +1251,18 @@ const App = (function () {
       const reason = (typeof Store.getOrderSyncError === 'function' ? Store.getOrderSyncError() : '') || '未知原因';
       showToast('⚠️ 云端同步失败：' + reason, 'error');
     });
+  }
+
+  // 管理员把当前顺序导出为仓库可提交的 home-tools-order.json（与 data/home-tools-order.json 同构的 builtinOrder）。
+  // 浏览器无法直接写仓库文件，这里下载到本地 + 复制到剪贴板，覆盖 data/ 后由 publish-order.bat 同步并 git push。
+  function exportCurrentOrder() {
+    if (!isAdmin()) return;
+    Store.downloadHomeToolsOrder();                 // 下载 home-tools-order.json（当前 builtin 顺序）
+    try {
+      const json = Store.exportHomeToolsOrderJson(); // 同构 JSON 字符串，便于需要时手动覆盖
+      if (navigator.clipboard) navigator.clipboard.writeText(json).catch(() => {});
+    } catch (e) { /* 复制失败不阻塞下载 */ }
+    showToast('已下载 home-tools-order.json（当前顺序）。覆盖 data/ 后运行 publish-order.bat 即 git 部署', 'success');
   }
 
   // 远端（云端/种子）顺序加载完成后重排了本地工具 —— 绑定回调刷新首页工具区
@@ -1376,6 +1389,15 @@ const App = (function () {
           const reason = (typeof Store.getOrderSyncError === 'function' ? Store.getOrderSyncError() : '') || '未知原因';
           showToast('⚠️ 云端同步失败：' + reason, 'error');
         });
+      });
+    }
+
+    // 导出当前顺序为仓库文件（管理员工具条「📤 导出顺序(git)」）
+    const exportOrderBtn = wrap.querySelector('[data-export-order]');
+    if (exportOrderBtn) {
+      exportOrderBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        exportCurrentOrder();
       });
     }
 
