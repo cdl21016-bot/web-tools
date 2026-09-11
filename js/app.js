@@ -717,6 +717,14 @@ const App = (function () {
         <div class="section-header apps-list-header" style="margin-top:32px;">
           <h2 class="section-title">应用列表</h2>
         </div>
+        ${isAdmin() ? `
+        <div class="tool-admin-bar" style="margin-bottom:16px;">
+          <button class="btn btn-outline btn-sm" data-sync-apps-order title="把当前应用顺序推送到云端，所有设备立即生效">☁️ 同步到云端</button>
+          <button class="btn btn-outline btn-sm" data-export-apps-order title="导出 official-apps.json，用于 git 提交版本化">📤 导出顺序(git)</button>
+          <button class="btn btn-outline btn-sm" data-reset-apps-order title="恢复为 data/official-apps.json 的原始顺序">🔄 重置顺序</button>
+          <span class="tool-admin-hint">拖拽卡片排序，或点 ⏫ 置顶 / ↑↓ 微调</span>
+        </div>
+        ` : ''}
         <div class="app-grid" id="appGrid">
           ${renderAppCards(currentFilteredApps(), isAdmin())}
         </div>
@@ -737,10 +745,12 @@ const App = (function () {
         </div>
       `;
     }
+    const admin = showDelete && isAdmin();
     return apps
       .map(
-        (a) => `
-      <div class="app-card" data-app-detail="${a.id}" style="cursor:pointer;">
+        (a, idx) => `
+      <div class="app-card${admin ? ' app-card-draggable' : ''}" data-app-detail="${a.id}"${admin ? ` draggable="true" data-app-id="${a.id}"` : ''} style="cursor:pointer;">
+        ${admin ? `<div class="app-card-sort-handle" title="拖拽排序">⠿</div>` : ''}
         <div class="app-card-icon">${a.icon || '📦'}</div>
         <h3 class="app-card-name">${escapeHtml(a.name)}</h3>
         <p class="app-card-desc">${escapeHtml(a.description || '暂无描述')}</p>
@@ -749,6 +759,11 @@ const App = (function () {
           ${showDelete ? `
             <button class="btn btn-outline btn-sm" data-edit="${a.id}">✏️ 编辑</button>
             <button class="btn btn-danger btn-sm" data-delete="${a.id}">删除</button>
+          ` : ''}
+          ${admin ? `
+            <button class="btn btn-outline btn-sm app-sort-btn" data-move-app="${a.id}" data-dir="-1" title="上移"${idx === 0 ? ' disabled' : ''}>↑</button>
+            <button class="btn btn-outline btn-sm app-sort-btn" data-move-app="${a.id}" data-dir="1" title="下移"${idx === apps.length - 1 ? ' disabled' : ''}>↓</button>
+            <button class="btn btn-outline btn-sm app-sort-btn" data-pin-app="${a.id}" title="置顶"${idx === 0 ? ' disabled' : ''}>⏫</button>
           ` : ''}
         </div>
       </div>
@@ -1135,6 +1150,106 @@ const App = (function () {
 
     // 下载、跳转、介绍、删除
     bindAppGridEvents(appGrid);
+
+    // 管理员应用排序：同步云端 / 导出git / 重置
+    if (isAdmin()) {
+      const syncAppsBtn = document.querySelector('[data-sync-apps-order]');
+      if (syncAppsBtn) {
+        syncAppsBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          syncAppsBtn.disabled = true;
+          const oldText = syncAppsBtn.textContent;
+          syncAppsBtn.textContent = '⏳ 同步中…';
+          Store.publishAppsOrder().then((ok) => {
+            syncAppsBtn.disabled = false;
+            syncAppsBtn.textContent = oldText;
+            if (ok) { showToast('应用顺序已同步云端，全员即时生效', 'success'); return; }
+            showToast('⚠️ 云端同步失败：' + (Store.getAppsOrderError() || '未知原因'), 'error');
+          });
+        });
+      }
+
+      const exportAppsBtn = document.querySelector('[data-export-apps-order]');
+      if (exportAppsBtn) {
+        exportAppsBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          Store.downloadAppsJson();
+          showToast('已导出 official-apps.json，放入 data/ 后 git push 即可生效', 'success');
+        });
+      }
+
+      const resetAppsBtn = document.querySelector('[data-reset-apps-order]');
+      if (resetAppsBtn) {
+        resetAppsBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (confirm('确定重置应用为原始顺序？调整过的顺序将丢失。')) {
+            fetch('data/official-apps.json')
+              .then((r) => r.json())
+              .then((arr) => {
+                // 重写 officialApps（store 内部变量通过重新加载实现）
+                // 直接调 loadOfficialApps 逻辑会覆盖，这里用简单方式：刷新页面重载
+                localStorage.removeItem('_appsOrderOverride');
+                showToast('已标记重置，页面即将刷新…', 'success');
+                setTimeout(() => location.reload(), 800);
+              })
+              .catch(() => showToast('重置失败：无法读取原始数据', 'error'));
+          }
+        });
+      }
+
+      // ↑↓ 移动按钮
+      appGrid.querySelectorAll('[data-move-app]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (btn.disabled) return;
+          const id = btn.getAttribute('data-move-app');
+          const dir = parseInt(btn.getAttribute('data-dir'), 10);
+          Store.moveApp(id, dir);
+          renderApps();
+        });
+      });
+
+      // ⏫ 置顶按钮
+      appGrid.querySelectorAll('[data-pin-app]').forEach((btn) => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (btn.disabled) return;
+          const id = btn.getAttribute('data-pin-app');
+          Store.pinApp(id);
+          renderApps();
+          showToast('已置顶', 'success');
+        });
+      });
+
+      // 拖拽排序
+      appGrid.querySelectorAll('.app-card[data-app-id]').forEach((card) => {
+        card.addEventListener('dragstart', (e) => {
+          e.dataTransfer.effectAllowed = 'move';
+          try { e.dataTransfer.setData('text/plain', card.getAttribute('data-app-id')); } catch (err) {}
+          card.classList.add('dragging');
+        });
+        card.addEventListener('dragend', () => {
+          card.classList.remove('dragging');
+          appGrid.querySelectorAll('.app-card').forEach((c) => c.remove('drag-over'));
+        });
+        card.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          card.classList.add('drag-over');
+        });
+        card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+        card.addEventListener('drop', (e) => {
+          e.preventDefault();
+          card.classList.remove('drag-over');
+          const dragId = e.dataTransfer.getData('text/plain');
+          const targetId = card.getAttribute('data-app-id');
+          if (dragId && targetId && dragId !== targetId) {
+            Store.reorderAppBefore(dragId, targetId);
+            renderApps();
+          }
+        });
+      });
+    }
   }
 
   // ============================================

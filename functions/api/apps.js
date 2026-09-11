@@ -69,6 +69,30 @@ export async function onRequestPut(context) {
   try { body = await request.json(); } catch (e) {
     return new Response("Bad Request", { status: 400 });
   }
+
+  // 管理员批量重排应用顺序：{ _reorder: [id1, id2, ...] }
+  if (body && Array.isArray(body._reorder)) {
+    const orderIds = body._reorder.filter((id) => typeof id === 'string');
+    if (!orderIds.length) return new Response("_reorder must be non-empty", { status: 400 });
+    const apps = await readApps(env, request);
+    const appMap = new Map(apps.map((a) => [a.id, a]));
+    // 按 _reorder 顺序重排；未列出的追加在末尾（保持原相对顺序）
+    const ordered = [];
+    const seen = new Set();
+    for (const id of orderIds) {
+      if (appMap.has(id) && !seen.has(id)) {
+        ordered.push(appMap.get(id));
+        seen.add(id);
+      }
+    }
+    for (const a of apps) {
+      if (!seen.has(a.id)) ordered.push(a);
+    }
+    await env[KV].put("apps", JSON.stringify(ordered));
+    return Response.json({ ok: true, count: ordered.length });
+  }
+
+  // 原有逻辑：更新单个应用
   const { id } = body || {};
   if (!id) {
     return new Response("id required", { status: 400 });

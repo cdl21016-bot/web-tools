@@ -416,6 +416,88 @@ const Store = (function () {
     return res.json();
   }
 
+  // ============================================
+  // 应用中心排序（管理员）
+  // ============================================
+  // 上移/下移应用，dir = -1(上) / 1(下)。返回新索引，失败返回 null。
+  function moveApp(id, dir) {
+    const idx = officialApps.findIndex((a) => a.id === id);
+    if (idx === -1) return null;
+    const next = idx + dir;
+    if (next < 0 || next >= officialApps.length) return null;
+    const tmp = officialApps[idx];
+    officialApps[idx] = officialApps[next];
+    officialApps[next] = tmp;
+    return next;
+  }
+
+  // 把 id 移到 targetId 之前（拖拽排序用）。返回新索引，失败返回 null。
+  function reorderAppBefore(id, targetId) {
+    if (id === targetId) return null;
+    const from = officialApps.findIndex((a) => a.id === id);
+    const to = officialApps.findIndex((a) => a.id === targetId);
+    if (from === -1 || to === -1) return null;
+    const [item] = officialApps.splice(from, 1);
+    const newTo = officialApps.findIndex((a) => a.id === targetId);
+    officialApps.splice(newTo, 0, item);
+    return newTo;
+  }
+
+  // 置顶应用（移到最前）。已在最前返回 0，失败返回 null。
+  function pinApp(id) {
+    const idx = officialApps.findIndex((a) => a.id === id);
+    if (idx === -1) return null;
+    if (idx === 0) return 0;
+    const [item] = officialApps.splice(idx, 1);
+    officialApps.unshift(item);
+    return 0;
+  }
+
+  // 把当前 officialApps 顺序推送到云端（KV），全员即时生效。
+  // 失败返回 false，原因见 lastOrderSyncError。
+  let _lastAppsOrderError = '';
+  function getAppsOrderError() { return _lastAppsOrderError; }
+  function publishAppsOrder() {
+    const key = (typeof localStorage !== 'undefined') ? (localStorage.getItem('adminKey') || '') : '';
+    if (!key) { _lastAppsOrderError = '未开启管理员模式'; return Promise.resolve(false); }
+    return fetch('/api/apps', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'x-admin-key': key },
+      body: JSON.stringify({ _reorder: officialApps.map((a) => a.id) }),
+    })
+      .then((r) => {
+        if (!r.ok) {
+          _lastAppsOrderError = r.status === 401 ? '密钥不被接受（401）：请重新输入管理员密钥' : '服务端错误 ' + r.status;
+          return false;
+        }
+        _lastAppsOrderError = '';
+        return true;
+      })
+      .catch((e) => {
+        _lastAppsOrderError = '网络异常：' + (e && e.message ? e.message : e);
+        return false;
+      });
+  }
+
+  // 导出当前 officialApps 为 official-apps.json 格式（供 git 版本化）
+  function exportAppsJson() {
+    return JSON.stringify(officialApps, null, 2);
+  }
+
+  // 在浏览器端下载导出的 official-apps.json
+  function downloadAppsJson() {
+    const json = exportAppsJson();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'official-apps.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   // 旧版曾把内置示例写进 localStorage（个人层），这里移除与官方目录重复的示例，避免重复展示
   function migrateLegacyApps() {
     if (!officialApps.length) return;
@@ -1005,6 +1087,14 @@ const Store = (function () {
     deleteOfficialApp,
     deleteApp,
     getAppCategories,
+    // APP 排序（管理员）
+    moveApp,
+    reorderAppBefore,
+    pinApp,
+    publishAppsOrder,
+    getAppsOrderError,
+    exportAppsJson,
+    downloadAppsJson,
     ready,
     init,
     // 首页小工具
