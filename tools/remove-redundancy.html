@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>消除冗余</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5f6f8;
+    color: #1f2329;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1020px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 22px; margin: 4px 0 4px; }
+  .sub { color: #6b7280; font-size: 13px; margin-bottom: 16px; }
+  section { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; margin-bottom: 14px; }
+  section.hidden { display: none; }
+  .hint { font-size: 13px; color: #667085; background: #f0f6ff; border: 1px solid #d6e4ff; padding: 10px 12px; border-radius: 8px; margin: 0 0 14px; }
+  .warn { color:#b54708; background:#fffaeb; border:1px solid #fedf89; padding:10px 12px; border-radius:8px; font-size:13px; margin-bottom:12px; }
+  label { display: block; font-size: 13px; font-weight: 600; color: #344054; margin: 12px 0 6px; }
+  input[type="file"] { width: 100%; font-size: 14px; font-family: inherit; padding: 8px; border: 1px dashed #b6c2d4; border-radius: 8px; background: #fafbfc; }
+  .btn {
+    display: inline-block; border: none; background: #2563eb; color: #fff;
+    padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;
+    margin-top: 12px;
+  }
+  .btn:disabled { background: #b6c2d4; cursor: not-allowed; }
+  .btn.secondary { background: #eef2f6; color: #344054; }
+  .btn.danger { background: #d92d20; }
+  .btnrow { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .status { font-size: 13px; color: #344054; margin-top: 12px; min-height: 20px; }
+  .status.err { color: #d92d20; }
+  .status.ok { color: #067647; }
+  .progress { height: 8px; background: #e5e7eb; border-radius: 6px; margin-top: 12px; overflow: hidden; }
+  .progress.hidden { display: none; }
+  .progress .bar { height: 100%; width: 0; background: #16a34a; transition: width .15s; }
+  .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #344054; margin-right: 14px; margin-top: 8px; }
+  .chk input { width: 15px; height: 15px; margin: 0; }
+  table.grid { border-collapse: collapse; width: 100%; font-size: 13px; margin-top: 10px; }
+  table.grid th, table.grid td { border: 1px solid #e5e7eb; padding: 6px 8px; text-align: left; vertical-align: middle; }
+  table.grid th { background: #f7f8fa; font-weight: 600; }
+  table.grid td.num, table.grid th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .scroll { max-height: 380px; overflow: auto; border: 1px solid #e5e7eb; border-radius: 8px; }
+  .scroll table.grid { margin-top: 0; border: none; }
+  .scroll table.grid th { position: sticky; top: 0; z-index: 1; }
+  .empty { color: #98a2b3; font-size: 13px; padding: 12px 0; }
+  .tag { display:inline-block; padding:1px 8px; border-radius:999px; font-size:12px; font-weight:600; }
+  .tag.danger { background:#fef3f2; color:#b42318; border:1px solid #fecdca; }
+  .tag.info   { background:#eff8ff; color:#175cd3; border:1px solid #b2ddff; }
+  .tag.gray   { background:#f2f4f7; color:#475467; border:1px solid #e4e7ec; }
+  .stats { display:flex; gap:10px; flex-wrap:wrap; margin: 4px 0 6px; }
+  .stat { background:#f7f8fa; border:1px solid #e5e7eb; border-radius:8px; padding:8px 12px; font-size:13px; }
+  .stat b { font-size:16px; }
+  .stat.bad b { color:#b42318; }
+  .muted { color:#98a2b3; font-size:12px; }
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+    background: #1f2329; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 14px;
+    z-index: 50; opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+  .toast.hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🧹 消除冗余</h1>
+  <div class="sub">扫描 Excel 里的隐形冗余对象（无字符的对话框 / 标注、空批注等），预览勾选后一键清理并下载 — 纯本地处理，不联网</div>
+
+  <section id="secUpload">
+    <div class="hint">
+      支持格式：<b>.xlsx / .xlsm</b>（不支持老版 .xls）。工具会解包文件扫描<b>绘图层形状</b>与<b>批注</b>：<br>
+      ① <b>无字符的对话框/标注形状</b>（如图纸里多余的空气泡框）——默认勾选「无文本 且 (标注类 或 无填充无边框)」的对象；<br>
+      ② <b>空批注</b>（没有任何字符的批注框，连同其影子形状一起删除）；<br>
+      ③ 连接线、图片、图表、组合形状<b>只统计不删除</b>，避免误删组织架构图等内容。所有对象都会列出来，由你勾选确认后才删除。
+    </div>
+    <label for="fileInput">选择 Excel 文件</label>
+    <input type="file" id="fileInput" accept=".xlsx,.xlsm">
+    <div class="status" id="upStatus"></div>
+    <div class="progress hidden" id="upProgress"><div class="bar"></div></div>
+  </section>
+
+  <section id="secResult" class="hidden">
+    <div class="stats" id="statsRow"></div>
+    <div class="muted" id="skipInfo" style="margin-bottom:6px;"></div>
+
+    <div>
+      <span class="chk"><input type="checkbox" id="chkOnlyEmpty" checked> 列表只显示可删除的空对象（取消勾选显示全部）</span>
+      <span class="chk"><input type="checkbox" id="chkInvisible" checked> 默认勾选「无填充无边框」的完全隐形形状</span>
+      <span class="chk"><input type="checkbox" id="chkCallout" checked> 默认勾选「标注/对话框」类空形状</span>
+    </div>
+
+    <div class="btnrow">
+      <button class="btn secondary" id="btnDefault">恢复默认勾选</button>
+      <button class="btn secondary" id="btnAll">全选</button>
+      <button class="btn secondary" id="btnNone">全不选</button>
+    </div>
+
+    <div class="scroll" id="tableWrap"></div>
+
+    <div class="btnrow" style="margin-top:14px;">
+      <button class="btn danger" id="btnClean">🧹 清除勾选对象并下载</button>
+      <span class="muted" id="selCount"></span>
+    </div>
+    <div class="status" id="cleanStatus"></div>
+    <div class="progress hidden" id="cleanProgress"><div class="bar"></div></div>
+  </section>
+</div>
+<div class="toast hidden" id="toast"></div>
+
+<script src="lib/fflate.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  // ---------- 小工具函数 ----------
+  var $ = function (id) { return document.getElementById(id); };
+  var fileInput = $('fileInput');
+  var upStatus = $('upStatus');
+  var upProgress = $('upProgress');
+  var cleanStatus = $('cleanStatus');
+  var cleanProgress = $('cleanProgress');
+  var toastEl = $('toast');
+  var toastTimer = null;
+
+  function toast(msg, ms) {
+    toastEl.textContent = msg;
+    toastEl.classList.remove('hidden');
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () {
+      toastEl.classList.remove('show');
+      toastEl.classList.add('hidden');
+    }, ms || 2600);
+  }
+  function setStatus(el, msg, cls) { el.textContent = msg; el.className = 'status' + (cls ? ' ' + cls : ''); }
+  function showProgress(el, pct) { el.classList.remove('hidden'); el.querySelector('.bar').style.width = Math.round(pct * 100) + '%'; }
+  function hideProgress(el) { el.classList.add('hidden'); el.querySelector('.bar').style.width = '0'; }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function colLettersToIdx(letters) { // A->0
+    var n = 0;
+    for (var i = 0; i < letters.length; i++) n = n * 26 + (letters.charCodeAt(i) - 64);
+    return n - 1;
+  }
+  function cellToRC(ref) {
+    var m = /^([A-Z]+)(\d+)$/.exec(String(ref).toUpperCase());
+    if (!m) return null;
+    return { row: parseInt(m[2], 10) - 1, col: colLettersToIdx(m[1]) };
+  }
+  function rcToCell(r, c) {
+    var s = '', n = c + 1;
+    while (n > 0) { var m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); }
+    return s + (r + 1);
+  }
+
+  // ---------- XML 遍历辅助（按 localName，避免前缀差异） ----------
+  function descendants(el, local) {
+    var out = [];
+    if (!el) return out;
+    var all = el.getElementsByTagName('*');
+    for (var i = 0; i < all.length; i++) if (all[i].localName === local) out.push(all[i]);
+    return out;
+  }
+  function firstDesc(el, local) { var a = descendants(el, local); return a.length ? a[0] : null; }
+  function directChild(el, local) {
+    if (!el) return null;
+    var ch = el.children;
+    for (var i = 0; i < ch.length; i++) if (ch[i].localName === local) return ch[i];
+    return null;
+  }
+  function relAttr(el, name) { // r:id 等 relationships 命名空间属性
+    if (!el) return null;
+    var v = el.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', name);
+    if (v != null) return v;
+    var attrs = el.attributes;
+    for (var i = 0; i < attrs.length; i++) {
+      var a = attrs[i];
+      if (a.localName === name && /relationships/.test(a.namespaceURI || '')) return a.value;
+    }
+    return el.getAttribute(name); // 兜底
+  }
+  function parseXml(str) {
+    var doc = new DOMParser().parseFromString(str, 'application/xml');
+    if (doc.getElementsByTagName('parsererror').length) return null;
+    return doc.documentElement;
+  }
+  function serXml(el) { return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + new XMLSerializer().serializeToString(el); }
+
+  // ---------- 状态 ----------
+  var srcName = '';
+  var srcExt = '.xlsx';
+  var zipFiles = null;      // { path: Uint8Array }
+  var items = [];           // 扫描结果
+  var skippedStat = { cxn: 0, pic: 0, frame: 0, group: 0, other: 0 };
+
+  // ---------- 工作簿结构映射：路径 -> 工作表名 ----------
+  function buildSheetMap(files) {
+    var map = { drawing: {}, comment: {}, vml: {} }; // path -> sheetName
+    try {
+      var wbXml = fflate.strFromU8(files['xl/workbook.xml']);
+      var wbRels = fflate.strFromU8(files['xl/_rels/workbook.xml.rels']);
+      if (!wbXml || !wbRels) return map;
+      var wb = parseXml(wbXml), rels = parseXml(wbRels);
+      if (!wb || !rels) return map;
+
+      var relMap = {};
+      Array.prototype.forEach.call(rels.getElementsByTagName('*'), function (r) {
+        if (r.localName === 'Relationship') relMap[r.getAttribute('Id')] = r.getAttribute('Target');
+      });
+      function resolve(base, target) { // base 形如 'xl/worksheets/sheet1.xml'
+        var t = String(target || '').replace(/^\//, '');
+        if (/^[a-zA-Z]+:/.test(t)) return t; // 绝对路径（罕见）
+        var parts = base.split('/');
+        parts.pop();
+        t.split('/').forEach(function (p) {
+          if (p === '..') parts.pop();
+          else if (p !== '.') parts.push(p);
+        });
+        return parts.join('/');
+      }
+
+      var sheets = [];
+      Array.prototype.forEach.call(wb.getElementsByTagName('*'), function (s) {
+        if (s.localName === 'sheet') sheets.push(s);
+      });
+      sheets.forEach(function (s) {
+        var name = s.getAttribute('name') || ('Sheet' + (sheets.indexOf(s) + 1));
+        var rid = relAttr(s, 'id');
+        var target = relMap[rid];
+        if (!target) return;
+        var sheetPath = resolve('xl/workbook.xml', target); // xl/worksheets/sheetN.xml
+
+        // 读该 sheet 的 rels，找 drawing / comments / vmlDrawing
+        var m = /\/([^\/]+)$/.exec(sheetPath);
+        var relsPath = sheetPath.replace(/\/([^\/]+)$/, '/_rels/$1.rels');
+        var relsStr = files[relsPath] && fflate.strFromU8(files[relsPath]);
+        if (!relsStr) return;
+        var sr = parseXml(relsStr);
+        if (!sr) return;
+        Array.prototype.forEach.call(sr.getElementsByTagName('*'), function (r) {
+          if (r.localName !== 'Relationship') return;
+          var type = r.getAttribute('Type') || '';
+          var tgt = resolve(sheetPath, r.getAttribute('Target'));
+          if (/\/drawing$/.test(type)) map.drawing[tgt] = name;
+          else if (/\/comments$/.test(type)) map.comment[tgt] = name;
+          else if (/\/vmlDrawing$/.test(type)) map.vml[tgt] = name;
+        });
+      });
+    } catch (e) { /* 结构异常时降级：不显示工作表名 */ }
+    return map;
+  }
+
+  // ---------- 扫描：绘图层形状 ----------
+  function scanDrawing(path, sheetMap) {
+    var doc = parseXml(fflate.strFromU8(zipFiles[path]));
+    if (!doc) return;
+    var anchors = [];
+    Array.prototype.forEach.call(doc.children, function (el) {
+      if (/Anchor$/.test(el.localName || '')) anchors.push(el);
+    });
+    anchors.forEach(function (anchor, anchorIdx) {
+      // 主对象：anchor 直接子元素里的 sp / grpSp / pic / cxnSp / graphicFrame
+      var main = null;
+      Array.prototype.forEach.call(anchor.children, function (c) {
+        if (['sp', 'grpSp', 'pic', 'cxnSp', 'graphicFrame'].indexOf(c.localName) >= 0 && !main) main = c;
+      });
+      if (!main) return;
+
+      // 位置（from 锚点单元格）
+      var fromEl = directChild(anchor, 'from');
+      var pos = '';
+      if (fromEl) {
+        var cEl = firstDesc(fromEl, 'col'), rEl = firstDesc(fromEl, 'row');
+        if (cEl && rEl) pos = rcToCell(parseInt(rEl.textContent, 10) || 0, parseInt(cEl.textContent, 10) || 0);
+      }
+
+      if (main.localName === 'sp') {
+        var text = '';
+        var tb = firstDesc(main, 'txBody');
+        if (tb) descendants(tb, 't').forEach(function (t) { text += t.textContent; });
+        text = (text || '').replace(/\u00A0/g, ' ').trim();
+        var spPr = firstDesc(main, 'spPr');
+        var geomEl = spPr && firstDesc(spPr, 'prstGeom');
+        var prst = geomEl ? (geomEl.getAttribute('prst') || '') : '';
+        var isCust = spPr && !!firstDesc(spPr, 'custGeom');
+        // 填充/线条
+        var fill = null, line = null;
+        if (spPr) {
+          Array.prototype.forEach.call(spPr.children, function (c) {
+            if (/Fill$/.test(c.localName) && !fill) fill = c.localName;
+            if (c.localName === 'ln' && !line) line = c;
+          });
+        }
+        var noFill = fill === 'noFill';
+        var noLine = !!(line && directChild(line, 'noFill'));
+        var nameEl = firstDesc(main, 'cNvPr');
+        var shapeName = nameEl ? (nameEl.getAttribute('name') || '') : '';
+        var isCallout = /callout/i.test(prst);
+        var invisible = noFill && noLine;
+        items.push({
+          kind: 'shape', xmlPath: path, anchorIdx: anchorIdx, sheet: sheetMap.drawing[path] || '（未知工作表）',
+          objName: shapeName || ('形状#' + (anchorIdx + 1)), geom: prst ? prst : (isCust ? '自定义图形' : '默认矩形'),
+          text: text, noText: !text, isCallout: isCallout, invisible: invisible, inGroup: false,
+          pos: pos, removable: true, checked: false,
+        });
+      } else if (main.localName === 'grpSp') {
+        var inner = descendants(main, 'sp').length;
+        skippedStat.group += 1;
+        if (inner > 0) {
+          // 组合形状整体列出（不拆删），供了解
+          items.push({
+            kind: 'group', xmlPath: path, anchorIdx: anchorIdx, sheet: sheetMap.drawing[path] || '（未知工作表）',
+            objName: '组合形状', geom: '组（含 ' + inner + ' 个子形状）', text: '', noText: false,
+            isCallout: false, invisible: false, inGroup: true, pos: pos, removable: false, checked: false,
+          });
+        }
+      } else if (main.localName === 'cxnSp') skippedStat.cxn += 1;
+      else if (main.localName === 'pic') skippedStat.pic += 1;
+      else if (main.localName === 'graphicFrame') skippedStat.frame += 1;
+    });
+  }
+
+  // ---------- 扫描：空批注 ----------
+  function scanComments(path, sheetMap, vmlMapBySheet) {
+    var doc = parseXml(fflate.strFromU8(zipFiles[path]));
+    if (!doc) return;
+    var sheetName = sheetMap.comment[path] || '（未知工作表）';
+    var comments = descendants(doc, 'comment');
+    comments.forEach(function (cm) {
+      var ref = cm.getAttribute('ref') || '';
+      var text = '';
+      descendants(cm, 't').forEach(function (t) { text += t.textContent; });
+      text = (text || '').trim();
+      if (text) return; // 只关心空批注
+      var rc = cellToRC(ref);
+      items.push({
+        kind: 'comment', xmlPath: path, sheet: sheetName,
+        objName: '空批注', geom: '批注框', text: '', noText: true,
+        isCallout: false, invisible: true, inGroup: false,
+        pos: ref || '', ref: ref, row: rc ? rc.row : -1, col: rc ? rc.col : -1,
+        vmlPath: vmlMapBySheet[sheetName] || null, removable: true, checked: true, commentCount: comments.length,
+      });
+    });
+  }
+
+  // ---------- 主扫描 ----------
+  function scanAll() {
+    items = [];
+    skippedStat = { cxn: 0, pic: 0, frame: 0, group: 0, other: 0 };
+    var sheetMap = buildSheetMap(zipFiles);
+
+    // vml 按工作表归集（供批注删除时定位影子形状）
+    var vmlBySheet = {};
+    Object.keys(sheetMap.vml).forEach(function (p) { vmlBySheet[sheetMap.vml[p]] = p; });
+
+    Object.keys(zipFiles).forEach(function (p) {
+      if (/^xl\/drawings\/drawing\d+\.xml$/.test(p)) scanDrawing(p, sheetMap);
+    });
+    Object.keys(zipFiles).forEach(function (p) {
+      if (/^xl\/comments\d+\.xml$/.test(p)) scanComments(p, sheetMap, vmlBySheet);
+    });
+  }
+
+  // ---------- 默认勾选规则 ----------
+  function applyDefaultChecks() {
+    var useInvisible = $('chkInvisible').checked;
+    var useCallout = $('chkCallout').checked;
+    items.forEach(function (it) {
+      if (!it.removable) { it.checked = false; return; }
+      if (it.kind === 'comment') { it.checked = true; return; }
+      if (!it.noText) { it.checked = false; return; }
+      it.checked = (useCallout && it.isCallout) || (useInvisible && it.invisible);
+    });
+  }
+
+  // ---------- 渲染 ----------
+  function visibleItems() {
+    var onlyEmpty = $('chkOnlyEmpty').checked;
+    return items.filter(function (it) { return !onlyEmpty || (it.removable && it.noText); });
+  }
+
+  function kindBadge(it) {
+    if (it.kind === 'comment') return '<span class="tag danger">空批注</span>';
+    if (it.inGroup) return '<span class="tag gray">组合内 · 不拆删</span>';
+    if (it.isCallout) return '<span class="tag danger">对话框/标注</span>';
+    if (it.invisible) return '<span class="tag danger">完全隐形</span>';
+    if (it.noText) return '<span class="tag info">无字符形状</span>';
+    return '<span class="tag gray">有内容</span>';
+  }
+
+  function renderStats() {
+    var delable = items.filter(function (it) { return it.removable && it.noText; }).length;
+    var comments = items.filter(function (it) { return it.kind === 'comment'; }).length;
+    var shapes = items.filter(function (it) { return it.kind === 'shape'; }).length;
+    var html = ''
+      + '<div class="stat">形状对象 <b>' + shapes + '</b> 个</div>'
+      + '<div class="stat">批注 <b>' + comments + '</b> 条</div>'
+      + '<div class="stat bad">可清理空对象 <b>' + delable + '</b> 个</div>'
+      + '<div class="stat">默认已勾选 <b id="statChecked">0</b> 个</div>';
+    $('statsRow').innerHTML = html;
+    var skip = [];
+    if (skippedStat.cxn) skip.push('连接线 ' + skippedStat.cxn);
+    if (skippedStat.pic) skip.push('图片 ' + skippedStat.pic);
+    if (skippedStat.frame) skip.push('图表/表格框 ' + skippedStat.frame);
+    if (skippedStat.group) skip.push('组合形状 ' + skippedStat.group);
+    $('skipInfo').textContent = skip.length
+      ? ('未纳入清理（仅统计，防误删）：' + skip.join('、'))
+      : '未发现连接线 / 图片 / 图表 / 组合形状。';
+  }
+
+  function renderTable() {
+    var list = visibleItems();
+    if (!list.length) {
+      $('tableWrap').innerHTML = '<div class="empty" style="padding:16px;">没有符合条件的对象 🎉</div>';
+      updateSelCount();
+      return;
+    }
+    var rows = list.map(function (it) {
+      var idx = items.indexOf(it);
+      var textShow = it.text ? esc(it.text.slice(0, 30)) : '<span class="muted">（无字符）</span>';
+      var dis = it.removable ? '' : ' disabled';
+      return '<tr>'
+        + '<td style="width:34px;text-align:center;"><input type="checkbox" data-chk="' + idx + '"' + (it.checked ? ' checked' : '') + dis + '></td>'
+        + '<td>' + esc(it.sheet) + '</td>'
+        + '<td>' + kindBadge(it) + '</td>'
+        + '<td>' + esc(it.objName) + '</td>'
+        + '<td>' + esc(it.geom) + '</td>'
+        + '<td>' + (it.pos ? esc(it.pos) : '<span class="muted">—</span>') + '</td>'
+        + '<td>' + textShow + '</td>'
+        + '</tr>';
+    }).join('');
+    $('tableWrap').innerHTML =
+      '<table class="grid"><thead><tr>'
+      + '<th style="width:34px;"></th><th>工作表</th><th>类型</th><th>名称</th><th>几何</th><th>位置</th><th>文字内容</th>'
+      + '</tr></thead><tbody>' + rows + '</tbody></table>';
+
+    Array.prototype.forEach.call($('tableWrap').querySelectorAll('input[data-chk]'), function (cb) {
+      cb.addEventListener('change', function () {
+        items[parseInt(cb.getAttribute('data-chk'), 10)].checked = cb.checked;
+        updateSelCount();
+      });
+    });
+    updateSelCount();
+  }
+
+  function updateSelCount() {
+    var n = items.filter(function (it) { return it.checked && it.removable; }).length;
+    var el = $('selCount');
+    if (el) el.textContent = '已勾选 ' + n + ' 个对象';
+    var sc = $('statChecked');
+    if (sc) sc.textContent = n;
+    $('btnClean').disabled = n === 0;
+  }
+
+  // ---------- 清理并重打包 ----------
+  function deleteShapeAnchors(xmlStr, delIdxSet) {
+    var doc = parseXml(xmlStr);
+    if (!doc) return null;
+    var anchors = [];
+    Array.prototype.forEach.call(doc.children, function (el) {
+      if (/Anchor$/.test(el.localName || '')) anchors.push(el);
+    });
+    var removed = 0;
+    delIdxSet.forEach(function (i) {
+      if (anchors[i]) { anchors[i].parentNode.removeChild(anchors[i]); removed++; }
+    });
+    return { xml: serXml(doc), removed: removed };
+  }
+
+  function deleteComments(commentsStr, refs) {
+    var doc = parseXml(commentsStr);
+    if (!doc) return null;
+    var removed = 0;
+    descendants(doc, 'comment').forEach(function (cm) {
+      if (refs.indexOf(cm.getAttribute('ref') || '') >= 0) {
+        cm.parentNode.removeChild(cm);
+        removed++;
+      }
+    });
+    return { xml: serXml(doc), removed: removed };
+  }
+
+  function deleteVmlNoteShapes(vmlStr, rcList) {
+    var doc = parseXml(vmlStr);
+    if (!doc) return null;
+    var removed = 0;
+    descendants(doc, 'ClientData').forEach(function (cd) {
+      var ot = cd.getAttribute('ObjectType');
+      if (!ot) {
+        var attrs = cd.attributes;
+        for (var i = 0; i < attrs.length; i++) {
+          if (attrs[i].localName === 'ObjectType') { ot = attrs[i].value; break; }
+        }
+      }
+      if (ot !== 'Note') return;
+      var rEl = firstDesc(cd, 'Row'), cEl = firstDesc(cd, 'Column');
+      if (!rEl || !cEl) return;
+      var r = parseInt(rEl.textContent, 10), c = parseInt(cEl.textContent, 10);
+      var hit = rcList.some(function (rc) { return rc.row === r && rc.col === c; });
+      if (!hit) return;
+      var node = cd;
+      while (node && node.localName !== 'shape') node = node.parentNode;
+      if (node && node.parentNode) { node.parentNode.removeChild(node); removed++; }
+    });
+    return { xml: serXml(doc), removed: removed };
+  }
+
+  function doClean() {
+    var selected = items.filter(function (it) { return it.checked && it.removable; });
+    if (!selected.length) { toast('请先勾选要清理的对象'); return; }
+
+    $('btnClean').disabled = true;
+    setStatus(cleanStatus, '正在清理…');
+    showProgress(cleanProgress, 0.15);
+
+    setTimeout(function () {
+      try {
+        var out = {};
+        Object.keys(zipFiles).forEach(function (k) { out[k] = zipFiles[k]; }); // 浅拷贝引用
+        var touched = {};
+
+        // 1) 删形状锚点（按 xmlPath 分组）
+        var byXml = {};
+        selected.forEach(function (it) {
+          if (it.kind !== 'shape') return;
+          (byXml[it.xmlPath] = byXml[it.xmlPath] || []).push(it.anchorIdx);
+        });
+        var shapeRemoved = 0;
+        Object.keys(byXml).forEach(function (p) {
+          var r = deleteShapeAnchors(fflate.strFromU8(zipFiles[p]), byXml[p]);
+          if (r) { touched[p] = fflate.strToU8(r.xml); shapeRemoved += r.removed; }
+        });
+
+        // 2) 删空批注 + VML 影子形状（按 commentsPath 分组）
+        var byCmt = {};
+        selected.forEach(function (it) {
+          if (it.kind !== 'comment') return;
+          (byCmt[it.xmlPath] = byCmt[it.xmlPath] || []).push(it);
+        });
+        var cmtRemoved = 0, vmlRemoved = 0;
+        Object.keys(byCmt).forEach(function (p) {
+          var list = byCmt[p];
+          var refs = list.map(function (it) { return it.ref; });
+          var r = deleteComments(fflate.strFromU8(zipFiles[p]), refs);
+          if (r) { touched[p] = fflate.strToU8(r.xml); cmtRemoved += r.removed; }
+          // VML
+          var vmlPath = list[0].vmlPath;
+          if (vmlPath && zipFiles[vmlPath]) {
+            var rcList = list.filter(function (it) { return it.row >= 0; }).map(function (it) { return { row: it.row, col: it.col }; });
+            var vr = deleteVmlNoteShapes(fflate.strFromU8(zipFiles[vmlPath]), rcList);
+            if (vr && vr.removed > 0) {
+              touched[vmlPath] = fflate.strToU8(vr.xml);
+              vmlRemoved += vr.removed;
+            }
+          }
+        });
+
+        showProgress(cleanProgress, 0.55);
+
+        // 3) 打包
+        Object.keys(touched).forEach(function (k) { out[k] = touched[k]; });
+        var zipped = fflate.zipSync(out, { level: 6 });
+        showProgress(cleanProgress, 0.95);
+
+        var blob = new Blob([zipped], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        var base = srcName.replace(/\.(xlsx|xlsm)$/i, '');
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = base + '_已清理' + srcExt;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+
+        hideProgress(cleanProgress);
+        setStatus(cleanStatus,
+          '✅ 清理完成：删除形状 ' + shapeRemoved + ' 个、空批注 ' + cmtRemoved + ' 条（影子形状 ' + vmlRemoved + ' 个），已开始下载「' + a.download + '」', 'ok');
+        toast('清理完成，文件已开始下载');
+      } catch (e) {
+        hideProgress(cleanProgress);
+        setStatus(cleanStatus, '清理失败：' + (e && e.message ? e.message : e), 'err');
+      } finally {
+        $('btnClean').disabled = false;
+      }
+    }, 30);
+  }
+
+  // ---------- 入口 ----------
+  function handleFile(file) {
+    if (!file) return;
+    if (!/\.(xlsx|xlsm)$/i.test(file.name)) {
+      setStatus(upStatus, '仅支持 .xlsx / .xlsm（老版 .xls 不是 zip 结构，请先另存为 xlsx）', 'err');
+      return;
+    }
+    srcName = file.name;
+    srcExt = /\.(xlsx|xlsm)$/i.exec(file.name)[0].toLowerCase();
+    setStatus(upStatus, '读取中…');
+    showProgress(upProgress, 0.1);
+
+    var fr = new FileReader();
+    fr.onload = function () {
+      var u8 = new Uint8Array(fr.result);
+      fflate.unzip(u8, function (err, files) {
+        if (err) { setStatus(upStatus, '解包失败：' + err.message, 'err'); hideProgress(upProgress); return; }
+        zipFiles = files;
+        showProgress(upProgress, 0.6);
+        setTimeout(function () {
+          try {
+            scanAll();
+            applyDefaultChecks();
+            renderStats();
+            renderTable();
+            showProgress(upProgress, 1);
+            hideProgress(upProgress);
+            var delable = items.filter(function (it) { return it.removable && it.noText; }).length;
+            $('secResult').classList.remove('hidden');
+            if (delable === 0) {
+              setStatus(upStatus, '扫描完成：没有发现可清理的空对象 🎉', 'ok');
+            } else {
+              setStatus(upStatus, '扫描完成：发现 ' + delable + ' 个空对象，已在下方列出（默认勾选了「对话框/标注」与「完全隐形」项）', 'ok');
+            }
+          } catch (e) {
+            setStatus(upStatus, '扫描失败：' + (e && e.message ? e.message : e), 'err');
+            hideProgress(upProgress);
+          }
+        }, 20);
+      });
+    };
+    fr.onerror = function () { setStatus(upStatus, '文件读取失败', 'err'); };
+    fr.readAsArrayBuffer(file);
+  }
+
+  fileInput.addEventListener('change', function () { handleFile(fileInput.files[0]); });
+
+  ['chkOnlyEmpty', 'chkInvisible', 'chkCallout'].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      if (id !== 'chkOnlyEmpty') applyDefaultChecks();
+      renderTable();
+    });
+  });
+  $('btnDefault').addEventListener('click', function () { applyDefaultChecks(); renderTable(); });
+  $('btnAll').addEventListener('click', function () {
+    items.forEach(function (it) { if (it.removable) it.checked = true; });
+    renderTable();
+  });
+  $('btnNone').addEventListener('click', function () {
+    items.forEach(function (it) { it.checked = false; });
+    renderTable();
+  });
+  $('btnClean').addEventListener('click', doClean);
+})();
+</script>
+</body>
+</html>

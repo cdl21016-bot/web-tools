@@ -947,6 +947,14 @@ const Store = (function () {
         builtin: true,
         src: 'tools/electrician-toolkit.html',
       },
+      {
+        id: 'tool_xlsx_clean',
+        name: '消除冗余',
+        icon: '🧹',
+        description: '上传 Excel（xlsx/xlsm）自动扫描隐形冗余对象：无字符的对话框/标注、完全隐形形状、空批注，预览勾选后一键清理下载，纯本地处理',
+        builtin: true,
+        src: 'tools/remove-redundancy.html',
+      },
     ];
 
     // 每次初始化都确保内置工具存在（按 id upsert），同时保留用户上传的工具。
