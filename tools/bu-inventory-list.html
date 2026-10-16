@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BU盘点清册制作</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5f6f8;
+    color: #1f2329;
+    line-height: 1.5;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 20px 16px 60px; }
+  h1 { font-size: 22px; margin: 4px 0 4px; }
+  .sub { color: #6b7280; font-size: 13px; margin-bottom: 16px; }
+  h2 { font-size: 15px; margin: 0 0 12px; color: #344054; display: flex; align-items: center; gap: 8px; }
+  h2 .tag { font-size: 11px; font-weight: 600; background: #eef2f6; color: #475467; border-radius: 999px; padding: 2px 9px; }
+  section { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+  .hint { font-size: 13px; color: #667085; background: #f0f6ff; border: 1px solid #d6e4ff; padding: 10px 12px; border-radius: 8px; margin: 0 0 14px; }
+  .warn { color: #b54708; background: #fffaeb; border: 1px solid #fedf89; padding: 10px 12px; border-radius: 8px; font-size: 13px; margin: 10px 0 0; }
+  .err  { color: #b42318; background: #fef3f2; border: 1px solid #fecdca; padding: 10px 12px; border-radius: 8px; font-size: 13px; margin: 10px 0 0; }
+  .ok   { color: #067647; background: #ecfdf3; border: 1px solid #abefc6; padding: 10px 12px; border-radius: 8px; font-size: 13px; margin: 10px 0 0; }
+  .hidden { display: none !important; }
+  label { display: block; font-size: 13px; font-weight: 600; color: #344054; margin: 0 0 6px; }
+  select, input[type="text"] {
+    width: 100%; font-size: 14px; font-family: inherit; padding: 8px 10px;
+    border: 1px solid #d0d5dd; border-radius: 8px; background: #fff; color: #1f2329;
+  }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  @media (max-width: 720px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+
+  .drop {
+    border: 1.5px dashed #b6c2d4; border-radius: 10px; background: #fafbfc;
+    padding: 16px; text-align: center; cursor: pointer; transition: .15s; position: relative;
+  }
+  .drop:hover { border-color: #2563eb; background: #f5f9ff; }
+  .drop.over { border-color: #2563eb; background: #eff6ff; }
+  .drop.hasfile { border-style: solid; border-color: #16a34a; background: #f6fef9; text-align: left; }
+  .drop .big { font-size: 15px; font-weight: 600; color: #344054; }
+  .drop .small { font-size: 12px; color: #98a2b3; margin-top: 4px; }
+  .drop input[type="file"] { display: none; }
+  .fname { font-size: 14px; font-weight: 600; color: #067647; word-break: break-all; }
+  .fmeta { font-size: 12px; color: #667085; margin-top: 3px; }
+  .fclear { position: absolute; top: 8px; right: 10px; font-size: 12px; color: #98a2b3; cursor: pointer; }
+  .fclear:hover { color: #d92d20; }
+
+  .btn {
+    display: inline-block; border: none; background: #2563eb; color: #fff;
+    padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600;
+    font-family: inherit;
+  }
+  .btn:hover { background: #1d4ed8; }
+  .btn:disabled { background: #b6c2d4; cursor: not-allowed; }
+  .btn.secondary { background: #eef2f6; color: #344054; }
+  .btn.secondary:hover { background: #e3e8ef; }
+  .btn.green { background: #16a34a; }
+  .btn.green:hover { background: #15803d; }
+  .btnrow { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .stat { background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px 12px; }
+  .stat .k { font-size: 12px; color: #667085; }
+  .stat .v { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .stat.warnbox { background: #fffaeb; border-color: #fedf89; }
+  .stat.warnbox .v { color: #b54708; }
+  .stat.okbox { background: #f6fef9; border-color: #abefc6; }
+  .stat.okbox .v { color: #067647; }
+
+  .scroll { max-height: 460px; overflow: auto; border: 1px solid #e5e7eb; border-radius: 10px; }
+  table.grid { border-collapse: separate; border-spacing: 0; width: 100%; font-size: 13px; }
+  table.grid th, table.grid td { border-bottom: 1px solid #eef0f3; padding: 7px 10px; text-align: center; white-space: nowrap; }
+  table.grid th { background: #f7f8fa; font-weight: 600; position: sticky; top: 0; z-index: 2; border-bottom: 1px solid #dfe3e8; }
+  table.grid th.lead, table.grid td.lead { position: sticky; left: 0; background: #fff; z-index: 1; }
+  table.grid th.lead { background: #f7f8fa; z-index: 3; }
+  table.grid td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.grid tr.grpstart td { border-top: 2px solid #cfd8e3; }
+  table.grid td.pn { text-align: left; font-weight: 600; }
+  table.grid td.ok { color: #067647; }
+  table.grid td.bad { color: #d92d20; font-weight: 600; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; border-radius: 5px; padding: 1px 6px; }
+  .badge.ok { background: #ecfdf3; color: #067647; }
+  .badge.bad { background: #fef3f2; color: #b42318; }
+  .empty { color: #98a2b3; font-size: 13px; padding: 18px; text-align: center; }
+  .toast {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+    background: #1f2329; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 14px;
+    z-index: 50; opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+  .chk { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: #344054; cursor: pointer; }
+  .chk input { width: 15px; height: 15px; margin: 0; }
+  .colwrap { display: flex; flex-wrap: wrap; gap: 14px 22px; margin-top: 10px; }
+  code { background: #f1f3f6; border-radius: 4px; padding: 1px 5px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>BU盘点清册制作</h1>
+  <div class="sub">上传《BU清册》与《evmi清册》 → 自动查找料号、按储位汇总 eVMI 数量 → 按 BU 顺序生成《最终清册》并下载</div>
+
+  <!-- 步骤 1：上传 -->
+  <section>
+    <h2>① 上传文件 <span class="tag">XLSX / XLS / CSV</span></h2>
+    <div class="grid2">
+      <div class="drop" id="dropBU">
+        <div class="fclear hidden" id="clrBU">✕ 移除</div>
+        <div class="big">《BU清册》</div>
+        <div class="small">点击选择或拖拽文件到此处</div>
+        <input type="file" id="fileBU" accept=".xlsx,.xls,.xlsm,.csv,.tsv">
+      </div>
+      <div class="drop" id="dropEV">
+        <div class="fclear hidden" id="clrEV">✕ 移除</div>
+        <div class="big">《evmi清册》</div>
+        <div class="small">点击选择或拖拽文件到此处</div>
+        <input type="file" id="fileEV" accept=".xlsx,.xls,.xlsm,.csv,.tsv">
+      </div>
+    </div>
+    <div id="msg" class="hint hidden" style="margin-top:14px"></div>
+  </section>
+
+  <!-- 步骤 2：列映射 -->
+  <section id="mapCard" class="hidden">
+    <h2>② 列映射 <span class="tag">已自动识别，可按需调整</span></h2>
+    <div class="grid2">
+      <div>
+        <label style="margin-bottom:8px">《BU清册》</label>
+        <div class="grid3">
+          <div><label>工作表</label><select id="buSheet"></select></div>
+          <div><label>序号列</label><select id="buSeq"></select></div>
+          <div><label>料号列</label><select id="buPn"></select></div>
+        </div>
+        <div style="margin-top:10px"><label>系统账面数（SAP）列</label><select id="buSap"></select></div>
+        <div class="fmeta" id="buInfo"></div>
+      </div>
+      <div>
+        <label style="margin-bottom:8px">《evmi清册》</label>
+        <div class="grid3">
+          <div><label>工作表</label><select id="evSheet"></select></div>
+          <div><label>储位列</label><select id="evBin"></select></div>
+          <div><label>数量列</label><select id="evQty"></select></div>
+        </div>
+        <div style="margin-top:10px"><label>料号查找列（按顺序尝试）</label>
+          <div id="evPnWrap" class="colwrap"></div>
+        </div>
+        <div class="fmeta" id="evInfo"></div>
+      </div>
+    </div>
+    <div class="colwrap" style="margin-top:14px">
+      <label class="chk"><input type="checkbox" id="optZero"> 过滤合计为 0 的储位</label>
+      <label class="chk"><input type="checkbox" id="optKeep"> 未匹配的料号也输出一行（BinNo 留空）</label>
+    </div>
+    <div class="btnrow">
+      <button class="btn" id="btnRun">生成《最终清册》</button>
+      <button class="btn secondary" id="btnReset">重置</button>
+    </div>
+  </section>
+
+  <!-- 步骤 3：结果 -->
+  <section id="resCard" class="hidden">
+    <h2>③ 结果与下载</h2>
+    <div class="stats" id="stats"></div>
+    <div id="checks"></div>
+    <div class="btnrow" style="margin-top:0;margin-bottom:12px">
+      <label class="chk" style="margin-right:6px">文件名</label>
+      <input type="text" id="outName" value="最终清册" style="width:200px">
+      <button class="btn green" id="btnXlsx">下载《最终清册》.xlsx</button>
+      <button class="btn secondary" id="btnCsv">下载 CSV</button>
+      <button class="btn secondary" id="btnCopy">复制到剪贴板</button>
+    </div>
+    <div class="scroll" id="preview"></div>
+    <div class="fmeta" style="margin-top:8px" id="previewInfo"></div>
+  </section>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/exceljs.min.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /* ============================ 别名配置 ============================ */
+  var ALIAS = {
+    bu: {
+      seq: ['序號', '序号', '項次', '项次', '編號', '编号', 'NO', 'No', 'no', '#'],
+      pn:  ['料號', '料号', '料號碼', '料号编码', '物料號', '物料号', '物料编码',
+            '料件號', '料件号', '零件號', '零件号', '品號', '品号', 'PartNo', 'Part No', 'P/N'],
+      sap: ['系統帳面數', '系统账面数', '帳面數', '账面数', '系統帳面數量', '系統數量', '系统数量',
+            '账面数量', '庫存數量', '库存数量', 'SAP系統帳面數', 'SAP系统账面数']
+    },
+    ev: {
+      bin: ['BinNo', 'BINNO', 'Bin', '儲位', '储位', '儲位號', '储位号', '庫位', '库位', 'BinCode'],
+      qty: ['CurrentQty', 'Current Qty', '數量', '数量', '庫存數量', '库存数量', 'QTY', 'qty',
+            '帳面數', '账面数', '在庫數量', '在库数量'],
+      pn:  ['CustomerPartNo', 'Customer Part No', '客戶料號', '客户料号', '客戶品號',
+            'SupplierPartNo', 'Supplier Part No', '供應商料號', '供应商料号',
+            '料號', '料号', 'PartNo', 'Part No']
+    }
+  };
+  var OUT_HEADERS = ['序号', '料號', 'BinNo', 'eVMI系統帳面數', 'SAP系統帳面數', '实物数量', '盘点人'];
+  var OUT_WIDTHS  = [9.11, 27.44, 17.55, 29.0, 27.33, 22.55, 10];
+  var CJK = /[\u3400-\u9fff\u3000-\u303f\uff00-\uffef]/;
+
+  /* ============================ 工具函数 ============================ */
+  function $(id) { return document.getElementById(id); }
+  function norm(s) { return String(s == null ? '' : s).replace(/[\s\u3000]/g, '').toLowerCase(); }
+  function txt(s) { return s == null ? '' : String(s).replace(/[\s\u3000]+$/, '').replace(/^[\s\u3000]+/, ''); }
+  function num(v) {
+    if (v == null || v === '') return 0;
+    if (typeof v === 'number') return isFinite(v) ? v : 0;
+    var n = Number(String(v).replace(/[,\s\u3000]/g, ''));
+    return isFinite(n) ? n : 0;
+  }
+  function fmt(n) { return (typeof n === 'number' ? n : num(n)).toLocaleString('en-US'); }
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg; t.classList.remove('hidden'); t.classList.add('show');
+    clearTimeout(t._tm); t._tm = setTimeout(function () { t.classList.remove('show'); }, 1800);
+  }
+  function saveBlob(blob, filename) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(url); }, 400);
+  }
+  function stamp() {
+    var d = new Date(), p = function (x) { return ('0' + x).slice(-2); };
+    return '' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '_' + p(d.getHours()) + p(d.getMinutes());
+  }
+
+  /* 在表头行中按别名定位列：先全等匹配，再包含匹配 */
+  function findCol(headers, aliases) {
+    var nh = headers.map(norm), i, t;
+    for (i = 0; i < aliases.length; i++) {
+      t = norm(aliases[i]);
+      var e = nh.indexOf(t);
+      if (e >= 0) return e;
+    }
+    for (i = 0; i < aliases.length; i++) {
+      t = norm(aliases[i]);
+      if (!t) continue;
+      var c = nh.findIndex(function (h) { return h && h.indexOf(t) >= 0; });
+      if (c >= 0) return c;
+    }
+    return -1;
+  }
+  /* 找到表头所在行 */
+  function findHeaderRow(aoa, hintAliases) {
+    var lim = Math.min(aoa.length, 40);
+    for (var r = 0; r < lim; r++) {
+      var row = aoa[r] || [];
+      if (findCol(row, hintAliases) >= 0) return r;
+    }
+    return -1;
+  }
+  function colName(i) {
+    var s = '';
+    i = i + 1;
+    while (i > 0) { var m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); }
+    return s;
+  }
+
+  /* ============================ 读取工作簿 ============================ */
+  function readAOA(file) {
+    return file.arrayBuffer().then(function (buf) {
+      var wb = XLSX.read(new Uint8Array(buf), { type: 'array', cellDates: true, cellText: false });
+      return wb.SheetNames.map(function (name) {
+        var ws = wb.Sheets[name];
+        var aoa = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, blankrows: true, raw: true });
+        return { name: name, aoa: aoa };
+      });
+    });
+  }
+
+  /* ============================ 状态 ============================ */
+  var BU = null, EV = null;   // {file, sheets, sheetName}
+  var RES = null;             // 计算结果
+
+  /* ============================ 上传绑定 ============================ */
+  function bindDrop(dropId, inputId, clearId, which) {
+    var drop = $(dropId), input = $(inputId), clr = $(clearId);
+    drop.addEventListener('click', function (e) { if (e.target !== clr) input.click(); });
+    input.addEventListener('change', function () { if (input.files[0]) handleFile(which, input.files[0]); });
+    ['dragenter', 'dragover'].forEach(function (ev) {
+      drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); });
+    });
+    ['dragleave', 'drop'].forEach(function (ev) {
+      drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('over'); });
+    });
+    drop.addEventListener('drop', function (e) {
+      var f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) handleFile(which, f);
+    });
+    clr.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (which === 'bu') { BU = null; } else { EV = null; }
+      input.value = '';
+      drop.classList.remove('hasfile');
+      var f = drop.querySelector('.fname'); if (f) f.remove();
+      var m = drop.querySelector('.fmeta'); if (m) m.remove();
+      clr.classList.add('hidden');
+      resetBlock(which);
+      RES = null;
+      $('resCard').classList.add('hidden');
+      showMsg('已移除文件。', 'hint');
+      refresh();
+    });
+  }
+
+  function handleFile(which, file) {
+    var dropId = which === 'bu' ? 'dropBU' : 'dropEV';
+    showMsg('正在读取 ' + file.name + ' …', 'hint');
+    readAOA(file).then(function (sheets) {
+      var nonEmpty = sheets.filter(function (s) { return s.aoa && s.aoa.length; });
+      if (!nonEmpty.length) throw new Error('文件为空或无法解析');
+      var obj = { file: file, sheets: nonEmpty, sheetName: nonEmpty[0].name };
+      if (which === 'bu') { BU = obj; } else { EV = obj; }
+      buildSheetSelect(which);
+      applyAutoMap(which);
+      markDrop(which, file, nonEmpty.length);
+      refresh();
+      showMsg('已读取「' + file.name + '」，共 ' + nonEmpty.length + ' 个工作表。', 'ok');
+    }).catch(function (err) {
+      showMsg('读取「' + file.name + '」失败：' + (err && err.message ? err.message : err), 'err');
+    });
+  }
+
+  function markDrop(which, file, sheetCount) {
+    var drop = $(which === 'bu' ? 'dropBU' : 'dropEV');
+    var clr = $(which === 'bu' ? 'clrBU' : 'clrEV');
+    var old = drop.querySelector('.fname');
+    if (old) old.remove();
+    var oldm = drop.querySelector('.fmeta');
+    if (oldm) oldm.remove();
+    var d = document.createElement('div');
+    d.className = 'fname';
+    d.textContent = '✓ ' + file.name;
+    var m = document.createElement('div');
+    m.className = 'fmeta';
+    m.textContent = '工作表 ' + sheetCount + ' 个 · ' + (file.size / 1024).toFixed(1) + ' KB';
+    drop.appendChild(d); drop.appendChild(m);
+    drop.classList.add('hasfile');
+    clr.classList.remove('hidden');
+  }
+
+  function showMsg(text, cls) {
+    var m = $('msg');
+    m.className = 'hint ' + (cls === 'ok' ? 'ok' : cls === 'err' ? 'err' : '');
+    m.classList.remove('hidden');
+    m.textContent = text;
+  }
+
+  /* ============================ 列映射 UI ============================ */
+  function fillSelect(sel, items, selected, allowNone) {
+    sel.innerHTML = '';
+    if (allowNone) { var o0 = document.createElement('option'); o0.value = '-1'; o0.textContent = '（不使用）'; sel.appendChild(o0); }
+    items.forEach(function (it, i) {
+      var o = document.createElement('option');
+      o.value = String(it.value);
+      o.textContent = it.text;
+      if (String(it.value) === String(selected)) o.selected = true;
+      sel.appendChild(o);
+    });
+  }
+
+  function headerOptions(aoa, hdrRow) {
+    var row = aoa[hdrRow] || [];
+    var maxc = 0;
+    for (var r = hdrRow; r < Math.min(aoa.length, hdrRow + 60); r++) maxc = Math.max(maxc, (aoa[r] || []).length);
+    maxc = Math.max(maxc, row.length);
+    var out = [];
+    for (var c = 0; c < maxc; c++) {
+      var h = txt(row[c]);
+      out.push({ value: c, text: colName(c) + ' ' + (h ? '· ' + h : '（无标题）') });
+    }
+    return out;
+  }
+
+  function buildSheetSelect(which) {
+    var obj = which === 'bu' ? BU : EV;
+    var sel = $(which === 'bu' ? 'buSheet' : 'evSheet');
+    fillSelect(sel, obj.sheets.map(function (s) { return { value: s.name, text: s.name }; }), obj.sheetName, false);
+  }
+
+  function curAOA(which) {
+    var obj = which === 'bu' ? BU : EV;
+    var s = obj.sheets.filter(function (x) { return x.name === obj.sheetName; })[0] || obj.sheets[0];
+    return s.aoa;
+  }
+
+  /* 自动识别列 */
+  function applyAutoMap(which) {
+    var cfg = which === 'bu' ? ALIAS.bu : ALIAS.ev;
+    var aoa = curAOA(which);
+    var hint = which === 'bu' ? cfg.pn : cfg.pn;
+    var hr = findHeaderRow(aoa, hint);
+    if (hr < 0) hr = findHeaderRow(aoa, cfg.pn.concat(which === 'bu' ? cfg.seq : cfg.bin)) ;
+    if (hr < 0) hr = 0;
+    var headers = aoa[hr] || [];
+    var opts = headerOptions(aoa, hr);
+
+    if (which === 'bu') {
+      fillSelect($('buSeq'), opts, findCol(headers, cfg.seq), true);
+      fillSelect($('buPn'), opts, findCol(headers, cfg.pn), false);
+      fillSelect($('buSap'), opts, findCol(headers, cfg.sap), true);
+      $('buInfo').textContent = '表头位于第 ' + (hr + 1) + ' 行；数据自第 ' + (hr + 2) + ' 行起。';
+    } else {
+      fillSelect($('evBin'), opts, findCol(headers, cfg.bin), false);
+      fillSelect($('evQty'), opts, findCol(headers, cfg.qty), false);
+      var wrap = $('evPnWrap');
+      wrap.innerHTML = '';
+      var cands = [], seen = {};
+      cfg.pn.forEach(function (a) {
+        var i = exactOrContains(headers, a);
+        if (i >= 0 && !seen[i]) { seen[i] = 1; cands.push(i); }
+      });
+      if (!cands.length) { var f = findCol(headers, cfg.pn); if (f >= 0) cands.push(f); }
+      cands.forEach(function (c, k) {
+        var lb = document.createElement('label');
+        lb.className = 'chk';
+        var cb = document.createElement('input');
+        cb.type = 'checkbox'; cb.checked = true;
+        cb.dataset.col = String(c);
+        cb.className = 'evPnChk';
+        lb.appendChild(cb);
+        lb.appendChild(document.createTextNode(' ' + (k + 1) + '. ' + colName(c) + ' · ' + (txt(headers[c]) || '（无标题）')));
+        wrap.appendChild(lb);
+      });
+      $('evInfo').textContent = '表头位于第 ' + (hr + 1) + ' 行；数据自第 ' + (hr + 2) + ' 行起。';
+    }
+  }
+  function exactOrContains(headers, alias) {
+    var t = norm(alias), nh = headers.map(norm);
+    var e = nh.indexOf(t);
+    if (e >= 0) return e;
+    return nh.findIndex(function (h) { return h && h.indexOf(t) >= 0; });
+  }
+
+  /* 重新识别（切换工作表时） */
+  function resetBlock(which) {
+    if (which === 'bu') { $('buSeq').innerHTML = ''; $('buPn').innerHTML = ''; $('buSap').innerHTML = ''; $('buInfo').textContent = ''; $('buSheet').innerHTML = ''; }
+    else { $('evBin').innerHTML = ''; $('evQty').innerHTML = ''; $('evPnWrap').innerHTML = ''; $('evInfo').textContent = ''; $('evSheet').innerHTML = ''; }
+  }
+
+  /* ============================ 核心计算 ============================ */
+  function extractBU() {
+    var aoa = curAOA('bu');
+    var hr = findHeaderRow(aoa, ALIAS.bu.pn);
+    if (hr < 0) hr = findHeaderRow(aoa, ALIAS.bu.pn.concat(ALIAS.bu.seq));
+    if (hr < 0) throw new Error('《BU清册》未找到表头行（需包含「料號」列）');
+    var seqCol = parseInt($('buSeq').value, 10);
+    var pnCol = parseInt($('buPn').value, 10);
+    var sapCol = parseInt($('buSap').value, 10);
+    if (!(pnCol >= 0)) throw new Error('《BU清册》未指定料号列');
+    var parts = [], seenNo = 0;
+    for (var r = hr + 1; r < aoa.length; r++) {
+      var row = aoa[r] || [];
+      var pn = txt(row[pnCol]);
+      if (!pn) continue;
+      if (CJK.test(pn)) continue;
+      if (norm(pn).length < 3) continue;
+      seenNo++;
+      parts.push({
+        seq: seqCol >= 0 ? (row[seqCol] == null || row[seqCol] === '' ? '' : row[seqCol]) : seenNo,
+        pn: pn,
+        key: norm(pn),
+        sap: sapCol >= 0 ? num(row[sapCol]) : null,
+        row: r + 1
+      });
+    }
+    return { headerRow: hr, parts: parts };
+  }
+
+  function extractEV() {
+    var aoa = curAOA('ev');
+    var hr = findHeaderRow(aoa, ALIAS.ev.bin.concat(ALIAS.ev.qty));
+    if (hr < 0) hr = findHeaderRow(aoa, ALIAS.ev.pn);
+    if (hr < 0) throw new Error('《evmi清册》未找到表头行');
+    var binCol = parseInt($('evBin').value, 10);
+    var qtyCol = parseInt($('evQty').value, 10);
+    if (!(binCol >= 0)) throw new Error('《evmi清册》未指定储位列');
+    if (!(qtyCol >= 0)) throw new Error('《evmi清册》未指定数量列');
+    var pnCols = [];
+    Array.prototype.forEach.call(document.querySelectorAll('.evPnChk'), function (cb) {
+      if (cb.checked) pnCols.push(parseInt(cb.dataset.col, 10));
+    });
+    if (!pnCols.length) throw new Error('《evmi清册》至少勾选一个料号查找列');
+
+    var byCol = pnCols.map(function () { return { col: null, map: Object.create(null), bins: 0, rows: 0 }; });
+    pnCols.forEach(function (c, i) { byCol[i].col = c; });
+
+    var counts = Object.create(null);
+    for (var r = hr + 1; r < aoa.length; r++) {
+      var row = aoa[r] || [];
+      var bin = txt(row[binCol]);
+      if (!bin) continue;
+      var q = num(row[qtyCol]);
+      pnCols.forEach(function (c, i) {
+        var pn = txt(row[c]);
+        if (!pn || CJK.test(pn)) return;
+        var k = norm(pn);
+        var m = byCol[i].map;
+        if (!m[k]) { m[k] = Object.create(null); counts[k] = (counts[k] || 0) + 1; }
+        m[k][bin] = (m[k][bin] || 0) + q;
+      });
+    }
+    byCol.forEach(function (b) { b.parts = Object.keys(b.map).length; });
+    return { headerRow: hr, byCol: byCol, distinctParts: Object.keys(counts).length };
+  }
+
+  function compute() {
+    var opts = { dropZero: $('optZero').checked, keepUnmatched: $('optKeep').checked };
+    var bu = extractBU();
+    var ev = extractEV();
+    if (!bu.parts.length) throw new Error('《BU清册》未解析到任何料号，请检查列映射。');
+
+    var rows = [], unmatched = [], check = [];
+    var usedCol = '';
+    bu.parts.forEach(function (p, pi) {
+      var hit = null;
+      for (var i = 0; i < ev.byCol.length; i++) {
+        if (ev.byCol[i].map[p.key]) { hit = ev.byCol[i]; usedCol = hit.col; break; }
+      }
+      if (!hit) {
+        unmatched.push(p);
+        if (opts.keepUnmatched) rows.push({ seq: p.seq, pn: p.pn, bin: '', evmi: null, sap: p.sap, first: true, group: pi, unmatched: true });
+        return;
+      }
+      var bins = Object.keys(hit.map[p.key]);
+      bins.sort(function (a, b) { return a < b ? -1 : a > b ? 1 : 0; });
+      var total = 0, out = [];
+      bins.forEach(function (b) {
+        var v = hit.map[p.key][b];
+        total += v;
+        if (opts.dropZero && v === 0) return;
+        out.push({ bin: b, qty: v });
+      });
+      if (!out.length) return;
+      out.forEach(function (o, k) {
+        rows.push({ seq: p.seq, pn: p.pn, bin: o.bin, evmi: o.qty, sap: (k === 0 ? p.sap : null), first: k === 0, group: pi });
+      });
+      check.push({ pn: p.pn, evmi: total, sap: p.sap, ok: p.sap == null ? null : total === p.sap, bins: out.length });
+    });
+
+    return {
+      rows: rows,
+      unmatched: unmatched,
+      check: check,
+      stats: {
+        buParts: bu.parts.length,
+        matched: bu.parts.length - unmatched.length,
+        unmatched: unmatched.length,
+        bins: rows.filter(function (r) { return r.bin; }).length,
+        outRows: rows.length,
+        diffParts: check.filter(function (c) { return c.ok === false; }).length
+      }
+    };
+  }
+
+  function refresh() {
+    var ok = BU && EV && BU.sheets.length && EV.sheets.length && $('buPn').options.length && $('evQty').options.length;
+    $('mapCard').classList.toggle('hidden', !ok);
+    $('resCard').classList.toggle('hidden', !ok || !RES);
+  }
+
+  function run() {
+    try {
+      RES = compute();
+      render();
+      refresh();
+      $('resCard').classList.remove('hidden');
+    } catch (err) {
+      RES = null;
+      $('resCard').classList.add('hidden');
+      showMsg('生成失败：' + (err && err.message ? err.message : err), 'err');
+      return;
+    }
+    try { $('resCard').scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (e) {}
+    if (RES.stats.unmatched) toast('有 ' + RES.stats.unmatched + ' 个料号未匹配');
+    else toast('生成完成，共 ' + RES.rows.length + ' 行');
+  }
+
+  /* ============================ 渲染 ============================ */
+  function render() {
+    var s = RES.stats;
+    var st = $('stats');
+    st.innerHTML = '';
+    var items = [
+      { k: 'BU 料号数', v: s.buParts, cls: '' },
+      { k: '已匹配料号', v: s.matched, cls: 'okbox' },
+      { k: '未匹配料号', v: s.unmatched, cls: s.unmatched ? 'warnbox' : '' },
+      { k: '储位行数', v: s.bins, cls: '' },
+      { k: '输出总行数', v: s.outRows, cls: '' },
+      { k: 'eVMI≠SAP 料号', v: s.diffParts, cls: s.diffParts ? 'warnbox' : 'okbox' }
+    ];
+    items.forEach(function (it) {
+      var d = document.createElement('div');
+      d.className = 'stat ' + it.cls;
+      d.innerHTML = '<div class="k">' + it.k + '</div><div class="v">' + it.v + '</div>';
+      st.appendChild(d);
+    });
+
+    var ck = $('checks');
+    ck.innerHTML = '';
+    if (RES.unmatched.length) {
+      var w = document.createElement('div');
+      w.className = 'warn';
+      w.innerHTML = '<b>未在《evmi清册》中找到的料号（' + RES.unmatched.length + ' 个）：</b>' +
+        RES.unmatched.map(function (u) { return '序 ' + u.seq + ' ' + escapeHtml(u.pn); }).join('、');
+      ck.appendChild(w);
+    }
+    var bad = RES.check.filter(function (c) { return c.ok === false; });
+    if (bad.length) {
+      var w2 = document.createElement('div');
+      w2.className = 'warn';
+      w2.innerHTML = '<b>数量核对提示：</b>以下料号的 eVMI 储位合计与 SAP 账面数不一致（仅供核对，不影响导出）：' +
+        bad.map(function (c) { return escapeHtml(c.pn) + '（eVMI ' + fmt(c.evmi) + ' / SAP ' + fmt(c.sap) + '）'; }).join('；');
+      ck.appendChild(w2);
+    } else if (RES.check.length) {
+      var okd = document.createElement('div');
+      okd.className = 'ok';
+      okd.textContent = '数量核对通过：' + RES.check.length + ' 个料号的 eVMI 储位合计均与 SAP 账面数一致。';
+      ck.appendChild(okd);
+    }
+
+    // 预览
+    var html = '<table class="grid"><thead><tr>' +
+      '<th class="lead">序号</th><th style="text-align:left">料號</th><th>BinNo</th>' +
+      '<th>eVMI系統帳面數</th><th>SAP系統帳面數</th><th>实物数量</th><th>盘点人</th><th>核对</th>' +
+      '</tr></thead><tbody>';
+    if (!RES.rows.length) {
+      html += '<tr><td colspan="8" class="empty">没有可输出的数据</td></tr>';
+    }
+    var byGroup = {};
+    RES.check.forEach(function (c) { byGroup[c.pn] = c; });
+    RES.rows.forEach(function (r) {
+      var c = byGroup[r.pn];
+      var badge = '';
+      if (r.first) {
+        if (r.unmatched) badge = '<span class="badge bad">未匹配</span>';
+        else if (c && c.ok === false) badge = '<span class="badge bad">差异</span>';
+        else if (c && c.ok === true) badge = '<span class="badge ok">一致</span>';
+      }
+      html += '<tr class="' + (r.first ? 'grpstart' : '') + '">' +
+        '<td class="lead">' + escapeHtml(r.seq) + '</td>' +
+        '<td class="pn">' + escapeHtml(r.pn) + '</td>' +
+        '<td>' + escapeHtml(r.bin) + '</td>' +
+        '<td class="num">' + (r.evmi == null ? '' : fmt(r.evmi)) + '</td>' +
+        '<td class="num">' + (r.sap == null ? '' : fmt(r.sap)) + '</td>' +
+        '<td></td><td></td>' +
+        '<td>' + badge + '</td></tr>';
+    });
+    html += '</tbody></table>';
+    $('preview').innerHTML = html;
+    $('previewInfo').textContent = '共 ' + RES.rows.length + ' 行（导出为《最终清册》格式的 7 列，不含「核对」列）';
+  }
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (m) {
+      return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m];
+    });
+  }
+
+  /* ============================ 导出 ============================ */
+  function baseName() {
+    var n = txt($('outName').value);
+    return n || '最终清册';
+  }
+
+  function downloadXlsx() {
+    if (!RES || !RES.rows.length) { toast('请先生成结果'); return; }
+    var wb = new ExcelJS.Workbook();
+    wb.creator = 'BU盘点清册制作';
+    wb.created = new Date();
+    var ws = wb.addWorksheet('Sheet1');
+    ws.columns = OUT_WIDTHS.map(function (w) { return { width: w }; });
+
+    var thin = { style: 'thin', color: { argb: 'FF000000' } };
+    var border = { top: thin, left: thin, bottom: thin, right: thin };
+
+    var hr = ws.addRow(OUT_HEADERS);
+    hr.height = 36.75;
+    hr.eachCell({ includeEmpty: true }, function (c) {
+      c.font = { name: '等线', size: 13, bold: true, color: { argb: 'FF000000' } };
+      c.alignment = { horizontal: 'center', vertical: 'center' };
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFB4C7E7' } };
+      c.border = border;
+    });
+
+    RES.rows.forEach(function (r) {
+      var row = ws.addRow([
+        r.seq === '' ? null : r.seq,
+        r.pn,
+        r.bin || null,
+        r.evmi == null ? null : r.evmi,
+        r.sap == null ? null : r.sap,
+        null, null
+      ]);
+      row.height = 36.75;
+      row.eachCell({ includeEmpty: true }, function (c) {
+        c.font = { name: '等线', size: 11 };
+        c.alignment = { horizontal: 'center', vertical: 'center' };
+        c.border = border;
+      });
+    });
+
+    wb.xlsx.writeBuffer().then(function (buf) {
+      saveBlob(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+        baseName() + '.xlsx');
+      toast('已下载 ' + baseName() + '.xlsx');
+    }).catch(function (e) { toast('导出失败：' + e.message); });
+  }
+
+  function toMatrix() {
+    var m = [OUT_HEADERS.slice()];
+    RES.rows.forEach(function (r) {
+      m.push([r.seq === '' ? '' : r.seq, r.pn, r.bin || '', r.evmi == null ? '' : r.evmi, r.sap == null ? '' : r.sap, '', '']);
+    });
+    return m;
+  }
+  function csvCell(v) {
+    var s = String(v == null ? '' : v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function downloadCsv() {
+    if (!RES || !RES.rows.length) { toast('请先生成结果'); return; }
+    var csv = toMatrix().map(function (r) { return r.map(csvCell).join(','); }).join('\r\n');
+    saveBlob(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }), baseName() + '.csv');
+    toast('已下载 ' + baseName() + '.csv');
+  }
+  function copyTsv() {
+    if (!RES || !RES.rows.length) { toast('请先生成结果'); return; }
+    var tsv = toMatrix().map(function (r) { return r.join('\t'); }).join('\n');
+    var done = function () { toast('已复制，可直接粘贴到 Excel'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(tsv).then(done).catch(function () { fallbackCopy(tsv, done); });
+    } else { fallbackCopy(tsv, done); }
+  }
+  function fallbackCopy(text, done) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) { toast('复制失败，请使用下载'); }
+    document.body.removeChild(ta);
+  }
+
+  /* ============================ 事件 ============================ */
+  bindDrop('dropBU', 'fileBU', 'clrBU', 'bu');
+  bindDrop('dropEV', 'fileEV', 'clrEV', 'ev');
+
+  ['buSheet', 'evSheet'].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      var which = id === 'buSheet' ? 'bu' : 'ev';
+      var obj = which === 'bu' ? BU : EV;
+      obj.sheetName = $(id).value;
+      applyAutoMap(which);
+      RES = null; $('resCard').classList.add('hidden');
+      var s = obj.sheets.filter(function (x) { return x.name === obj.sheetName; })[0];
+      showMsg('已切换工作表「' + obj.sheetName + '」（' + (s ? s.aoa.length : 0) + ' 行）。', 'ok');
+    });
+  });
+
+  $('btnRun').addEventListener('click', run);
+  $('btnReset').addEventListener('click', function () {
+    BU = null; EV = null; RES = null;
+    ['dropBU', 'dropEV'].forEach(function (id) {
+      var d = $(id);
+      d.classList.remove('hasfile');
+      var f = d.querySelector('.fname'); if (f) f.remove();
+      var m = d.querySelector('.fmeta'); if (m) m.remove();
+    });
+    $('clrBU').classList.add('hidden'); $('clrEV').classList.add('hidden');
+    $('fileBU').value = ''; $('fileEV').value = '';
+    resetBlock('bu'); resetBlock('ev');
+    $('msg').classList.add('hidden');
+    $('mapCard').classList.add('hidden');
+    $('resCard').classList.add('hidden');
+  });
+  $('btnXlsx').addEventListener('click', downloadXlsx);
+  $('btnCsv').addEventListener('click', downloadCsv);
+  $('btnCopy').addEventListener('click', copyTsv);
+  $('optZero').addEventListener('change', function () { if (RES) run(); });
+  $('optKeep').addEventListener('change', function () { if (RES) run(); });
+  ['buSeq', 'buPn', 'buSap', 'evBin', 'evQty'].forEach(function (id) {
+    $(id).addEventListener('change', function () { RES = null; $('resCard').classList.add('hidden'); });
+  });
+})();
+</script>
+</body>
+</html>

@@ -955,6 +955,14 @@ const Store = (function () {
         builtin: true,
         src: 'tools/remove-redundancy.html',
       },
+      {
+        id: 'tool_bu_inv',
+        name: 'BU盘点清册制作',
+        icon: '📋',
+        description: '上传《BU清册》与《evmi清册》，按料号查找各储位并加总数量，按 BU 顺序生成《最终清册》格式的 Excel 并下载，纯本地处理',
+        builtin: true,
+        src: 'tools/bu-inventory-list.html',
+      },
     ];
 
     // 每次初始化都确保内置工具存在（按 id upsert），同时保留用户上传的工具。
