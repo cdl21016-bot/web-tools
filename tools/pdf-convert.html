@@ -98,14 +98,14 @@
 <div class="wrap">
   <header>
     <h1>PDF 格式转换</h1>
-    <p>PDF ⇄ Word / Excel / 图片 · 图片文字识别（OCR）· 全程本地处理，文件不上传</p>
+    <p>PDF ⇄ Word / Excel / 图片 · 图片文字提取（OCR）· 全程本地处理，文件不上传</p>
   </header>
 
   <div class="tabs">
     <button class="tab active" data-tab="pdf2office">PDF → Word / Excel</button>
     <button class="tab" data-tab="pdf2img">PDF → 图片</button>
     <button class="tab" data-tab="img2pdf">图片 → PDF</button>
-    <button class="tab" data-tab="img2office">图片 → Word / Excel</button>
+    <button class="tab" data-tab="img2office">文字提取</button>
   </div>
 
   <!-- ============ 1. PDF → Word / Excel ============ -->
@@ -230,13 +230,14 @@
     <div class="out" id="r3"></div>
   </div>
 
-  <!-- ============ 4. 图片 → Word / Excel（OCR） ============ -->
+  <!-- ============ 4. 文字提取（图片 OCR → Word / Excel） ============ -->
   <div class="panel" id="p-img2office">
     <div class="note">
-      <b>关于文字识别：</b>图片里的文字需要 OCR 识别，首次使用会下载中文识别模型（约 20 MB，之后浏览器自动缓存）。
-      表格类截图识别效果较好；手写体、低分辨率、复杂排版建议转换后人工校对。
+      <b>关于文字提取：</b>从图片中提取文字，可导出为 Word 或 Excel；首次使用会下载识别模型（约 20 MB，之后浏览器自动缓存）。
+      适合文字截图、扫描件、票据等<b>文字型图片</b>，表格截图识别效果较好；手写体、低分辨率、复杂排版建议转换后人工校对。
+      <br><b>注意：</b>以照片为主的表格（例如零件/现场检查照片表）本身不含文字内容，无法通过 OCR 转成表格，请人工录入。
       <span id="fileProtoTip" style="display:none"><br><b>⚠️ 检测到您是双击本地文件打开本页（file:// 方式）：</b>浏览器安全限制会拦截 OCR 引擎的 Worker 脚本（与联网无关），
-      此功能将无法运行。请改用线上版本 <a href="https://web-tools-av1.pages.dev/" target="_blank">web-tools-av1.pages.dev</a> 使用「图片 → Word / Excel」；
+      此功能将无法运行。请改用线上版本 <a href="https://web-tools-av1.pages.dev/" target="_blank">web-tools-av1.pages.dev</a> 使用「文字提取」；
       其余三个功能不受影响。</span>
     </div>
     <div class="drop" id="dz4">
@@ -1160,7 +1161,7 @@ $('#b3').onclick = async function () {
   }
 };
 
-/* ═══════════════ 4. 图片 → Word / Excel（OCR） ═══════════════ */
+/* ═══════════════ 4. 文字提取（图片 OCR → Word / Excel） ═══════════════ */
 var F4 = new FileList2($('#dz4'), $('#f4'), $('#l4'));
 F4.sortable = true;
 var busy4 = false;
@@ -1172,7 +1173,7 @@ var LANG_PATH = 'https://tessdata.projectnaptha.com/4.0.0';
 async function getOcrWorker(lang, onLog) {
   if (location.protocol === 'file:') {
     throw new Error('本页是以「本地文件（file://）」方式打开的，浏览器安全限制会拦截 OCR 引擎的 Worker 脚本（与联网无关）。'
-      + '请使用线上版本 https://web-tools-av1.pages.dev/ 的「图片 → Word / Excel」功能。');
+      + '请使用线上版本 https://web-tools-av1.pages.dev/ 的「文字提取」功能。');
   }
   await loadScript('lib/tesseract/tesseract.min.js');
   if (ocrWorker && ocrLang === lang) return ocrWorker;
@@ -1633,14 +1634,14 @@ $('#b4').onclick = async function () {
     if (fmt === 'docx' || fmt === 'both') {
       await loadScript('lib/docx.min.js');
       var blob = await buildOcrDocx(items, withImg);
-      out.push({ blob: blob, name: '图片转Word_' + items.length + '张.docx' });
+      out.push({ blob: blob, name: '文字提取_' + items.length + '张.docx' });
     }
     if (fmt === 'xlsx' || fmt === 'both') {
       if (!window.XLSX) await loadScript('lib/xlsx.full.min.js');
       var arr = buildOcrXlsx(items, items.length > 1);
       out.push({
         blob: new Blob([arr], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
-        name: '图片转Excel_' + items.length + '张.xlsx'
+        name: '文字提取_' + items.length + '张.xlsx'
       });
     }
 
