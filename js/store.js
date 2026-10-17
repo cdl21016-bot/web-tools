@@ -963,6 +963,14 @@ const Store = (function () {
         builtin: true,
         src: 'tools/bu-inventory-list.html',
       },
+      {
+        id: 'tool_pdf_conv',
+        name: 'PDF格式转换',
+        icon: '🔄',
+        description: 'PDF 转 Word / Excel / PNG·JPG 图片，多图合成 PDF，图片 OCR 识别成可编辑的 Word / Excel，全程本地处理',
+        builtin: true,
+        src: 'tools/pdf-convert.html',
+      },
     ];
 
     // 每次初始化都确保内置工具存在（按 id upsert），同时保留用户上传的工具。
