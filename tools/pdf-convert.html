@@ -235,6 +235,9 @@
     <div class="note">
       <b>关于文字识别：</b>图片里的文字需要 OCR 识别，首次使用会下载中文识别模型（约 20 MB，之后浏览器自动缓存）。
       表格类截图识别效果较好；手写体、低分辨率、复杂排版建议转换后人工校对。
+      <span id="fileProtoTip" style="display:none"><br><b>⚠️ 检测到您是双击本地文件打开本页（file:// 方式）：</b>浏览器安全限制会拦截 OCR 引擎的 Worker 脚本（与联网无关），
+      此功能将无法运行。请改用线上版本 <a href="https://web-tools-av1.pages.dev/" target="_blank">web-tools-av1.pages.dev</a> 使用「图片 → Word / Excel」；
+      其余三个功能不受影响。</span>
     </div>
     <div class="drop" id="dz4">
       <div class="ico">🔤</div>
@@ -1164,6 +1167,10 @@ var ocrLang = '';
 var LANG_PATH = 'https://tessdata.projectnaptha.com/4.0.0';
 
 async function getOcrWorker(lang, onLog) {
+  if (location.protocol === 'file:') {
+    throw new Error('本页是以「本地文件（file://）」方式打开的，浏览器安全限制会拦截 OCR 引擎的 Worker 脚本（与联网无关）。'
+      + '请使用线上版本 https://web-tools-av1.pages.dev/ 的「图片 → Word / Excel」功能。');
+  }
   await loadScript('lib/tesseract/tesseract.min.js');
   if (ocrWorker && ocrLang === lang) return ocrWorker;
   if (ocrWorker) {
@@ -1584,6 +1591,12 @@ document.querySelectorAll('.tab').forEach(function (t) {
 
 // 初始状态
 $('#q2wrap').style.display = 'none';
+
+// file:// 打开时提示 OCR 功能受限
+if (location.protocol === 'file:') {
+  var tip = document.getElementById('fileProtoTip');
+  if (tip) tip.style.display = 'inline';
+}
 
 })();
 </script>
