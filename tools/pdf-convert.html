@@ -262,6 +262,9 @@
           <option value="chi_sim+eng" selected>中文 + 英文（推荐）</option>
           <option value="chi_sim">仅中文</option>
           <option value="eng">仅英文</option>
+          <option value="vie+chi_sim+eng">越南语 + 中文 + 英文</option>
+          <option value="vie">仅越南语</option>
+          <option value="vie+eng">越南语 + 英文</option>
         </select>
       </div>
     </div>
@@ -1217,6 +1220,66 @@ async function preprocessImage(file, maxSide) {
   }
 }
 
+/** 去表格线 + 网格检测：带边框的表格会被 Tesseract 版面分析误判为图片而整块跳过，
+ *  先把长直线置白再识别，可完整还原表格内容。返回 { canvas, isTable } */
+async function stripTableLines(src) {
+  var img = src;
+  if (src instanceof Blob) {
+    var url0 = URL.createObjectURL(src);
+    try {
+      img = await new Promise(function (res, rej) {
+        var im = new Image();
+        im.onload = function () { res(im); };
+        im.onerror = function () { rej(new Error('无法读取图片')); };
+        im.src = url0;
+      });
+    } finally { setTimeout(function () { URL.revokeObjectURL(url0); }, 500); }
+  }
+  var W = img.naturalWidth || img.width;
+  var H = img.naturalHeight || img.height;
+  if (!W || !H) return { canvas: null, isTable: false };
+
+  var cv = document.createElement('canvas');
+  cv.width = W; cv.height = H;
+  var cx = cv.getContext('2d', { willReadFrequently: true });
+  cx.drawImage(img, 0, 0);
+  var id = cx.getImageData(0, 0, W, H), d = id.data;
+  var dark = new Uint8Array(W * H);
+  for (var i = 0; i < W * H; i++) {
+    if ((d[i * 4] + d[i * 4 + 1] + d[i * 4 + 2]) / 3 < 160) dark[i] = 1;
+  }
+  var isLine = new Uint8Array(W * H);
+  var minRun = Math.max(24, Math.round(W * 0.03));
+  var linePix = 0;
+  // 横向长 run
+  for (var y = 0; y < H; y++) {
+    var run = 0;
+    for (var x = 0; x <= W; x++) {
+      if (x < W && dark[y * W + x]) { run++; continue; }
+      if (run >= minRun) { for (var k = x - run; k < x; k++) isLine[y * W + k] = 1; linePix += run; }
+      run = 0;
+    }
+  }
+  var hPix = linePix;
+  // 纵向长 run
+  linePix = 0;
+  for (var x2 = 0; x2 < W; x2++) {
+    var run2 = 0;
+    for (var y2 = 0; y2 <= H; y2++) {
+      if (y2 < H && dark[y2 * W + x2]) { run2++; continue; }
+      if (run2 >= minRun) { for (var k2 = y2 - run2; k2 < y2; k2++) isLine[k2 * W + x2] = 1; linePix += run2; }
+      run2 = 0;
+    }
+  }
+  var isTable = (hPix / (W * H) > 0.002) && (linePix / (W * H) > 0.002);
+  if (!isTable) return { canvas: null, isTable: false };
+  for (var j = 0; j < W * H; j++) {
+    if (isLine[j]) d[j * 4] = d[j * 4 + 1] = d[j * 4 + 2] = 255;
+  }
+  cx.putImageData(id, 0, 0);
+  return { canvas: cv, isTable: true };
+}
+
 /** OCR 词拼接：中文相邻不加空格，英文单词之间加空格 */
 function smartJoin(a, b) {
   if (!a) return b;
@@ -1276,26 +1339,57 @@ function ocrToTable(data) {
 
   rows.forEach(function (r) { r.items.sort(function (a, b) { return a.x0 - b.x0; }); });
 
+  // 中位字高（用于阈值自适应）
+  var hsAll = [];
+  rows.forEach(function (r) { r.items.forEach(function (w) { hsAll.push(Math.max(1, w.y1 - w.y0)); }); });
+  hsAll.sort(function (a, b) { return a - b; });
+  var medH = hsAll.length ? hsAll[Math.floor(hsAll.length / 2)] : 20;
+
   // 列锚点：所有词的 x0 聚类
   var xs = [];
   rows.forEach(function (r) { r.items.forEach(function (w) { xs.push(w.x0); }); });
   xs.sort(function (a, b) { return a - b; });
   var anchors = [];
+  var aTol = Math.max(14, medH * 0.45);
   for (var i = 0; i < xs.length; i++) {
     var last = anchors[anchors.length - 1];
-    if (last && Math.abs(xs[i] - last.c) <= 14) {
+    if (last && Math.abs(xs[i] - last.c) <= aTol) {
       last.n++; last.sum += xs[i]; last.c = last.sum / last.n;
     } else {
       anchors.push({ c: xs[i], sum: xs[i], n: 1 });
     }
   }
   var minN = Math.max(2, Math.round(rows.length * 0.45));
-  var cols = anchors.filter(function (a) { return a.n >= minN; }).map(function (a) { return a.c; });
+
+  // 记录每个词之前的间隙（到前一个词右缘的距离），行首词间隙记为 Infinity
+  rows.forEach(function (r) {
+    r.items.forEach(function (w, j) {
+      w.gapBefore = j === 0 ? Infinity : Math.max(0, w.x0 - r.items[j - 1].x1);
+    });
+  });
+
+  // 校验锚点：真正的列首词之前是「大空隙」（明显大于词间空格）。
+  // 否则空格分词语言（越南语/英语等）单元格内的续词会因起始位置巧合对齐而形成幽灵列。
+  var gapThr = Math.max(12, medH * 0.6);
+  var cols = [];
+  anchors.forEach(function (a) {
+    if (a.n < minN) return;
+    // 收集聚类成员的前向间隙
+    var gaps = [];
+    rows.forEach(function (r) {
+      r.items.forEach(function (w) {
+        if (Math.abs(w.x0 - a.c) <= aTol) gaps.push(w.gapBefore);
+      });
+    });
+    gaps.sort(function (x, y) { return x - y; });
+    var medGap = gaps.length ? gaps[Math.floor(gaps.length / 2)] : 0;
+    if (medGap >= gapThr) cols.push(a.c);
+  });
 
   // 合并过近的列
   var merged = [];
   cols.forEach(function (c) {
-    if (!merged.length || c - merged[merged.length - 1] > 16) merged.push(c);
+    if (!merged.length || c - merged[merged.length - 1] > Math.max(16, medH * 0.5)) merged.push(c);
   });
   cols = merged;
 
@@ -1314,16 +1408,36 @@ function ocrToTable(data) {
     cols = cols.slice(0, 15);
   }
 
-  var outRows = rows.map(function (r) {
-    var cells = [];
+  // 词间空格中位数：区分「词内空格」和「列间大空隙」
+  var allGaps = [];
+  rows.forEach(function (r) {
     r.items.forEach(function (w) {
-      var best = 0, bestD = 1e9;
-      for (var k = 0; k < cols.length; k++) {
-        var d = Math.abs(w.x0 - cols[k]);
-        if (d < bestD) { bestD = d; best = k; }
+      if (w.gapBefore !== Infinity && w.gapBefore > 0) allGaps.push(w.gapBefore);
+    });
+  });
+  allGaps.sort(function (a, b) { return a - b; });
+  var medWordGap = allGaps.length ? allGaps[Math.floor(allGaps.length / 2)] : 0;
+  var newThr = Math.max(gapThr, medWordGap * 2.2);
+
+  var outRows = rows.map(function (r) {
+    var cells = [], lastCol = -1;
+    r.items.forEach(function (w) {
+      var col;
+      if (w.gapBefore === Infinity || w.gapBefore >= newThr) {
+        // 行首或大空隙：按最近列锚点归位
+        col = 0;
+        var bd = 1e9;
+        for (var k = 0; k < cols.length; k++) {
+          var d = Math.abs(w.x0 - cols[k]);
+          if (d < bd) { bd = d; col = k; }
+        }
+      } else {
+        // 普通词间空格：续在前一个单元格内
+        col = Math.max(0, lastCol);
       }
-      if (!cells[best]) cells[best] = w.t;
-      else cells[best] = smartJoin(cells[best], w.t);
+      if (!cells[col]) cells[col] = w.t;
+      else cells[col] = smartJoin(cells[col], w.t);
+      lastCol = col;
     });
     for (var k = 0; k < cols.length; k++) if (cells[k] == null) cells[k] = '';
     return cells;
@@ -1467,6 +1581,14 @@ $('#b4').onclick = async function () {
       var pre = await preprocessImage(f, 2400);
       var src = pre.canvas || f;
 
+      // 检测带边框表格：先去表格线再识别，否则表格内容会被整块跳过
+      var psm = '3';
+      try {
+        var st = await stripTableLines(src);
+        if (st.isTable && st.canvas) { src = st.canvas; psm = '6'; }
+      } catch (e) {}
+
+      await worker.setParameters({ tessedit_pageseg_mode: psm });
       var res = await worker.recognize(src, {}, { text: true, blocks: true });
       var data = res.data || {};
       var tbl = ocrToTable(data);
