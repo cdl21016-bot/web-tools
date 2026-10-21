@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>汉语拼音学习 · 发音与口型</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <h1>📚 汉语拼音学习</h1>
+  <p class="sub">点卡片听发音 · 看口型动画 · 选男声 / 女声 · 学四声</p>
+</header>
+
+<section class="voicebar">
+  <div class="voice-row">
+    <span class="lbl">发音：</span>
+    <button id="btnMale" class="vbtn">👦 男声</button>
+    <button id="btnFemale" class="vbtn active">👧 女声</button>
+    <select id="voiceSel" class="vsel"></select>
+    <button id="btnTest" class="vbtn ghost">🔊 试听</button>
+  </div>
+  <div class="voice-row">
+    <span class="lbl">语速：</span>
+    <input type="range" id="rate" min="0.5" max="1.5" step="0.05" value="1.0">
+    <span id="rateVal" class="val">1.00x</span>
+    <span class="lbl">音量：</span>
+    <input type="range" id="vol" min="0" max="1" step="0.05" value="1.0">
+    <span id="volVal" class="val">100%</span>
+  </div>
+  <div id="voiceLabel" class="vlabel">正在加载嗓音…</div>
+</section>
+
+<section class="stage">
+  <div class="face-wrap">
+    <svg class="face" viewBox="0 0 200 200" aria-label="发音口型">
+      <circle cx="100" cy="100" r="80" fill="#ffe0bd" stroke="#f0c39a" stroke-width="2"/>
+      <!-- 头发 -->
+      <path d="M22 92 Q40 30 100 28 Q160 30 178 92 Q170 58 100 50 Q30 58 22 92 Z" fill="#5b3b29"/>
+      <!-- 眼睛 -->
+      <ellipse cx="72" cy="86" rx="9" ry="11" fill="#fff" stroke="#caa07e" stroke-width="1.5"/>
+      <ellipse cx="128" cy="86" rx="9" ry="11" fill="#fff" stroke="#caa07e" stroke-width="1.5"/>
+      <circle cx="73" cy="88" r="4.5" fill="#3a2a20"/>
+      <circle cx="129" cy="88" r="4.5" fill="#3a2a20"/>
+      <!-- 腮红 -->
+      <circle cx="58" cy="116" r="9" fill="#ffb3a0" opacity="0.55"/>
+      <circle cx="142" cy="116" r="9" fill="#ffb3a0" opacity="0.55"/>
+      <!-- 鼻子 -->
+      <path d="M100 96 Q96 112 100 116 Q104 112 100 96 Z" fill="#e9b48c"/>
+      <!-- 嘴 -->
+      <ellipse id="lipOuter" cx="100" cy="138" rx="35" ry="13" fill="#d98a7a"/>
+      <ellipse id="lipInner" cx="100" cy="138" rx="30" ry="8" fill="#7a1f1a"/>
+      <ellipse id="tongue" cx="100" cy="146" rx="20" ry="6" fill="#e8746b" opacity="0"/>
+    </svg>
+  </div>
+  <div class="tone-wrap">
+    <div class="now">
+      <div id="nowPy" class="now-py">—</div>
+      <div id="nowHanzi" class="now-hz"></div>
+      <div id="nowTip" class="now-tip">点任意卡片开始</div>
+    </div>
+    <svg class="tone" viewBox="0 0 200 80" aria-label="声调曲线">
+      <path id="tone0" class="tc" d="M12 62 L188 56" stroke-dasharray="4 4"/>
+      <path id="tone1" class="tc" d="M12 40 L188 40"/>
+      <path id="tone2" class="tc" d="M12 62 L188 18"/>
+      <path id="tone3" class="tc" d="M12 46 C50 64 80 64 100 40 C120 22 150 22 188 46"/>
+      <path id="tone4" class="tc" d="M12 18 L188 62"/>
+      <circle id="toneDot" cx="12" cy="60" r="6" fill="#ff7a59"/>
+    </svg>
+    <div class="tone-legend">① 平 ② 升 ③ 拐 ④ 降 · 轻声</div>
+  </div>
+</section>
+
+<nav class="tabs">
+  <button class="tab active" data-tab="initial">声母</button>
+  <button class="tab" data-tab="final">韵母</button>
+  <button class="tab" data-tab="whole">整体认读</button>
+  <button class="tab" data-tab="compose">拼读组合</button>
+</nav>
+
+<main>
+  <section id="panel-initial" class="panel active">
+    <div id="gridInitial" class="grid"></div>
+  </section>
+  <section id="panel-final" class="panel">
+    <div id="gridFinal" class="grid"></div>
+  </section>
+  <section id="panel-whole" class="panel">
+    <div id="gridWhole" class="grid"></div>
+  </section>
+  <section id="panel-compose" class="panel">
+    <div class="composer">
+      <div class="comp-row">
+        <label>声母</label>
+        <select id="iniSel"></select>
+        <label>韵母</label>
+        <select id="finSel"></select>
+      </div>
+      <div class="comp-row">
+        <label>声调</label>
+        <span class="tone-set">
+          <label><input type="radio" name="tone" value="1" checked> ①</label>
+          <label><input type="radio" name="tone" value="2"> ②</label>
+          <label><input type="radio" name="tone" value="3"> ③</label>
+          <label><input type="radio" name="tone" value="4"> ④</label>
+          <label><input type="radio" name="tone" value="5"> 轻声</label>
+        </span>
+      </div>
+      <div class="comp-row big">
+        <span id="compPy" class="comp-py">—</span>
+        <button id="btnCompose" class="vbtn">▶ 拼读并朗读</button>
+      </div>
+      <div id="compMsg" class="comp-msg"></div>
+      <p class="hint">提示：声母选「（无声母）」可直接练单韵母；组合若未收录范字，会提示听单音。</p>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">离线可用 · 语音由系统 TTS 提供（请确保系统已安装中文语音包）</footer>
+
+<script src="data.js"></script>
+<script src="viseme.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

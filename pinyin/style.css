@@ -1,0 +1,89 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", sans-serif;
+  background: linear-gradient(160deg, #eef4fb 0%, #f7f0ff 100%);
+  color: #2c3645;
+  min-height: 100vh;
+  padding-bottom: 30px;
+}
+.topbar { text-align: center; padding: 22px 12px 8px; }
+.topbar h1 { font-size: 26px; }
+.sub { color: #7a8494; font-size: 13px; margin-top: 6px; }
+
+/* 嗓音栏 */
+.voicebar {
+  max-width: 720px; margin: 14px auto 0; background: #fff; border-radius: 14px;
+  box-shadow: 0 4px 18px rgba(60,80,120,.08); padding: 14px 18px;
+}
+.voice-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 6px 0; }
+.lbl { font-size: 13px; color: #5a6473; }
+.vbtn {
+  border: none; border-radius: 10px; padding: 8px 14px; font-size: 14px; font-weight: 700;
+  background: #eef2f8; color: #3a4356; cursor: pointer; transition: .15s;
+}
+.vbtn:hover { filter: brightness(1.04); }
+.vbtn.active { background: #ff7a59; color: #fff; }
+.vbtn.ghost { background: #eaf3ff; color: #2f6fd6; }
+.vbtn:disabled { opacity: .45; cursor: not-allowed; }
+.vsel { flex: 1; min-width: 160px; padding: 8px; border-radius: 10px; border: 1px solid #dfe4ec; font-size: 13px; }
+.val { font-size: 12px; color: #5a6473; min-width: 44px; }
+input[type=range] { width: 120px; accent-color: #ff7a59; }
+.vlabel { font-size: 12px; color: #8a93a5; margin-top: 4px; }
+
+/* 舞台：口型 + 声调 */
+.stage {
+  max-width: 720px; margin: 16px auto 0; display: flex; gap: 18px; align-items: stretch;
+  background: #fff; border-radius: 16px; box-shadow: 0 4px 18px rgba(60,80,120,.08); padding: 18px;
+}
+.face-wrap { flex: 0 0 200px; }
+.face { width: 200px; height: 200px; display: block; }
+.tone-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+.now { text-align: center; margin-bottom: 8px; }
+.now-py { font-size: 40px; font-weight: 800; color: #ff7a59; letter-spacing: 2px; }
+.now-hz { font-size: 30px; font-weight: 700; color: #2c3645; margin-top: 2px; }
+.now-tip { font-size: 13px; color: #7a8494; margin-top: 4px; line-height: 1.5; }
+.tone { width: 100%; height: 80px; }
+.tc { fill: none; stroke: #c9d3e0; stroke-width: 2.5; }
+.tc.active { stroke: #ff7a59; stroke-width: 3.5; }
+#tone0 { stroke: #c9d3e0; }
+.tone-legend { text-align: center; font-size: 12px; color: #8a93a5; margin-top: 2px; }
+
+/* 标签页 */
+.tabs { max-width: 720px; margin: 18px auto 0; display: flex; gap: 8px; }
+.tab {
+  flex: 1; border: none; border-radius: 12px 12px 0 0; padding: 11px 0; font-size: 15px; font-weight: 700;
+  background: #e7ecf4; color: #5a6473; cursor: pointer;
+}
+.tab.active { background: #fff; color: #ff7a59; box-shadow: 0 -2px 8px rgba(60,80,120,.06); }
+
+/* 面板与卡片 */
+.panel { display: none; max-width: 720px; margin: 0 auto; background: #fff; border-radius: 0 0 14px 14px; padding: 16px; box-shadow: 0 4px 18px rgba(60,80,120,.08); }
+.panel.active { display: block; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+.card {
+  border: 1px solid #e7ecf4; border-radius: 12px; background: #fbfcfe; cursor: pointer;
+  padding: 10px 6px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  transition: .15s; font-family: inherit;
+}
+.card:hover { border-color: #ff7a59; transform: translateY(-2px); box-shadow: 0 6px 14px rgba(255,122,89,.18); }
+.card:active { transform: translateY(0); }
+.card .py { font-size: 22px; font-weight: 800; color: #2c3645; }
+.card .hz { font-size: 18px; color: #ff7a59; font-weight: 700; }
+.card .tip { font-size: 10px; color: #8a93a5; line-height: 1.35; text-align: center; margin-top: 2px; }
+
+/* 拼读 */
+.composer { padding: 6px; }
+.comp-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0; }
+.comp-row label { font-size: 14px; color: #5a6473; }
+.comp-row select { padding: 8px 10px; border-radius: 10px; border: 1px solid #dfe4ec; font-size: 14px; }
+.tone-set label { font-size: 14px; margin-right: 4px; cursor: pointer; }
+.comp-row.big { gap: 16px; }
+.comp-py { font-size: 34px; font-weight: 800; color: #ff7a59; min-width: 90px; }
+.comp-msg { font-size: 13px; color: #5a6473; margin: 6px 0; }
+.hint { font-size: 12px; color: #8a93a5; margin-top: 8px; line-height: 1.5; }
+.foot { text-align: center; font-size: 12px; color: #9aa3b2; margin-top: 18px; }
+
+@media (max-width: 560px) {
+  .stage { flex-direction: column; align-items: center; }
+  .face-wrap { flex: none; }
+}
