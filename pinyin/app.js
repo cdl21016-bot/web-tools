@@ -96,7 +96,8 @@
     document.getElementById('nowPy').textContent = item.disp || PY.displayPy(item.py);
     document.getElementById('nowHanzi').textContent = item.h || '';
     document.getElementById('nowTip').textContent = item.tip || '';
-    speak(item.h || PY.displayPy(item.py));
+    // 朗读拼音音节本身（item.read），不再读下方范例汉字，避免 ong 被读成「东」
+    speak(item.read || item.h || PY.displayPy(item.py));
   }
 
   /* ---------- 渲染卡片 ---------- */
@@ -147,7 +148,7 @@
         disp = PY.markTone(base, tone);
         document.getElementById('compPy').textContent = PY.displayPy(disp);
         document.getElementById('compMsg').textContent = '单韵母示范：' + fin.h;
-        item = { py: base, disp: PY.displayPy(disp), h: fin.h, tip: fin.tip, seq: fin.seq || [fin.v] };
+        item = { py: base, disp: PY.displayPy(disp), h: fin.h, tip: fin.tip, seq: fin.seq || [fin.v], read: fin.read || PY.displayPy(disp) };
       } else {
         base = ini.py + fin.py;
         disp = PY.markTone(base, tone);
@@ -155,10 +156,10 @@
         var hz = PY.SYLL[base];
         if (hz) {
           document.getElementById('compMsg').textContent = '示范字：' + hz;
-          item = { py: base, disp: PY.displayPy(disp), h: hz, tip: '声母 ' + PY.displayPy(ini.py) + ' + 韵母 ' + PY.displayPy(fin.py), seq: [ini.v].concat(fin.seq || [fin.v]) };
+          item = { py: base, disp: PY.displayPy(disp), h: hz, tip: '声母 ' + PY.displayPy(ini.py) + ' + 韵母 ' + PY.displayPy(fin.py), seq: [ini.v].concat(fin.seq || [fin.v]), read: PY.displayPy(disp) };
         } else {
-          document.getElementById('compMsg').textContent = '该组合较少用，未收录范字，可听单音示范';
-          item = null;
+          document.getElementById('compMsg').textContent = '该组合较少用，未收录范字，可直接听拼音发音';
+          item = { py: base, disp: PY.displayPy(disp), h: '', tip: '声母 ' + PY.displayPy(ini.py) + ' + 韵母 ' + PY.displayPy(fin.py), seq: [ini.v].concat(fin.seq || [fin.v]), read: PY.displayPy(disp) };
         }
       }
       return item;
