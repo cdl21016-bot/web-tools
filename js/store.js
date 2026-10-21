@@ -971,6 +971,14 @@ const Store = (function () {
         builtin: true,
         src: 'tools/pdf-convert.html',
       },
+      {
+        id: 'tool_pinyin',
+        name: '汉语拼音学习',
+        icon: '🔤',
+        description: '声母/韵母/整体认读/拼读四模块，可选男声或女声教学发音，配发声口型动画与四声曲线',
+        builtin: true,
+        src: 'pinyin/index.html',
+      },
     ];
 
     // 每次初始化都确保内置工具存在（按 id upsert），同时保留用户上传的工具。
