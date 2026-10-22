@@ -96,7 +96,7 @@
     document.getElementById('nowPy').textContent = item.disp || PY.displayPy(item.py);
     document.getElementById('nowHanzi').textContent = item.h || '';
     document.getElementById('nowTip').textContent = item.tip || '';
-    // 朗读拼音音节本身（item.read），不再读下方范例汉字，避免 ong 被读成「东」
+    // 发音优先用 item.read（拼读里是「声调专属汉字」）；卡片网格无 read，回退朗读范例汉字 h（中文 TTS 读汉字最稳）
     speak(item.read || item.h || PY.displayPy(item.py));
   }
 
@@ -148,7 +148,7 @@
         disp = PY.markTone(base, tone);
         document.getElementById('compPy').textContent = PY.displayPy(disp);
         document.getElementById('compMsg').textContent = '单韵母示范：' + fin.h;
-        item = { py: base, disp: PY.displayPy(disp), h: fin.h, tip: fin.tip, seq: fin.seq || [fin.v], read: PY.displayPy(disp) };
+        item = { py: base, disp: PY.displayPy(disp), h: fin.h, tip: fin.tip, seq: fin.seq || [fin.v], read: fin.h };
       } else {
         base = ini.py + fin.py;
         look = base.replace(/v/g, 'u');   // ü->u，与 SYLL_TONE / SYLL 的查表键一致

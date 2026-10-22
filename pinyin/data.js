@@ -119,35 +119,10 @@
     { py: 'yun', h: '云', tip: 'ü 与前鼻音', seq: ['v', 'n'] }
   ];
 
-  /* 朗读文本：每个音的「正确拼音音节」（带声调），用于语音合成。
-   * 关键修正：发音应读拼音本身，而不是下方范例汉字。
-   *  - 声母用「呼读音」(b→bō, p→pō …)，TTS 读成音节即该声母的本音；
-   *  - 韵母/整体认读用其独立音节（a→ā, ai→ài, ui→wēi, ong→ōng …）；
-   *  - ong 没有独立音节，只能用拼音「ōng」兜底（读字母也好过读成「东」）。
-   * 范例汉字 h 仅作屏幕提示保留。 */
-  function _setRead(list, map) {
-    list.forEach(function (it) { if (map[it.py] != null) it.read = map[it.py]; });
-  }
-  var READ_MAP = {
-    // 声母 · 呼读音
-    'b': 'bō', 'p': 'pō', 'm': 'mō', 'f': 'fó', 'd': 'dē', 't': 'tè', 'n': 'nè', 'l': 'lè',
-    'g': 'gē', 'k': 'kē', 'h': 'hē', 'j': 'jī', 'q': 'qī', 'x': 'xī',
-    'zh': 'zhī', 'ch': 'chī', 'sh': 'shī', 'r': 'rì',
-    'z': 'zī', 'c': 'cī', 's': 'sī', 'y': 'yī', 'w': 'wū',
-    // 韵母
-    'a': 'ā', 'o': 'ō', 'e': 'é', 'i': 'yī', 'u': 'wū', 'v': 'yū',
-    'ai': 'ài', 'ei': 'èi', 'ui': 'wēi', 'ao': 'ào', 'ou': 'ōu', 'iu': 'yōu',
-    'ie': 'yē', 've': 'yuē', 'er': 'ěr',
-    'an': 'ān', 'en': 'ēn', 'in': 'yīn', 'un': 'wēn', 'vn': 'yūn',
-    'ang': 'áng', 'eng': 'ēng', 'ing': 'yīng', 'ong': 'ōng',
-    // 整体认读
-    'zhi': 'zhī', 'chi': 'chī', 'shi': 'shī', 'ri': 'rì', 'zi': 'zī', 'ci': 'cī', 'si': 'sī',
-    'yi': 'yī', 'wu': 'wū', 'yu': 'yú', 'ye': 'yè', 'yue': 'yuè', 'yuan': 'yuán',
-    'yin': 'yīn', 'ying': 'yǐng', 'yun': 'yún'
-  };
-  _setRead(INITIALS, READ_MAP);
-  _setRead(FINALS, READ_MAP);
-  _setRead(WHOLE, READ_MAP);
+  /* 发音铁律：中文 TTS 读「汉字」才可靠；读带调号的拉丁拼音（bō/ōng/ǖ…）会漏读、
+   * 读错甚至没声。所以卡片网格（声母/韵母/整体认读）一律朗读下方范例汉字 h，让 TTS 用
+   * 最稳的方式发声；拼读组合则由 app.js 用 SYLL_TONE 取「声调专属汉字」来实现四声变化。
+   * （ong 无独立汉字，示范字只能是「东」这类带声母字，属语言事实，读它最稳。） */
 
   /* 拼读组合：pinyin(无声调) -> 示范汉字（用于保证朗读音色正确） */
   var SYLL = {
