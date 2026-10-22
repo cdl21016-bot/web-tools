@@ -96,7 +96,7 @@
     { py: 'ang', h: '昂', tip: 'a 后抬舌根发后鼻音 ng', seq: ['a', 'ng'] },
     { py: 'eng', h: '鞥', tip: 'e 后发后鼻音 ng', seq: ['e', 'ng'] },
     { py: 'ing', h: '英', tip: 'i 后发后鼻音 ng', seq: ['i', 'ng'] },
-    { py: 'ong', h: '东', tip: 'o 后发后鼻音 ng', seq: ['o', 'ng'] }
+    { py: 'ong', h: '', tip: 'o 后发后鼻音 ng（普通话无单字，音近粤语 ON）', seq: ['o', 'ng'], audio: { pure: 'ong', cantonese: '安' } }
   ];
 
   /* 整体认读音节 */

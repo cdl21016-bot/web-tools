@@ -15,6 +15,7 @@
   }
 
   function loadVoices() {
+    _yueVoice = undefined; // 嗓音列表变化后重新探测粤语声
     var all = window.speechSynthesis.getVoices();
     zhVoices = all.filter(function (v) {
       return /zh|cmn|chinese/i.test(v.lang) || /chinese|mandarin/i.test(v.name);
@@ -65,15 +66,26 @@
   }
 
   /* ---------- 朗读 ---------- */
-  function speak(text) {
+  var _yueVoice; // undefined=未查过, null=本机无粤语嗓音
+  function cantoneseVoice() {
+    if (_yueVoice !== undefined) return _yueVoice;
+    var all = window.speechSynthesis.getVoices();
+    _yueVoice = all.filter(function (v) {
+      return /yue|zh-hk|cantonese/i.test(v.lang) || /cantonese|粤语|粵語|香港/i.test(v.name);
+    })[0] || null;
+    return _yueVoice;
+  }
+
+  function speak(text, opts) {
     if (!('speechSynthesis' in window)) {
       alert('当前浏览器不支持语音合成（SpeechSynthesis），请改用 Edge / Chrome。');
       return;
     }
     try { window.speechSynthesis.cancel(); } catch (e) {}
     var u = new SpeechSynthesisUtterance(text);
-    u.lang = 'zh-CN';
-    if (currentVoice) u.voice = currentVoice;
+    var v = (opts && opts.voice) || currentVoice;
+    u.lang = (opts && opts.lang) || 'zh-CN';
+    if (v) u.voice = v;
     u.rate = rate; u.volume = vol;
     u.onend = function () { PYAnim.Mouth.reset(); };
     u.onerror = function () { PYAnim.Mouth.reset(); };
@@ -96,8 +108,16 @@
     document.getElementById('nowPy').textContent = item.disp || PY.displayPy(item.py);
     document.getElementById('nowHanzi').textContent = item.h || '';
     document.getElementById('nowTip').textContent = item.tip || '';
-    // 发音优先用 item.read（拼读里是「声调专属汉字」）；卡片网格无 read，回退朗读范例汉字 h（中文 TTS 读汉字最稳）
-    speak(item.read || item.h || PY.displayPy(item.py));
+    if (item.audio && item.audio.cantonese) {
+      // 无独立汉字的鼻音韵母（如 ong）：优先用粤语嗓音读纯鼻音（安≈ON，无声母）；
+      // 无粤语嗓音时退读韵母拼音本身（已实测普通话嗓音会发声，不会没声）。
+      var yue = cantoneseVoice();
+      if (yue) speak(item.audio.cantonese, { voice: yue, lang: 'zh-HK' });
+      else speak(item.audio.pure, { voice: currentVoice, lang: 'zh-CN' });
+    } else {
+      // 发音优先用 item.read（拼读里是「声调专属汉字」）；卡片网格无 read，回退朗读范例汉字 h（中文 TTS 读汉字最稳）
+      speak(item.read || item.h || PY.displayPy(item.py));
+    }
   }
 
   /* ---------- 渲染卡片 ---------- */
