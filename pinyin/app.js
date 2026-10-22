@@ -1,95 +1,74 @@
-/* 汉语拼音学习小程序 — 主逻辑 */
+/* 汉语拼音学习小程序 — 主逻辑
+ * 发音方案：全部使用预生成音频文件（audio/{嗓音}/{key}.mp3），
+ * 不依赖学生设备的系统语音包——学习者的电脑/手机可能没有任何中文 TTS。
+ * 仅当音频文件加载失败、且系统恰好有中文嗓音时，才用 TTS 兜底。
+ * key 命名：ini_声母 / fin_韵母 / wh_整体认读 / syl_音节_声调(1~4)
+ */
 (function () {
   'use strict';
   var PY = window.PY, PYAnim = window.PYAnim;
 
-  /* ---------- 嗓音 ---------- */
-  var zhVoices = [], maleVoice = null, femaleVoice = null, currentVoice = null;
+  /* ---------- 嗓音（预生成音频目录） ---------- */
+  var VOICE_LIST = [
+    { id: 'xiaoxiao', name: '女声 · 晓晓', btn: 'btnFemale' },
+    { id: 'yunxi', name: '男声 · 云希', btn: 'btnMale' }
+  ];
+  var currentVoice = 'xiaoxiao';
   var rate = 1.0, vol = 1.0;
+  var curAudio = null;
 
-  function classify(name) {
-    name = (name || '').toLowerCase();
-    if (/kang|male|男/.test(name)) return 'male';
-    if (/hui|yaoyao|xiao|female|女|yahei|yun|ting/.test(name)) return 'female';
-    return 'unknown';
-  }
-
-  function loadVoices() {
-    _yueVoice = undefined; // 嗓音列表变化后重新探测粤语声
-    var all = window.speechSynthesis.getVoices();
-    zhVoices = all.filter(function (v) {
-      return /zh|cmn|chinese/i.test(v.lang) || /chinese|mandarin/i.test(v.name);
-    });
-    if (!zhVoices.length) zhVoices = all.filter(function (v) { return /cn/i.test(v.lang); });
-    maleVoice = zhVoices.filter(function (v) { return classify(v.name) === 'male'; })[0] || null;
-    femaleVoice = zhVoices.filter(function (v) { return classify(v.name) === 'female'; })[0] || null;
-    // 默认女声（多数系统自带），否则男声，否则第一个
-    currentVoice = femaleVoice || maleVoice || zhVoices[0] || null;
-
-    var sel = document.getElementById('voiceSel');
-    sel.innerHTML = '';
-    if (!zhVoices.length) {
-      var opt = document.createElement('option');
-      opt.textContent = '（系统未安装中文嗓音）';
-      sel.appendChild(opt);
-    } else {
-      zhVoices.forEach(function (v, i) {
-        var o = document.createElement('option');
-        o.value = i; o.textContent = v.name + ' [' + (classify(v.name) === 'male' ? '男' : classify(v.name) === 'female' ? '女' : '?') + ']';
-        sel.appendChild(o);
-      });
-      syncSelToCurrent();
-    }
-    var mv = document.getElementById('btnMale'), fv = document.getElementById('btnFemale');
-    mv.disabled = !maleVoice; mv.title = maleVoice ? ('男声：' + maleVoice.name) : '系统无男声';
-    fv.disabled = !femaleVoice; fv.title = femaleVoice ? ('女声：' + femaleVoice.name) : '系统无女声';
-    updateVoiceLabel();
-  }
-
-  function syncSelToCurrent() {
-    var sel = document.getElementById('voiceSel');
-    if (!currentVoice) return;
-    zhVoices.forEach(function (v, i) { if (v === currentVoice) sel.value = i; });
-  }
+  function audioUrl(key) { return 'audio/' + currentVoice + '/' + key + '.mp3'; }
 
   function updateVoiceLabel() {
-    var el = document.getElementById('voiceLabel');
-    el.textContent = currentVoice ? ('当前：' + currentVoice.name) : '无可用中文嗓音';
+    var v = VOICE_LIST.filter(function (x) { return x.id === currentVoice; })[0];
+    document.getElementById('voiceLabel').textContent =
+      '当前发音：' + (v ? v.name : currentVoice) + '（内置音频，无需安装中文语音包）';
   }
 
-  function selectMale() { if (maleVoice) { currentVoice = maleVoice; syncSelToCurrent(); updateVoiceLabel(); setVoiceActive('btnMale'); } }
-  function selectFemale() { if (femaleVoice) { currentVoice = femaleVoice; syncSelToCurrent(); updateVoiceLabel(); setVoiceActive('btnFemale'); } }
-  function setVoiceActive(id) {
-    ['btnMale', 'btnFemale'].forEach(function (x) {
-      document.getElementById(x).classList.toggle('active', x === id);
+  function selectVoice(id) {
+    if (currentVoice === id) return;
+    currentVoice = id;
+    VOICE_LIST.forEach(function (v) {
+      var b = document.getElementById(v.btn);
+      if (b) b.classList.toggle('active', v.id === id);
     });
+    updateVoiceLabel();
+    preloadAll();
   }
 
-  /* ---------- 朗读 ---------- */
-  var _yueVoice; // undefined=未查过, null=本机无粤语嗓音
-  function cantoneseVoice() {
-    if (_yueVoice !== undefined) return _yueVoice;
-    var all = window.speechSynthesis.getVoices();
-    _yueVoice = all.filter(function (v) {
-      return /yue|zh-hk|cantonese/i.test(v.lang) || /cantonese|粤语|粵語|香港/i.test(v.name);
-    })[0] || null;
-    return _yueVoice;
-  }
-
-  function speak(text, opts) {
-    if (!('speechSynthesis' in window)) {
-      alert('当前浏览器不支持语音合成（SpeechSynthesis），请改用 Edge / Chrome。');
-      return;
+  /* ---------- TTS 兜底（仅在音频缺失且系统有中文嗓音时生效） ---------- */
+  var _ttsVoice = 'unchecked';
+  function ttsVoice() {
+    if (_ttsVoice !== 'unchecked') return _ttsVoice;
+    _ttsVoice = null;
+    if ('speechSynthesis' in window) {
+      var all = window.speechSynthesis.getVoices() || [];
+      _ttsVoice = all.filter(function (v) { return /zh|cmn/i.test(v.lang); })[0] || null;
     }
-    try { window.speechSynthesis.cancel(); } catch (e) {}
-    var u = new SpeechSynthesisUtterance(text);
-    var v = (opts && opts.voice) || currentVoice;
-    u.lang = (opts && opts.lang) || 'zh-CN';
-    if (v) u.voice = v;
-    u.rate = rate; u.volume = vol;
-    u.onend = function () { PYAnim.Mouth.reset(); };
-    u.onerror = function () { PYAnim.Mouth.reset(); };
-    window.speechSynthesis.speak(u);
+    return _ttsVoice;
+  }
+  function ttsSpeak(text) {
+    var v = ttsVoice();
+    if (!v || !text) return false;
+    try {
+      window.speechSynthesis.cancel();
+      var u = new SpeechSynthesisUtterance(text);
+      u.lang = 'zh-CN'; u.voice = v; u.rate = rate; u.volume = vol;
+      u.onend = function () { PYAnim.Mouth.reset(); };
+      window.speechSynthesis.speak(u);
+      return true;
+    } catch (e) { return false; }
+  }
+
+  /* ---------- 提示条 ---------- */
+  var toastTimer = null;
+  function toast(msg) {
+    var el = document.getElementById('toast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove('show'); }, 2600);
   }
 
   /* ---------- 播放一个音 ---------- */
@@ -99,43 +78,104 @@
     return ['a'];
   }
 
-  function playItem(item, toneTip) {
-    var seq = seqOf(item);
+  /* 口型动画按音频时长均分各关键帧，尽量声形同步 */
+  function startMouth(seq, durSec) {
     var per = 300;
+    if (durSec && isFinite(durSec) && durSec > 0.2) {
+      per = Math.max(160, Math.min(430, (durSec * 1000 - 140) / Math.max(1, seq.length)));
+    }
     PYAnim.Mouth.sequence(seq, per);
-    var ms = Math.max(1000, seq.length * (per + 30) + 200);
-    PYAnim.Tone.play(toneTip || 0, ms);
+    return Math.max(900, seq.length * (per + 30) + 200);
+  }
+
+  function stopCurrent() {
+    if (curAudio) {
+      try { curAudio.pause(); } catch (e) {}
+      curAudio.onended = null; curAudio.onerror = null; curAudio.oncanplay = null;
+      curAudio = null;
+    }
+    if ('speechSynthesis' in window) { try { window.speechSynthesis.cancel(); } catch (e) {} }
+    PYAnim.Mouth.reset();
+    PYAnim.Tone.reset();
+  }
+
+  /* 播放音频键；item 提供 TTS 兜底文本；onDone 用于多段连读（如试听「你好」） */
+  function playKey(key, item, seq, toneTip, onDone) {
+    stopCurrent();
+    var a = new Audio();
+    a.preload = 'auto';
+    a.src = audioUrl(key);
+    a.playbackRate = rate;
+    a.volume = vol;
+    var animStarted = false, fellBack = false;
+    function begin(dur) {
+      if (animStarted) return;
+      animStarted = true;
+      var ms = startMouth(seq, dur);
+      PYAnim.Tone.play(toneTip || 0, ms);
+    }
+    function fallback(why) {
+      if (fellBack) return;
+      fellBack = true;
+      if (!ttsSpeak(item ? (item.read || item.h || '') : '')) {
+        PYAnim.Mouth.reset();
+        toast('音频加载失败（' + key + '），请刷新重试');
+      }
+    }
+    a.onloadedmetadata = function () { begin(a.duration); };
+    setTimeout(function () { begin(0.45 * seq.length); }, 400); // 元数据迟迟不来的保险
+    a.onended = function () {
+      if (curAudio === a) { curAudio = null; PYAnim.Mouth.reset(); }
+      if (onDone) onDone();
+    };
+    a.onerror = function () { if (curAudio === a) curAudio = null; fallback(); };
+    curAudio = a;
+    var p = a.play();
+    if (p && p.catch) p.catch(function () { fallback(); });
+  }
+
+  function playItem(item, toneTip, onDone) {
     document.getElementById('nowPy').textContent = item.disp || PY.displayPy(item.py);
     document.getElementById('nowHanzi').textContent = item.h || '';
     document.getElementById('nowTip').textContent = item.tip || '';
-    if (item.audio && item.audio.cantonese) {
-      // 无独立汉字的鼻音韵母（如 ong）：优先用粤语嗓音读纯鼻音（安≈ON，无声母）；
-      // 无粤语嗓音时退读韵母拼音本身（已实测普通话嗓音会发声，不会没声）。
-      var yue = cantoneseVoice();
-      if (yue) speak(item.audio.cantonese, { voice: yue, lang: 'zh-HK' });
-      else speak(item.audio.pure, { voice: currentVoice, lang: 'zh-CN' });
-    } else {
-      // 发音优先用 item.read（拼读里是「声调专属汉字」）；卡片网格无 read，回退朗读范例汉字 h（中文 TTS 读汉字最稳）
-      speak(item.read || item.h || PY.displayPy(item.py));
-    }
+    playKey(item.audioKey, item, seqOf(item), toneTip, onDone);
   }
 
   /* ---------- 渲染卡片 ---------- */
-  function makeCard(item, tone) {
+  function makeCard(item, tone, key) {
     var card = document.createElement('button');
     card.className = 'card';
     var disp = item.disp || PY.displayPy(item.py);
     card.innerHTML = '<span class="py">' + disp + '</span>' +
       '<span class="hz">' + (item.h || '') + '</span>' +
       '<span class="tip">' + (item.tip || '') + '</span>';
+    item.audioKey = key;
     card.addEventListener('click', function () { playItem(item, tone); });
     return card;
   }
 
-  function renderGrid(containerId, items, tone) {
+  function renderGrid(containerId, items, tone, prefix) {
     var box = document.getElementById(containerId);
     box.innerHTML = '';
-    items.forEach(function (it) { box.appendChild(makeCard(it, tone)); });
+    items.forEach(function (it) {
+      box.appendChild(makeCard(it, tone, prefix + it.py));
+    });
+  }
+
+  /* 预热当前嗓音的网格音频（每个仅几 KB，避免首次点击延迟） */
+  var preloadedVoice = null;
+  function preloadAll() {
+    if (preloadedVoice === currentVoice) return;
+    preloadedVoice = currentVoice;
+    var keys = [];
+    PY.INITIALS.forEach(function (it) { keys.push('ini_' + it.py); });
+    PY.FINALS.forEach(function (it) { keys.push('fin_' + it.py); });
+    PY.WHOLE.forEach(function (it) { keys.push('wh_' + it.py); });
+    keys.forEach(function (k) {
+      var p = new Audio();
+      p.preload = 'auto';
+      p.src = audioUrl(k);
+    });
   }
 
   /* ---------- 拼读组合 ---------- */
@@ -157,6 +197,8 @@
       for (var i = 0; i < toneRadios.length; i++) if (toneRadios[i].checked) return Number(toneRadios[i].value);
       return 1;
     }
+    /* 轻声(5)无对应音频，借用一声的文件（轻声本无声调） */
+    function toneOf(t) { return t === 5 ? 1 : t; }
 
     function refresh() {
       var ini = iniSel.value === '' ? null : PY.INITIALS[Number(iniSel.value)];
@@ -193,23 +235,36 @@
       if (!ini) {
         base = fin.py;
         var syl0 = PY.normSyll('', fin.py);   // 零声母改写：i→yi、ui→wei、iu→you…
+        look = syl0;                           // normSyll 已处理全部 ü 改写，无需再替换
         disp = PY.markTone(syl0, tone);
         compPy.textContent = PY.displayPy(disp);
-        compMsg.textContent = '单韵母示范：' + fin.h;
-        item = { py: syl0, disp: PY.displayPy(disp), h: fin.h, tip: fin.tip, seq: fin.seq || [fin.v], read: fin.h };
+        var hz0 = PY.toneChar(look, tone) || PY.anyToneChar(look) || fin.h;
+        compMsg.textContent = hz0 ? ('示范字：' + hz0) : '';
+        item = {
+          py: syl0, disp: PY.displayPy(disp), h: hz0, tip: fin.tip,
+          seq: fin.seq || [fin.v],
+          audioKey: 'syl_' + look + '_' + toneOf(tone),
+          read: hz0
+        };
       } else {
         var syl = PY.normSyll(ini.py, fin.py);        // 规范拼写：j+v→ju、y+iu→you、w+ui→wei…
-        look = syl.replace(/v/g, 'u');                 // ü->u，与 SYLL_TONE / SYLL 的查表键一致
+        look = syl;                                    // normSyll 已处理 ü 改写：j/q/x/y→u，n/l 保留 v
         disp = PY.markTone(syl, tone);
         compPy.textContent = PY.displayPy(disp);
-        // 关键：按所选声调取对应示范汉字（汉字自带声调，TTS 才会读出入声变化）；
-        // 该声调无单字时借用同音节其他声调的字，保证朗读永远是汉字，不回退拉丁拼音
+        // 按所选声调取对应示范汉字（汉字自带声调，音频才有入声变化）；
+        // 该声调无单字时借用同音节其他声调的字，保证永远是汉字读音
         var hzExact = PY.toneChar(look, tone);
-        var hz = hzExact || PY.anyToneChar(look) || PY.SYLL[look] || PY.SYLL[syl] || '';
+        var hz = hzExact || PY.anyToneChar(look) || PY.SYLL[syl] || '';
         compMsg.textContent = hz
           ? ('示范字：' + hz + (hzExact ? '' : '（该声调无常用单字，借同音节字示范）'))
           : '该组合较少用，未收录范字';
-        item = { py: syl, disp: PY.displayPy(disp), h: hz, tip: '声母 ' + PY.displayPy(ini.py) + ' + 韵母 ' + PY.displayPy(fin.py), seq: [ini.v].concat(fin.seq || [fin.v]), read: hz || PY.displayPy(disp) };
+        item = {
+          py: syl, disp: PY.displayPy(disp), h: hz,
+          tip: '声母 ' + PY.displayPy(ini.py) + ' + 韵母 ' + PY.displayPy(fin.py),
+          seq: [ini.v].concat(fin.seq || [fin.v]),
+          audioKey: 'syl_' + look + '_' + toneOf(tone),
+          read: hz
+        };
       }
       return item;
     }
@@ -241,18 +296,15 @@
   function init() {
     PYAnim.Mouth.init();
     PYAnim.Tone.init();
-    renderGrid('gridInitial', PY.INITIALS, 0);
-    renderGrid('gridFinal', PY.FINALS, 0);
-    renderGrid('gridWhole', PY.WHOLE, 0);
+    renderGrid('gridInitial', PY.INITIALS, 0, 'ini_');
+    renderGrid('gridFinal', PY.FINALS, 0, 'fin_');
+    renderGrid('gridWhole', PY.WHOLE, 0, 'wh_');
     buildComposer();
     initTabs();
+    preloadAll();
 
-    document.getElementById('btnMale').addEventListener('click', selectMale);
-    document.getElementById('btnFemale').addEventListener('click', selectFemale);
-    document.getElementById('voiceSel').addEventListener('change', function () {
-      var i = Number(this.value);
-      if (zhVoices[i]) { currentVoice = zhVoices[i]; updateVoiceLabel(); setVoiceActive(''); }
-    });
+    document.getElementById('btnMale').addEventListener('click', function () { selectVoice('yunxi'); });
+    document.getElementById('btnFemale').addEventListener('click', function () { selectVoice('xiaoxiao'); });
     document.getElementById('rate').addEventListener('input', function () {
       rate = Number(this.value); document.getElementById('rateVal').textContent = rate.toFixed(2) + 'x';
     });
@@ -260,23 +312,23 @@
       vol = Number(this.value); document.getElementById('volVal').textContent = Math.round(vol * 100) + '%';
     });
     document.getElementById('btnTest').addEventListener('click', function () {
-      speak('你好，一起来学拼音吧');
+      // 连读「你好」示范
+      var chain = [
+        { key: 'syl_ni_3', seq: ['n', 'i'], tone: 3, item: { read: '你' } },
+        { key: 'syl_hao_3', seq: ['h', 'a', 'o'], tone: 3, item: { read: '好' } }
+      ];
+      (function next() {
+        var job = chain.shift();
+        if (!job) return;
+        playKey(job.key, job.item, job.seq, job.tone, next);
+      })();
     });
 
-    if ('speechSynthesis' in window) {
-      loadVoices();
-      if (typeof window.speechSynthesis.onvoiceschanged !== 'undefined') {
-        window.speechSynthesis.onvoiceschanged = loadVoices;
-      }
-      if (!zhVoices.length) {
-        // 某些浏览器首次需触发一次
-        var probe = new SpeechSynthesisUtterance('');
-        window.speechSynthesis.speak(probe); window.speechSynthesis.cancel();
-        setTimeout(loadVoices, 300);
-      }
-    } else {
-      document.getElementById('voiceLabel').textContent = '浏览器不支持语音合成';
-    }
+    VOICE_LIST.forEach(function (v) {
+      var b = document.getElementById(v.btn);
+      if (b) b.classList.toggle('active', v.id === currentVoice);
+    });
+    updateVoiceLabel();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
