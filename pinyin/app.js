@@ -142,25 +142,22 @@
       var ini = iniSel.value === '' ? null : PY.INITIALS[Number(iniSel.value)];
       var fin = PY.FINALS[Number(finSel.value)];
       var tone = getTone();
-      var base, disp, item;
+      var base, look, disp, item;
       if (!ini) {
         base = fin.py;
         disp = PY.markTone(base, tone);
         document.getElementById('compPy').textContent = PY.displayPy(disp);
         document.getElementById('compMsg').textContent = '单韵母示范：' + fin.h;
-        item = { py: base, disp: PY.displayPy(disp), h: fin.h, tip: fin.tip, seq: fin.seq || [fin.v], read: fin.read || PY.displayPy(disp) };
+        item = { py: base, disp: PY.displayPy(disp), h: fin.h, tip: fin.tip, seq: fin.seq || [fin.v], read: PY.displayPy(disp) };
       } else {
         base = ini.py + fin.py;
+        look = base.replace(/v/g, 'u');   // ü->u，与 SYLL_TONE / SYLL 的查表键一致
         disp = PY.markTone(base, tone);
         document.getElementById('compPy').textContent = PY.displayPy(disp);
-        var hz = PY.SYLL[base];
-        if (hz) {
-          document.getElementById('compMsg').textContent = '示范字：' + hz;
-          item = { py: base, disp: PY.displayPy(disp), h: hz, tip: '声母 ' + PY.displayPy(ini.py) + ' + 韵母 ' + PY.displayPy(fin.py), seq: [ini.v].concat(fin.seq || [fin.v]), read: PY.displayPy(disp) };
-        } else {
-          document.getElementById('compMsg').textContent = '该组合较少用，未收录范字，可直接听拼音发音';
-          item = { py: base, disp: PY.displayPy(disp), h: '', tip: '声母 ' + PY.displayPy(ini.py) + ' + 韵母 ' + PY.displayPy(fin.py), seq: [ini.v].concat(fin.seq || [fin.v]), read: PY.displayPy(disp) };
-        }
+        // 关键：按所选声调取对应示范汉字（汉字自带声调，TTS 才会读出入声变化）
+        var hz = PY.toneChar(look, tone) || PY.SYLL[look] || PY.SYLL[base] || '';
+        document.getElementById('compMsg').textContent = hz ? ('示范字：' + hz) : '该组合较少用，未收录范字，听拼音发音';
+        item = { py: base, disp: PY.displayPy(disp), h: hz, tip: '声母 ' + PY.displayPy(ini.py) + ' + 韵母 ' + PY.displayPy(fin.py), seq: [ini.v].concat(fin.seq || [fin.v]), read: hz || PY.displayPy(disp) };
       }
       return item;
     }
