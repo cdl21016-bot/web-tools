@@ -162,22 +162,54 @@
       var ini = iniSel.value === '' ? null : PY.INITIALS[Number(iniSel.value)];
       var fin = PY.FINALS[Number(finSel.value)];
       var tone = getTone();
+      var compPy = document.getElementById('compPy');
+      var compMsg = document.getElementById('compMsg');
+      var btn = document.getElementById('btnCompose');
+      var iniDisp = ini ? PY.displayPy(ini.py) : '';
+      var finDisp = PY.displayPy(fin.py);
       var base, look, disp, item;
+
+      /* 纠错：普通话不存在的音节，显示错误并禁止朗读 */
+      if (!PY.canSpell(ini ? ini.py : '', fin.py)) {
+        var why = '';
+        if (!ini) {
+          compPy.textContent = '✕ 不能单独发音';
+          compMsg.textContent = '普通话中没有单独读 "' + finDisp + '" 的音节：' + finDisp + ' 必须和声母相拼（试试 d+' + finDisp + '）';
+        } else {
+          compPy.textContent = '✕ 不能组合';
+          compMsg.textContent = '普通话中没有 "' + iniDisp + finDisp + '" 这个音节：' + iniDisp + ' 不能和 ' + finDisp + ' 相拼，请换一个声母或韵母';
+          // 特例引导：j/q/x/y+u 实际要选 ü；w+ei 实际要选 ui（uei）
+          if ('jqxy'.indexOf(ini.py) >= 0 && fin.py === 'u') why = '（"ju/qu/xu/yu" 的韵母是 ü，请把韵母换成 ü 再试）';
+          else if (ini.py === 'w' && fin.py === 'ei') why = '（"wei 为" 的韵母是 ui，请把韵母换成 ui 再试）';
+          if (why) compMsg.textContent += why;
+        }
+        compPy.classList.add('err');
+        btn.disabled = true;
+        return null;
+      }
+      compPy.classList.remove('err');
+      btn.disabled = false;
+
       if (!ini) {
         base = fin.py;
-        disp = PY.markTone(base, tone);
-        document.getElementById('compPy').textContent = PY.displayPy(disp);
-        document.getElementById('compMsg').textContent = '单韵母示范：' + fin.h;
-        item = { py: base, disp: PY.displayPy(disp), h: fin.h, tip: fin.tip, seq: fin.seq || [fin.v], read: fin.h };
+        var syl0 = PY.normSyll('', fin.py);   // 零声母改写：i→yi、ui→wei、iu→you…
+        disp = PY.markTone(syl0, tone);
+        compPy.textContent = PY.displayPy(disp);
+        compMsg.textContent = '单韵母示范：' + fin.h;
+        item = { py: syl0, disp: PY.displayPy(disp), h: fin.h, tip: fin.tip, seq: fin.seq || [fin.v], read: fin.h };
       } else {
-        base = ini.py + fin.py;
-        look = base.replace(/v/g, 'u');   // ü->u，与 SYLL_TONE / SYLL 的查表键一致
-        disp = PY.markTone(base, tone);
-        document.getElementById('compPy').textContent = PY.displayPy(disp);
-        // 关键：按所选声调取对应示范汉字（汉字自带声调，TTS 才会读出入声变化）
-        var hz = PY.toneChar(look, tone) || PY.SYLL[look] || PY.SYLL[base] || '';
-        document.getElementById('compMsg').textContent = hz ? ('示范字：' + hz) : '该组合较少用，未收录范字，听拼音发音';
-        item = { py: base, disp: PY.displayPy(disp), h: hz, tip: '声母 ' + PY.displayPy(ini.py) + ' + 韵母 ' + PY.displayPy(fin.py), seq: [ini.v].concat(fin.seq || [fin.v]), read: hz || PY.displayPy(disp) };
+        var syl = PY.normSyll(ini.py, fin.py);        // 规范拼写：j+v→ju、y+iu→you、w+ui→wei…
+        look = syl.replace(/v/g, 'u');                 // ü->u，与 SYLL_TONE / SYLL 的查表键一致
+        disp = PY.markTone(syl, tone);
+        compPy.textContent = PY.displayPy(disp);
+        // 关键：按所选声调取对应示范汉字（汉字自带声调，TTS 才会读出入声变化）；
+        // 该声调无单字时借用同音节其他声调的字，保证朗读永远是汉字，不回退拉丁拼音
+        var hzExact = PY.toneChar(look, tone);
+        var hz = hzExact || PY.anyToneChar(look) || PY.SYLL[look] || PY.SYLL[syl] || '';
+        compMsg.textContent = hz
+          ? ('示范字：' + hz + (hzExact ? '' : '（该声调无常用单字，借同音节字示范）'))
+          : '该组合较少用，未收录范字';
+        item = { py: syl, disp: PY.displayPy(disp), h: hz, tip: '声母 ' + PY.displayPy(ini.py) + ' + 韵母 ' + PY.displayPy(fin.py), seq: [ini.v].concat(fin.seq || [fin.v]), read: hz || PY.displayPy(disp) };
       }
       return item;
     }

@@ -139,7 +139,6 @@
     bing: '冰', ping: '平', ming: '明', ding: '丁', ting: '听', ning: '宁', ling: '铃',
     bo: '波', po: '破', mo: '摸', me: '么',
     bu: '不', pu: '普', mu: '木', fu: '父', du: '读', tu: '土', nu: '努', lu: '路',
-    bai2: '百',
     cha: '茶', chai: '柴', chan: '产', chang: '长', chao: '超', che: '车', chen: '沉',
     cheng: '成', chi: '吃', chong: '虫', chou: '愁', chu: '出', chuan: '船', chuang: '床',
     chui: '吹', chun: '春', chuo: '戳',
@@ -166,7 +165,6 @@
     hua: '花', huai: '怀', huan: '欢', huang: '黄', hui: '回', hun: '混', huo: '火',
     duan: '段', dui: '对', dun: '顿', duo: '多', tuan: '团', tui: '推', tun: '吞', tuo: '拖',
     nuan: '暖', nuo: '挪', luan: '乱', lun: '轮', luo: '罗', lve: '略', nve: '虐',
-    jue2: '绝', lue: '略', nue: '虐',
     hao: '好', zhang: '张', zhao: '照', zhou: '周', zhen: '真', zheng: '正', zhu: '住', zhuo: '桌',
     kai: '开', kao: '考', kan: '看', ken: '肯', keng: '坑', kou: '口', hou: '后', hen: '很',
     hang: '航', heng: '横', gai: '该', gou: '狗', gan: '干', gen: '跟', geng: '更',
@@ -292,7 +290,35 @@
     kong: ['空', '恐', '孔', '控'], hong: ['轰', '红', '哄', '哄'], long: ['龙', '龙', '拢', '弄'],
     pi: ['批', '皮', '匹', '屁'], mi: ['眯', '迷', '米', '密'], di: ['低', '敌', '底', '地'],
     ti: ['梯', '提', '体', '替'], ni: ['妮', '泥', '你', '腻'], li: ['离', '梨', '李', '力'],
-    dia: ['嗲', '嗲', '嗲', '嗲'], bia: ['逼', '比', '比', '避']
+    dia: ['嗲', '嗲', '嗲', '嗲'], bia: ['逼', '比', '比', '避'],
+    /* —— 以下补齐所有合法组合（缺项曾导致朗读回退读拉丁拼音，音质不可靠）——
+     * 某声调无常用单字时留空串，由 anyToneChar() 借用同音节其他声调的字顶上 */
+    zha: ['扎', '扎', '眨', '炸'], zhe: ['遮', '折', '者', '这'], zhi: ['织', '直', '只', '志'],
+    zhai: ['摘', '宅', '窄', '债'], zhui: ['追', '', '', '坠'], zhan: ['沾', '', '展', '站'],
+    zhun: ['谆', '', '准', ''], zhong: ['中', '', '种', '重'],
+    bi: ['逼', '鼻', '比', '必'], ben: ['奔', '', '', '笨'], pen: ['喷', '', '', '喷'],
+    mei: ['没', '没', '美', '妹'], mou: ['', '某', '', ''], miu: ['', '', '', '谬'],
+    men: ['闷', '门', '', '闷'],
+    fo: ['佛', '佛', '佛', '佛'], fei: ['飞', '肥', '匪', '废'], fan: ['翻', '烦', '反', '饭'],
+    fen: ['分', '坟', '粉', '份'], fang: ['方', '房', '仿', '放'],
+    de: ['', '得', '', ''], dei: ['', '', '得', ''], dou: ['都', '', '抖', '豆'],
+    diu: ['丢', '', '', ''], die: ['跌', '蝶', '', ''], den: ['', '', '', '扽'], dong: ['东', '', '懂', '动'],
+    tou: ['偷', '头', '', '透'], tie: ['贴', '', '铁', '帖'], tong: ['通', '同', '统', '痛'],
+    ne: ['呢', '', '', ''], nei: ['', '内', '', ''], nou: ['', '', '', '耨'],
+    niu: ['妞', '牛', '扭', '拗'], nie: ['捏', '苶', '', '聂'], nen: ['', '', '', '嫩'],
+    nin: ['', '您', '', ''], nang: ['囔', '囊', '', ''], nong: ['', '农', '', '弄'],
+    le: ['', '', '', '了'], lei: ['勒', '雷', '累', '泪'], lou: ['搂', '楼', '', '漏'],
+    liu: ['溜', '流', '六', ''], lie: ['', '', '咧', '列'], lin: ['', '林', '', '赁'],
+    ge: ['哥', '格', '', '个'], gei: ['', '', '', '给'], gao: ['高', '', '搞', '告'],
+    gang: ['刚', '', '岗', '杠'],
+    ke: ['科', '', '可', '刻'], ku: ['哭', '', '苦', '库'], kang: ['康', '', '扛', '炕'],
+    he: ['喝', '和', '', '贺'], hu: ['呼', '', '虎', '户'], hai: ['咳', '还', '海', '害'],
+    hei: ['黑', '', '', ''], han: ['憨', '寒', '喊', '汉'],
+    re: ['', '', '', '热'], ri: ['', '', '', '日'], ru: ['', '', '', '入'], rui: ['', '', '', '锐'],
+    rao: ['', '饶', '', '绕'], rou: ['', '柔', '', '肉'], ran: ['', '然', '染', ''],
+    ren: ['', '人', '', '任'], run: ['', '', '', '闰'], rang: ['', '瓤', '', '让'],
+    reng: ['扔', '', '', ''], rong: ['', '荣', '', '容'],
+    cen: ['', '', '', '岑'], cang: ['', '藏', '', ''], ceng: ['', '曾', '', '']
   };
 
   /* 返回某音节在指定声调下的示范汉字；无则返回空串 */
@@ -300,6 +326,76 @@
     var arr = SYLL_TONE[base];
     if (arr && arr[tone - 1]) return arr[tone - 1];
     return '';
+  }
+
+  /* 返回某音节任一非空声调的示范汉字（该声调无常用单字时借用）。
+   * 目的：保证拼读朗读永远是汉字（中文 TTS 读汉字才稳），绝不回退读拉丁拼音。 */
+  function anyToneChar(base) {
+    var arr = SYLL_TONE[base];
+    if (arr) for (var i = 0; i < arr.length; i++) if (arr[i]) return arr[i];
+    return '';
+  }
+
+  /* 普通话声韵拼合规则：某声母能否与某韵母相拼（声韵配合规律）。
+   * 教学准确性：x+a、b+ong、g+iu、sh+ong、y+u 这类普通话里不存在的音节，
+   * 在拼读页必须判错并禁止朗读，不能显示成一个假的拼音。
+   * 覆盖拼读器可选的 24 个韵母；已与 SYLL 示范字表全量交叉验证（SYLL 收录的音节全部判合法）。 */
+  var SPELL_RULES = {
+    b:  'a o i u ai ao ie an en in ang eng ing',
+    p:  'a o i u ai ao ie an en in ang eng ing',
+    m:  'a o e i u ai ei ao ou iu ie an en in ang eng ing',
+    f:  'a o u ei an en ang eng',
+    d:  'a e i u ai ei ui ao ou iu ie an en un ang eng ing ong',
+    t:  'a i u ai ui ao ou ie an un ang eng ing ong',
+    n:  'a e i u v ai ei ao ou iu ie ve an en in ang eng ing ong',
+    l:  'a e i u v ai ei ao ou iu ie ve an in un ang eng ing ong',
+    g:  'a e u ai ei ui ao ou an en un ang eng ong',
+    k:  'a e u ai ui ao ou an en un ang eng ong',
+    h:  'a e u ai ei ui ao ou an en un ang eng ong',
+    j:  'i v iu ie ve in vn ing',
+    q:  'i v iu ie ve in vn ing',
+    x:  'i v iu ie ve in vn ing',
+    zh: 'a e i u ai ui ao ou an en un ang eng ong',
+    ch: 'a e i u ai ui ao ou an en un ang eng ong',
+    sh: 'a e i u ai ui ao ou an en un ang eng',
+    r:  'e i u ui ao ou an en un ang eng ong',
+    z:  'a e i u ai ui ao ou an en un ang eng ong',
+    c:  'a e i u ai ui ao ou an en un ang eng ong',
+    s:  'a e i u ai ui ao ou an en un ang eng ong',
+    y:  'a o e i v ao ou iu ve an in vn ang ing ong',
+    w:  'a o u ai ui an en un ang eng'
+  };
+
+  /* 判断声母+韵母能否相拼。
+   * iniPy 为空串 = 零声母（单韵母）：普通话中只有 ong 不能单独成音节（必须前拼声母）。 */
+  function canSpell(iniPy, finPy) {
+    if (!iniPy) return finPy !== 'ong';
+    var rule = SPELL_RULES[iniPy];
+    if (!rule) return true;   /* 未收录的声母不拦截（理论上不存在） */
+    return (' ' + rule + ' ').indexOf(' ' + finPy + ' ') >= 0;
+  }
+
+  /* 拼写规范化：按《汉语拼音方案》的省写/改写规则，把「声母+韵母」拼成规范音节，
+   * 保证调号标在正确字母上。规则：
+   *  - j/q/x/y 后的 ü 写作 u（不带点）：j+v→ju、j+vn→jun、j+ve→jue、y+v→yu…
+   *  - y+iu→you、w+ui→wei、w+un→wen（iou/uei/uen 的零声母/半元音形式，调号在 o/e）
+   *  - 零声母时 i/u/ü 行改写：i→yi、u→wu、v→yu、ie→ye、ve→yue、iu→you、
+   *    ui→wei、un→wen、in→yin、ing→ying、vn→yun
+   * 返回规范拼写（无声调）。 */
+  function normSyll(iniPy, finPy) {
+    if (!iniPy) {
+      var zero = { i: 'yi', u: 'wu', v: 'yu', ie: 'ye', ve: 'yue', iu: 'you', ui: 'wei', un: 'wen', in: 'yin', ing: 'ying', vn: 'yun' };
+      return zero[finPy] || finPy;
+    }
+    if (iniPy === 'y' || iniPy === 'j' || iniPy === 'q' || iniPy === 'x') {
+      var f = finPy === 'v' ? 'u' : (finPy === 'vn' ? 'un' : (finPy === 've' ? 'ue' : finPy));
+      if (iniPy === 'y' && finPy === 'iu') f = 'ou';   /* y+iu → you */
+      return iniPy + f;
+    }
+    var base = iniPy + finPy;
+    if (base === 'wui') return 'wei';   /* w+ui → wei（调号在 e） */
+    if (base === 'wun') return 'wen';   /* w+un → wen（调号在 e） */
+    return base;
   }
 
   /* 声调标注：把无声调拼音按声调标上调号（tone: 1~4，5 或 0 = 轻声） */
@@ -336,6 +432,9 @@
     SYLL: SYLL,
     SYLL_TONE: SYLL_TONE,
     toneChar: toneChar,
+    anyToneChar: anyToneChar,
+    canSpell: canSpell,
+    normSyll: normSyll,
     markTone: markTone,
     displayPy: displayPy
   };

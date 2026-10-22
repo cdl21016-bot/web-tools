@@ -79,6 +79,7 @@ input[type=range] { width: 120px; accent-color: #ff7a59; }
 .tone-set label { font-size: 14px; margin-right: 4px; cursor: pointer; }
 .comp-row.big { gap: 16px; }
 .comp-py { font-size: 34px; font-weight: 800; color: #ff7a59; min-width: 90px; }
+.comp-py.err { color: #d4382c; font-size: 22px; letter-spacing: 1px; }
 .comp-msg { font-size: 13px; color: #5a6473; margin: 6px 0; }
 .hint { font-size: 12px; color: #8a93a5; margin-top: 8px; line-height: 1.5; }
 .foot { text-align: center; font-size: 12px; color: #9aa3b2; margin-top: 18px; }
