@@ -979,6 +979,14 @@ const Store = (function () {
         builtin: true,
         src: 'pinyin/index.html',
       },
+      {
+        id: 'tool_chinese_basic',
+        name: '中文基础学习',
+        icon: '🀄',
+        description: '面向越南语母语者的中文入门：日常交流/工作报告/语法/数字四大类，中文+拼音+越南语对照，内置发音音频，附随机作业',
+        builtin: true,
+        src: 'tools/中文基础学习/index.html',
+      },
     ];
 
     // 每次初始化都确保内置工具存在（按 id upsert），同时保留用户上传的工具。

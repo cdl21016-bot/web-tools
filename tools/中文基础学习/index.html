@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="description" content="中文基础学习 · 面向越南语母语者的中文入门小程序" />
+  <title>中文基础 · Tiếng Trung Cơ Bản</title>
+  <style>
+    /* ================= 主题变量 ================= */
+    :root {
+      --bg: #f4f7f6;
+      --card: #ffffff;
+      --text: #1f2933;
+      --muted: #6b7280;
+      --accent: #0ea5a4;
+      --accent-strong: #0c8c8b;
+      --accent-soft: #e0f2f1;
+      --border: #e5e7eb;
+      --shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+      --tag: #fef3c7;
+      --tag-text: #92400e;
+      --good: #16a34a;
+    }
+    [data-theme="dark"] {
+      --bg: #111827;
+      --card: #1c2535;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #2dd4bf;
+      --accent-strong: #14b8a6;
+      --accent-soft: #134e4a;
+      --border: #2d3748;
+      --shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+      --tag: #3a2f12;
+      --tag-text: #fcd34d;
+      --good: #4ade80;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      font-family: "Noto Sans", "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding-bottom: 84px; /* 给底部导航留空间 */
+      transition: background 0.25s ease, color 0.25s ease;
+    }
+
+    /* ================= 顶部标题 ================= */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: #fff;
+      padding: 18px 16px 14px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+    }
+    header .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    header h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.5px; }
+    header .sub { margin: 4px 0 0; font-size: 12.5px; opacity: 0.92; }
+    .theme-btn {
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      border-radius: 20px;
+      padding: 6px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .theme-btn:active { transform: scale(0.96); }
+
+    /* ================= 内容容器 ================= */
+    main { max-width: 820px; margin: 0 auto; padding: 14px 12px 24px; }
+    section { display: none; animation: fade 0.25s ease; }
+    section.active { display: block; }
+    @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    .section-intro { font-size: 13px; color: var(--muted); margin: 6px 4px 14px; }
+
+    /* ================= 分类 ================= */
+    .cat-title {
+      display: flex; align-items: baseline; gap: 8px;
+      margin: 18px 4px 10px;
+      font-size: 16px; font-weight: 700; color: var(--accent-strong);
+      border-left: 4px solid var(--accent);
+      padding-left: 8px;
+    }
+    .cat-title .vn { font-size: 12.5px; font-weight: 400; color: var(--muted); }
+
+    /* ================= 卡片 ================= */
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 12px 12px;
+      box-shadow: var(--shadow);
+      display: flex; flex-direction: column; gap: 6px;
+      position: relative;
+    }
+    .card .zh { font-size: 23px; font-weight: 700; line-height: 1.25; }
+    .card .py { font-size: 13.5px; color: var(--accent-strong); font-style: italic; }
+    .card .vn { font-size: 13px; color: var(--muted); }
+    .speak-btn {
+      align-self: flex-end;
+      border: none;
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      border-radius: 10px;
+      width: 36px; height: 32px;
+      font-size: 17px;
+      cursor: pointer;
+      margin-top: 2px;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .speak-btn:active { transform: scale(0.9); background: var(--accent); color: #fff; }
+
+    /* 数字页规则说明块 */
+    .num-note {
+      background: var(--accent-soft);
+      color: var(--accent-strong);
+      border-left: 4px solid var(--accent);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin: 0 4px 14px;
+      font-size: 13.5px;
+      line-height: 1.6;
+      font-weight: 600;
+    }
+
+    /* ================= 语法 ================= */
+    .grammar-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow);
+    }
+    .grammar-card h3 { margin: 0 0 4px; font-size: 19px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+    .grammar-card h3 .py { font-size: 13px; color: var(--accent-strong); font-weight: 400; font-style: italic; }
+    .grammar-card .desc { font-size: 13.5px; color: var(--muted); margin: 6px 0 10px; }
+    .grammar-card .structure {
+      background: var(--accent-soft); color: var(--accent-strong);
+      border-radius: 10px; padding: 8px 12px; font-size: 13.5px; margin-bottom: 10px;
+      font-weight: 600;
+    }
+    .example {
+      border-top: 1px dashed var(--border);
+      padding: 10px 0 6px;
+      display: flex; align-items: flex-start; gap: 10px;
+    }
+    .example:first-of-type { border-top: none; }
+    .example .ex-body { flex: 1; }
+    .example .ex-zh { font-size: 16px; font-weight: 600; }
+    .example .ex-py { font-size: 12.5px; color: var(--accent-strong); font-style: italic; }
+    .example .ex-vn { font-size: 13px; color: var(--muted); }
+
+    /* ================= 作业 ================= */
+    .quiz-toolbar { display: flex; gap: 10px; margin: 4px 4px 16px; flex-wrap: wrap; align-items: center; }
+    .btn-primary {
+      background: var(--accent); color: #fff; border: none;
+      border-radius: 12px; padding: 11px 18px; font-size: 15px; font-weight: 600;
+      cursor: pointer; box-shadow: var(--shadow);
+    }
+    .btn-primary:active { transform: scale(0.97); }
+    .quiz-meta { font-size: 13px; color: var(--muted); }
+
+    .quiz-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 14px;
+      box-shadow: var(--shadow);
+    }
+    .quiz-card .q-head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .quiz-card .q-num {
+      background: var(--accent); color: #fff; border-radius: 50%;
+      width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; flex-shrink: 0;
+    }
+    .quiz-card .q-type { font-size: 12.5px; color: var(--accent-strong); font-weight: 600; }
+    .quiz-card .q-type .vn { color: var(--muted); font-weight: 400; }
+    .quiz-card .q-zh { font-size: 21px; font-weight: 700; margin: 4px 0; }
+    .quiz-card .q-py { font-size: 14px; color: var(--accent-strong); font-style: italic; }
+    .quiz-card .q-vn { font-size: 13.5px; color: var(--muted); }
+    .quiz-card .q-hint { font-size: 13px; color: var(--muted); margin: 6px 0; }
+    .quiz-card .q-input {
+      width: 100%; border: 1px solid var(--border); border-radius: 10px;
+      padding: 9px 11px; font-size: 14px; margin: 8px 0;
+      background: var(--bg); color: var(--text); font-family: inherit;
+    }
+    .reveal-btn {
+      background: transparent; color: var(--accent-strong);
+      border: 1px solid var(--accent); border-radius: 10px;
+      padding: 7px 14px; font-size: 13.5px; cursor: pointer; font-weight: 600;
+    }
+    .reveal-btn:active { transform: scale(0.96); }
+    .answer {
+      display: none; margin-top: 10px; padding: 10px 12px;
+      background: var(--accent-soft); border-radius: 10px; font-size: 14px; color: var(--text);
+    }
+    .answer.show { display: block; animation: fade 0.2s ease; }
+    .answer .label { font-weight: 700; color: var(--accent-strong); margin-right: 4px; }
+
+    /* ================= 底部导航 ================= */
+    nav {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 30;
+      display: flex; background: var(--card);
+      border-top: 1px solid var(--border);
+      box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.06);
+      padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    }
+    nav button {
+      flex: 1; border: none; background: transparent; color: var(--muted);
+      display: flex; flex-direction: column; align-items: center; gap: 2px;
+      padding: 6px 2px; font-size: 11px; cursor: pointer; font-family: inherit;
+    }
+    nav button .ico { font-size: 20px; line-height: 1; }
+    nav button.active { color: var(--accent); font-weight: 700; }
+
+    /* ================= Toast ================= */
+    #toast {
+      position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%);
+      background: rgba(31, 41, 51, 0.92); color: #fff; padding: 10px 16px;
+      border-radius: 10px; font-size: 13px; z-index: 50; display: none; max-width: 80%;
+      text-align: center;
+    }
+    #toast.show { display: block; animation: fade 0.2s ease; }
+
+    @media (min-width: 600px) {
+      .grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+      header h1 { font-size: 23px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="row">
+      <div>
+        <h1>中文基础 · Tiếng Trung Cơ Bản</h1>
+        <p class="sub">面向越南语母语者的中文入门 · 内置发音音频，无需安装中文语音包<br>Học tiếng Trung cơ bản dành cho người Việt</p>
+      </div>
+      <button class="theme-btn" id="themeBtn" onclick="toggleTheme()">🌙 深色</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- 1. 日常交流 -->
+    <section id="sec-daily" class="active">
+      <p class="section-intro">日常交流常用语 · Giao tiếp hàng ngày — 点击 🔊 听中文发音</p>
+      <div id="dailyRoot"></div>
+    </section>
+
+    <!-- 2. 工作报告 -->
+    <section id="sec-work">
+      <p class="section-intro">工作报告常用词与语句 · Báo cáo công việc</p>
+      <div id="workRoot"></div>
+    </section>
+
+    <!-- 3. 语法 -->
+    <section id="sec-grammar">
+      <p class="section-intro">简单语法教学与造句示例 · Ngữ pháp (có thể nghe phát âm)</p>
+      <div id="grammarRoot"></div>
+    </section>
+
+    <!-- 4. 作业 -->
+    <section id="sec-quiz">
+      <p class="section-intro">随机生成作业 · Bài tập ngẫu nhiên</p>
+      <div class="quiz-toolbar">
+        <button class="btn-primary" onclick="generateQuiz()">🎲 随机生成作业</button>
+        <span class="quiz-meta" id="quizMeta"></span>
+      </div>
+      <div id="quizRoot"></div>
+    </section>
+
+    <!-- 5. 数字 -->
+    <section id="sec-numbers">
+      <p class="section-intro">中文数字读法 · Cách đọc số trong tiếng Trung — 点击 🔊 听中文发音</p>
+      <div id="numberRoot"></div>
+    </section>
+  </main>
+
+  <nav>
+    <button data-tab="daily" class="active" onclick="switchTab('daily')">
+      <span class="ico">💬</span>日常交流
+    </button>
+    <button data-tab="work" onclick="switchTab('work')">
+      <span class="ico">📊</span>工作报告
+    </button>
+    <button data-tab="grammar" onclick="switchTab('grammar')">
+      <span class="ico">📘</span>语法
+    </button>
+    <button data-tab="quiz" onclick="switchTab('quiz')">
+      <span class="ico">📝</span>作业
+    </button>
+    <button data-tab="numbers" onclick="switchTab('numbers')">
+      <span class="ico">🔢</span>数字 (Số)
+    </button>
+  </nav>
+
+  <div id="toast"></div>
+
+  <script>
+  /* =====================================================================
+   *  数据层 (Data Layer)
+   *  数据与渲染分离，便于后续增删词句：只需在此处修改数组即可。
+   *  每条目: { zh: 中文, py: 拼音(带声调), vn: 越南语翻译 }
+   * ===================================================================== */
+
+  // 1. 日常交流 — Giao tiếp hàng ngày
+  const DAILY = [
+    {
+      name: "问候", vn: "Chào hỏi",
+      items: [
+        { zh: "你好", py: "nǐ hǎo", vn: "Xin chào" },
+        { zh: "您好", py: "nín hǎo", vn: "Xin chào (lịch sự, kính ngữ)" },
+        { zh: "早上好", py: "zǎo shang hǎo", vn: "Chào buổi sáng" },
+        { zh: "下午好", py: "xià wǔ hǎo", vn: "Chào buổi chiều" },
+        { zh: "晚上好", py: "wǎn shang hǎo", vn: "Chào buổi tối" },
+        { zh: "再见", py: "zài jiàn", vn: "Tạm biệt" },
+        { zh: "明天见", py: "míng tiān jiàn", vn: "Hẹn gặp ngày mai" },
+        { zh: "晚安", py: "wǎn ān", vn: "Chúc ngủ ngon" },
+        { zh: "你叫什么名字", py: "nǐ jiào shén me míng zi", vn: "Bạn tên là gì?" },
+        { zh: "我叫…", py: "wǒ jiào…", vn: "Tôi tên là…" },
+        { zh: "你来自哪里", py: "nǐ lái zì nǎ lǐ", vn: "Bạn đến từ đâu?" },
+        { zh: "我来自越南", py: "wǒ lái zì yuè nán", vn: "Tôi đến từ Việt Nam" },
+        { zh: "久仰大名", py: "jiǔ yǎng dà míng", vn: "Hân hạnh được biết tiếng bạn từ lâu" },
+        { zh: "最近好吗", py: "zuì jìn hǎo ma", vn: "Dạo này bạn có khỏe không?" },
+        { zh: "好久不见", py: "hǎo jiǔ bú jiàn", vn: "Lâu rồi không gặp" },
+        { zh: "代我向…问好", py: "dài wǒ xiàng…wèn hǎo", vn: "Gửi lời hỏi thăm…giùm tôi" },
+        { zh: "恭喜", py: "gōng xǐ", vn: "Chúc mừng" },
+        { zh: "生日快乐", py: "shēng rì kuài lè", vn: "Chúc mừng sinh nhật" }
+      ]
+    },
+    {
+      name: "感谢与道歉", vn: "Cảm ơn & Xin lỗi",
+      items: [
+        { zh: "谢谢", py: "xiè xie", vn: "Cảm ơn" },
+        { zh: "非常感谢", py: "fēi cháng gǎn xiè", vn: "Cảm ơn rất nhiều" },
+        { zh: "不客气", py: "bú kè qi", vn: "Không có gì" },
+        { zh: "对不起", py: "duì bu qǐ", vn: "Xin lỗi" },
+        { zh: "没关系", py: "méi guān xi", vn: "Không sao" },
+        { zh: "请原谅", py: "qǐng yuán liàng", vn: "Xin hãy tha thứ" },
+        { zh: "多谢", py: "duō xiè", vn: "Cảm ơn nhiều" },
+        { zh: "麻烦你了", py: "má fan nǐ le", vn: "Làm phiền bạn rồi" },
+        { zh: "抱歉", py: "bào qiàn", vn: "Thành thật xin lỗi" },
+        { zh: "我错了", py: "wǒ cuò le", vn: "Tôi sai rồi" },
+        { zh: "请稍等", py: "qǐng shāo děng", vn: "Xin vui lòng đợi một chút" }
+      ]
+    },
+    {
+      name: "请求帮助", vn: "Xin giúp đỡ",
+      items: [
+        { zh: "请", py: "qǐng", vn: "Mời / Xin hãy" },
+        { zh: "请问", py: "qǐng wèn", vn: "Xin hỏi" },
+        { zh: "你能帮我吗", py: "nǐ néng bāng wǒ ma", vn: "Bạn có thể giúp tôi không?" },
+        { zh: "我不懂", py: "wǒ bù dǒng", vn: "Tôi không hiểu" },
+        { zh: "请再说一遍", py: "qǐng zài shuō yí biàn", vn: "Xin hãy nói lại một lần" },
+        { zh: "慢一点", py: "màn yì diǎn", vn: "Chậm một chút" },
+        { zh: "请问卫生间在哪里", py: "qǐng wèn wèi shēng jiān zài nǎ lǐ", vn: "Xin hỏi nhà vệ sinh ở đâu?" },
+        { zh: "这是什么意思", py: "zhè shì shén me yì si", vn: "Cái này nghĩa là gì?" },
+        { zh: "我不会说中文", py: "wǒ bú huì shuō zhōng wén", vn: "Tôi không biết nói tiếng Trung" },
+        { zh: "请说慢一点", py: "qǐng shuō màn yì diǎn", vn: "Xin hãy nói chậm một chút" },
+        { zh: "我可以…吗", py: "wǒ kě yǐ…ma", vn: "Tôi có thể…không?" }
+      ]
+    },
+    {
+      name: "吃饭购物", vn: "Ăn uống & Mua sắm",
+      items: [
+        { zh: "你吃饭了吗", py: "nǐ chī fàn le ma", vn: "Bạn ăn cơm chưa?" },
+        { zh: "很好，谢谢", py: "hěn hǎo, xiè xie", vn: "Rất tốt, cảm ơn" },
+        { zh: "好吃", py: "hǎo chī", vn: "Ngon" },
+        { zh: "我要一杯水", py: "wǒ yào yì bēi shuǐ", vn: "Tôi muốn một cốc nước" },
+        { zh: "多少钱", py: "duō shǎo qián", vn: "Bao nhiêu tiền?" },
+        { zh: "太贵了", py: "tài guì le", vn: "Quá đắt" },
+        { zh: "便宜一点", py: "pián yi yì diǎn", vn: "Rẻ một chút" },
+        { zh: "我要这个", py: "wǒ yào zhè ge", vn: "Tôi muốn cái này" },
+        { zh: "可以打折吗", py: "kě yǐ dǎ zhé ma", vn: "Có thể giảm giá không?" },
+        { zh: "菜单", py: "cài dān", vn: "Thực đơn" },
+        { zh: "买单", py: "mǎi dān", vn: "Tính tiền" },
+        { zh: "这个多少钱", py: "zhè ge duō shǎo qián", vn: "Cái này bao nhiêu tiền?" },
+        { zh: "我饱了", py: "wǒ bǎo le", vn: "Tôi no rồi" },
+        { zh: "打折吗", py: "dǎ zhé ma", vn: "Có giảm giá không?" }
+      ]
+    },
+    {
+      name: "时间天气", vn: "Thời gian & Thời tiết",
+      items: [
+        { zh: "今天天气很好", py: "jīn tiān tiān qì hěn hǎo", vn: "Hôm nay thời tiết rất đẹp" },
+        { zh: "今天几号", py: "jīn tiān jǐ hào", vn: "Hôm nay là ngày mấy?" },
+        { zh: "现在几点", py: "xiàn zài jǐ diǎn", vn: "Bây giờ là mấy giờ?" },
+        { zh: "星期一", py: "xīng qī yī", vn: "Thứ hai" },
+        { zh: "周末", py: "zhōu mò", vn: "Cuối tuần" },
+        { zh: "下雨了", py: "xià yǔ le", vn: "Trời mưa rồi" },
+        { zh: "很冷", py: "hěn lěng", vn: "Rất lạnh" },
+        { zh: "今天", py: "jīn tiān", vn: "Hôm nay" },
+        { zh: "明天", py: "míng tiān", vn: "Ngày mai" },
+        { zh: "昨天", py: "zuó tiān", vn: "Hôm qua" },
+        { zh: "下雨", py: "xià yǔ", vn: "Mưa" },
+        { zh: "很热", py: "hěn rè", vn: "Rất nóng" }
+      ]
+    },
+    {
+      name: "出行交通", vn: "Giao thông đi lại",
+      items: [
+        { zh: "飞机场", py: "fēi jī chǎng", vn: "Sân bay" },
+        { zh: "火车站", py: "huǒ chē zhàn", vn: "Ga tàu hỏa" },
+        { zh: "地铁", py: "dì tiě", vn: "Tàu điện ngầm" },
+        { zh: "出租车", py: "chū zū chē", vn: "Taxi" },
+        { zh: "怎么去", py: "zěn me qù", vn: "Đi như thế nào?" },
+        { zh: "票", py: "piào", vn: "Vé" },
+        { zh: "出发", py: "chū fā", vn: "Khởi hành" },
+        { zh: "到达", py: "dào dá", vn: "Đến nơi" }
+      ]
+    },
+    {
+      name: "电话与邮件", vn: "Điện thoại & Email",
+      items: [
+        { zh: "打电话", py: "dǎ diàn huà", vn: "Gọi điện thoại" },
+        { zh: "发邮件", py: "fā yóu jiàn", vn: "Gửi email" },
+        { zh: "我的电话是…", py: "wǒ de diàn huà shì…", vn: "Số điện thoại của tôi là…" },
+        { zh: "请留言", py: "qǐng liú yán", vn: "Xin để lại lời nhắn" },
+        { zh: "收到了", py: "shōu dào le", vn: "Đã nhận được" },
+        { zh: "信号不好", py: "xìn hào bù hǎo", vn: "Tín hiệu kém" }
+      ]
+    },
+    {
+      name: "就医健康", vn: "Y tế & Sức khỏe",
+      items: [
+        { zh: "我生病了", py: "wǒ shēng bìng le", vn: "Tôi bị ốm rồi" },
+        { zh: "医院", py: "yī yuàn", vn: "Bệnh viện" },
+        { zh: "医生", py: "yī shēng", vn: "Bác sĩ" },
+        { zh: "头疼", py: "tóu téng", vn: "Đau đầu" },
+        { zh: "吃药", py: "chī yào", vn: "Uống thuốc" },
+        { zh: "好多了", py: "hǎo duō le", vn: "Đã khá hơn nhiều" }
+      ]
+    },
+    {
+      name: "数字与数量", vn: "Số & Lượng",
+      items: [
+        { zh: "一", py: "yī", vn: "Một" },
+        { zh: "二", py: "èr", vn: "Hai" },
+        { zh: "三", py: "sān", vn: "Ba" },
+        { zh: "十", py: "shí", vn: "Mười" },
+        { zh: "百", py: "bǎi", vn: "Trăm" },
+        { zh: "千", py: "qiān", vn: "Nghìn" },
+        { zh: "多少", py: "duō shǎo", vn: "Bao nhiêu" },
+        { zh: "几个", py: "jǐ ge", vn: "Mấy cái" }
+      ]
+    },
+    {
+      name: "家庭与人际", vn: "Gia đình & Quan hệ",
+      items: [
+        { zh: "爸爸", py: "bà ba", vn: "Bố" },
+        { zh: "妈妈", py: "mā ma", vn: "Mẹ" },
+        { zh: "朋友", py: "péng you", vn: "Bạn bè" },
+        { zh: "同事", py: "tóng shì", vn: "Đồng nghiệp" },
+        { zh: "老板", py: "lǎo bǎn", vn: "Sếp" },
+        { zh: "家人", py: "jiā rén", vn: "Gia đình" }
+      ]
+    },
+    {
+      name: "情绪表达", vn: "Cảm xúc",
+      items: [
+        { zh: "高兴", py: "gāo xìng", vn: "Vui vẻ" },
+        { zh: "累", py: "lèi", vn: "Mệt" },
+        { zh: "生气", py: "shēng qì", vn: "Tức giận" },
+        { zh: "担心", py: "dān xīn", vn: "Lo lắng" },
+        { zh: "满意", py: "mǎn yì", vn: "Hài lòng" }
+      ]
+    }
+  ];
+
+  // 2. 工作报告 — Báo cáo công việc
+  const WORK = [
+    {
+      name: "会议", vn: "Cuộc họp",
+      items: [
+        { zh: "会议", py: "huì yì", vn: "Cuộc họp" },
+        { zh: "我们需要开会讨论", py: "wǒ men xū yào kāi huì tǎo lùn", vn: "Chúng ta cần họp để thảo luận" },
+        { zh: "会议几点开始", py: "huì yì jǐ diǎn kāi shǐ", vn: "Cuộc họp bắt đầu lúc mấy giờ?" },
+        { zh: "主持会议", py: "zhǔ chí huì yì", vn: "Chủ trì cuộc họp" },
+        { zh: "参加会议", py: "cān jiā huì yì", vn: "Tham gia cuộc họp" },
+        { zh: "会议室", py: "huì yì shì", vn: "Phòng họp" },
+        { zh: "主持人", py: "zhǔ chí rén", vn: "Người chủ trì" },
+        { zh: "议程", py: "yì chéng", vn: "Chương trình nghị sự" },
+        { zh: "记录", py: "jì lù", vn: "Biên bản" },
+        { zh: "讨论", py: "tǎo lùn", vn: "Thảo luận" },
+        { zh: "决定", py: "jué dìng", vn: "Quyết định" },
+        { zh: "取消会议", py: "qǔ xiāo huì yì", vn: "Hủy cuộc họp" }
+      ]
+    },
+    {
+      name: "进度", vn: "Tiến độ",
+      items: [
+        { zh: "进度", py: "jìn dù", vn: "Tiến độ" },
+        { zh: "项目进度顺利", py: "xiàng mù jìn dù shùn lì", vn: "Tiến độ dự án thuận lợi" },
+        { zh: "完成", py: "wán chéng", vn: "Hoàn thành" },
+        { zh: "我们要加快进度", py: "wǒ men yào jiā kuài jìn dù", vn: "Chúng ta cần đẩy nhanh tiến độ" },
+        { zh: "一半", py: "yí bàn", vn: "Một nửa" },
+        { zh: "按时", py: "àn shí", vn: "Đúng hạn" },
+        { zh: "延期", py: "yán qī", vn: "Trì hoãn" },
+        { zh: "提前", py: "tí qián", vn: "Trước thời hạn" },
+        { zh: "百分之五十", py: "bǎi fēn zhī wǔ shí", vn: "Năm mươi phần trăm" },
+        { zh: "里程碑", py: "lǐ chéng bēi", vn: "Cột mốc" },
+        { zh: "风险评估", py: "fēng xiǎn píng gū", vn: "Đánh giá rủi ro" }
+      ]
+    },
+    {
+      name: "计划", vn: "Kế hoạch",
+      items: [
+        { zh: "计划", py: "jì huà", vn: "Kế hoạch" },
+        { zh: "目标", py: "mù biāo", vn: "Mục tiêu" },
+        { zh: "截止日期", py: "jié zhǐ rì qī", vn: "Hạn chót" },
+        { zh: "请按时提交报告", py: "qǐng àn shí tí jiāo bào gào", vn: "Vui lòng nộp báo cáo đúng hạn" },
+        { zh: "下周一我们会完成", py: "xià zhōu yī wǒ men huì wán chéng", vn: "Thứ hai tuần tới chúng tôi sẽ hoàn thành" },
+        { zh: "我们计划下个月开始", py: "wǒ men jì huà xià ge yuè kāi shǐ", vn: "Chúng ta dự định bắt đầu vào tháng tới" },
+        { zh: "预算", py: "yù suàn", vn: "Ngân sách" },
+        { zh: "资源", py: "zī yuán", vn: "Nguồn lực" },
+        { zh: "安排", py: "ān pái", vn: "Sắp xếp" },
+        { zh: "季度", py: "jì dù", vn: "Quý" },
+        { zh: "年度", py: "nián dù", vn: "Năm" },
+        { zh: "优先级", py: "yōu xiān jí", vn: "Độ ưu tiên" }
+      ]
+    },
+    {
+      name: "问题", vn: "Vấn đề",
+      items: [
+        { zh: "问题", py: "wèn tí", vn: "Vấn đề" },
+        { zh: "解决", py: "jiě jué", vn: "Giải quyết" },
+        { zh: "这个问题已经解决了", py: "zhè ge wèn tí yǐ jīng jiě jué le", vn: "Vấn đề này đã được giải quyết" },
+        { zh: "遇到困难", py: "yù dào kùn nan", vn: "Gặp khó khăn" },
+        { zh: "需要帮助", py: "xū yào bāng zhù", vn: "Cần giúp đỡ" },
+        { zh: "风险", py: "fēng xiǎn", vn: "Rủi ro" },
+        { zh: "延迟", py: "yán chí", vn: "Chậm trễ" },
+        { zh: "缺陷", py: "quē xiàn", vn: "Lỗi / Khiếm khuyết" },
+        { zh: "反馈", py: "fǎn kuì", vn: "Phản hồi" },
+        { zh: "改进", py: "gǎi jìn", vn: "Cải tiến" },
+        { zh: "失误", py: "shī wù", vn: "Sai sót" }
+      ]
+    },
+    {
+      name: "汇报用语", vn: "Câu báo cáo",
+      items: [
+        { zh: "报告", py: "bào gào", vn: "Báo cáo" },
+        { zh: "项目", py: "xiàng mù", vn: "Dự án" },
+        { zh: "团队", py: "tuán duì", vn: "Đội ngũ / Nhóm" },
+        { zh: "客户", py: "kè hù", vn: "Khách hàng" },
+        { zh: "我来汇报一下进度", py: "wǒ lái huì bào yí xià jìn dù", vn: "Để tôi báo cáo tiến độ một chút" },
+        { zh: "目前情况良好", py: "mù qián qíng kuàng liáng hǎo", vn: "Tình hình hiện tại khá tốt" },
+        { zh: "请确认", py: "qǐng què rèn", vn: "Xin hãy xác nhận" },
+        { zh: "谢谢您的支持", py: "xiè xie nín de zhī chí", vn: "Cảm ơn sự hỗ trợ của bạn" },
+        { zh: "总结", py: "zǒng jié", vn: "Tóm tắt" },
+        { zh: "汇报", py: "huì bào", vn: "Trình bày báo cáo" },
+        { zh: "建议", py: "jiàn yì", vn: "Đề xuất" },
+        { zh: "需要支持", py: "xū yào zhī chí", vn: "Cần hỗ trợ" },
+        { zh: "下次会议", py: "xià cì huì yì", vn: "Cuộc họp tới" },
+        { zh: "已提交", py: "yǐ tí jiāo", vn: "Đã nộp" }
+      ]
+    },
+    {
+      name: "数字与数据", vn: "Số & Dữ liệu",
+      items: [
+        { zh: "数据", py: "shù jù", vn: "Dữ liệu" },
+        { zh: "增长", py: "zēng zhǎng", vn: "Tăng trưởng" },
+        { zh: "下降", py: "xià jiàng", vn: "Giảm" },
+        { zh: "统计", py: "tǒng jì", vn: "Thống kê" },
+        { zh: "报表", py: "bào biǎo", vn: "Bảng báo cáo" },
+        { zh: "趋势", py: "qū shì", vn: "Xu hướng" }
+      ]
+    },
+    {
+      name: "邮件沟通", vn: "Giao tiếp email",
+      items: [
+        { zh: "附件", py: "fù jiàn", vn: "Tệp đính kèm" },
+        { zh: "抄送", py: "chāo sòng", vn: "Gửi CC" },
+        { zh: "回复", py: "huí fù", vn: "Trả lời" },
+        { zh: "转发", py: "zhuǎn fā", vn: "Chuyển tiếp" },
+        { zh: "主题", py: "zhǔ tí", vn: "Chủ đề" }
+      ]
+    },
+    {
+      name: "商务礼仪", vn: "Lễ nghi kinh doanh",
+      items: [
+        { zh: "打扰了", py: "dǎ rǎo le", vn: "Xin lỗi làm phiền" },
+        { zh: "辛苦了", py: "xīn kǔ le", vn: "Cất công rồi (cảm ơn sự nỗ lực)" },
+        { zh: "请多指教", py: "qǐng duō zhǐ jiào", vn: "Xin chỉ bảo nhiều" },
+        { zh: "合作愉快", py: "hé zuò yú kuài", vn: "Hợp tác vui vẻ" },
+        { zh: "欢迎", py: "huān yíng", vn: "Chào mừng" }
+      ]
+    },
+    {
+      name: "绩效与目标", vn: "Hiệu suất & Mục tiêu",
+      items: [
+        { zh: "考核", py: "kǎo hé", vn: "Đánh giá" },
+        { zh: "业绩", py: "yè jì", vn: "Thành tích" },
+        { zh: "效率", py: "xiào lǜ", vn: "Hiệu suất" },
+        { zh: "质量", py: "zhì liàng", vn: "Chất lượng" },
+        { zh: "达标", py: "dá biāo", vn: "Đạt chỉ tiêu" }
+      ]
+    },
+    {
+      name: "客户沟通", vn: "Giao tiếp khách hàng",
+      items: [
+        { zh: "需求", py: "xū qiú", vn: "Nhu cầu" },
+        { zh: "签约", py: "qiān yuē", vn: "Ký hợp đồng" },
+        { zh: "报价", py: "bào jià", vn: "Báo giá" },
+        { zh: "合同", py: "hé tóng", vn: "Hợp đồng" },
+        { zh: "满意度", py: "mǎn yì dù", vn: "Mức độ hài lòng" }
+      ]
+    }
+  ];
+
+  // 3. 语法 — Ngữ pháp
+  // 每点: { name, py, vn(越南语说明), structure(结构公式), examples:[{zh,py,vn}] }
+  const GRAMMAR = [
+    {
+      name: "的",
+      py: "de",
+      vn: "Dùng để nối định ngữ, cấu trúc “A 的 B” có nghĩa là “B của A”.",
+      structure: "A 的 B  →  B của A",
+      examples: [
+        { zh: "我的书", py: "wǒ de shū", vn: "cuốn sách của tôi" },
+        { zh: "公司的项目", py: "gōng sī de xiàng mù", vn: "dự án của công ty" },
+        { zh: "她的名字", py: "tā de míng zi", vn: "tên của cô ấy" }
+      ]
+    },
+    {
+      name: "了",
+      py: "le",
+      vn: "Biểu thị một hành động đã hoàn thành (quá khứ).",
+      structure: "Động từ + 了  →  đã + động từ",
+      examples: [
+        { zh: "我吃了", py: "wǒ chī le", vn: "tôi đã ăn" },
+        { zh: "他走了", py: "tā zǒu le", vn: "anh ấy đã đi" },
+        { zh: "我们看完了", py: "wǒ men kàn wán le", vn: "chúng tôi đã xem xong" }
+      ]
+    },
+    {
+      name: "有 / 没有",
+      py: "yǒu / méi yǒu",
+      vn: "“有” nghĩa là CÓ, “没有” nghĩa là KHÔNG CÓ. Dùng để nói về sự tồn tại hoặc sở hữu.",
+      structure: "Chủ ngữ + 有/没有 + Đối tượng",
+      examples: [
+        { zh: "我有时间", py: "wǒ yǒu shí jiān", vn: "tôi có thời gian" },
+        { zh: "他没有钱", py: "tā méi yǒu qián", vn: "anh ấy không có tiền" },
+        { zh: "公司有问题", py: "gōng sī yǒu wèn tí", vn: "công ty có vấn đề" }
+      ]
+    },
+    {
+      name: "比",
+      py: "bǐ",
+      vn: "Dùng để so sánh sự hơn kém giữa hai đối tượng.",
+      structure: "A 比 B + Tính từ  →  A hơn B …",
+      examples: [
+        { zh: "他比我高", py: "tā bǐ wǒ gāo", vn: "anh ấy cao hơn tôi" },
+        { zh: "今天比昨天冷", py: "jīn tiān bǐ zuó tiān lěng", vn: "hôm nay lạnh hơn hôm qua" },
+        { zh: "这个项目比那个难", py: "zhè ge xiàng mù bǐ nà ge nán", vn: "dự án này khó hơn dự án kia" }
+      ]
+    },
+    {
+      name: "吗 / 呢",
+      py: "ma / ne",
+      vn: "Trợ từ nghi vấn. “吗” đặt cuối câu để hỏi “phải không”; “呢” dùng để hỏi lặp/đảo ngược (còn… thì sao?).",
+      structure: "Câu khẳng định + 吗？  /  …，……呢？",
+      examples: [
+        { zh: "你是学生吗？", py: "nǐ shì xué shēng ma", vn: "bạn là sinh viên phải không?" },
+        { zh: "我很好，你呢？", py: "wǒ hěn hǎo, nǐ ne", vn: "tôi rất tốt, còn bạn?" },
+        { zh: "会议结束了吗？", py: "huì yì jié shù le ma", vn: "cuộc họp đã kết thúc chưa?" }
+      ]
+    },
+    {
+      name: "把",
+      py: "bǎ",
+      vn: "Cấu trúc “把” nhấn mạnh tác động làm thay đổi đối tượng. Thường dùng khi có kết quả rõ ràng.",
+      structure: "Chủ ngữ + 把 + Đối tượng + Động từ + (kết quả)",
+      examples: [
+        { zh: "我把书放在桌子上", py: "wǒ bǎ shū fàng zài zhuō zi shàng", vn: "tôi đặt cuốn sách lên bàn" },
+        { zh: "请把门关上", py: "qǐng bǎ mén guān shàng", vn: "xin hãy đóng cửa lại" },
+        { zh: "他把作业做完了", py: "tā bǎ zuò yè zuò wán le", vn: "anh ấy đã làm xong bài tập" }
+      ]
+    },
+    {
+      name: "着",
+      py: "zhe",
+      vn: "Diễn tả hành động hoặc trạng thái đang tiếp diễn (đang…).",
+      structure: "Động từ + 着  →  đang + động từ",
+      examples: [
+        { zh: "门开着", py: "mén kāi zhe", vn: "cửa đang mở" },
+        { zh: "他穿着外套", py: "tā chuān zhe wài tào", vn: "anh ấy đang mặc áo khoác" },
+        { zh: "灯亮着", py: "dēng liàng zhe", vn: "đèn đang sáng" }
+      ]
+    },
+    {
+      name: "过",
+      py: "guo",
+      vn: "Diễn tả kinh nghiệm đã từng làm (đã từng…).",
+      structure: "Động từ + 过  →  đã từng + động từ",
+      examples: [
+        { zh: "我去过中国", py: "wǒ qù guo zhōng guó", vn: "tôi đã từng đi Trung Quốc" },
+        { zh: "你吃过火锅吗", py: "nǐ chī guo huǒ guō ma", vn: "bạn đã từng ăn lẩu chưa?" },
+        { zh: "她学过法语", py: "tā xué guo fǎ yǔ", vn: "cô ấy đã từng học tiếng Pháp" }
+      ]
+    },
+    {
+      name: "被",
+      py: "bèi",
+      vn: "Câu bị động, nhấn mạnh đối tượng chịu tác động (bị / được).",
+      structure: "A 被 B + Động từ  →  A bị B + động từ",
+      examples: [
+        { zh: "文件被删除了", py: "wén jiàn bèi shān chú le", vn: "tệp tin bị xóa" },
+        { zh: "手机被偷了", py: "shǒu jī bèi tōu le", vn: "điện thoại bị mất cắp" },
+        { zh: "问题被解决了", py: "wèn tí bèi jiě jué le", vn: "vấn đề được giải quyết" }
+      ]
+    },
+    {
+      name: "因为…所以…",
+      py: "yīn wèi…suǒ yǐ…",
+      vn: "Biểu thị quan hệ nguyên nhân – kết quả (vì… nên…).",
+      structure: "因为 + Nguyên nhân，所以 + Kết quả",
+      examples: [
+        { zh: "因为下雨，所以取消会议", py: "yīn wèi xià yǔ, suǒ yǐ qǔ xiāo huì yì", vn: "vì trời mưa nên hủy họp" },
+        { zh: "因为他迟到了，所以被批评", py: "yīn wèi tā chí dào le, suǒ yǐ bèi pī píng", vn: "vì anh ấy đi muộn nên bị phê bình" },
+        { zh: "因为天气寒冷，所以穿外套", py: "yīn wèi tiān qì hán lěng, suǒ yǐ chuān wài tào", vn: "vì thời tiết lạnh nên mặc áo khoác" }
+      ]
+    },
+    {
+      name: "如果…就…",
+      py: "rú guǒ…jiù…",
+      vn: "Câu giả định (nếu… thì…).",
+      structure: "如果 + Điều kiện，就 + Kết quả",
+      examples: [
+        { zh: "如果下雨，我们就取消", py: "rú guǒ xià yǔ, wǒ men jiù qǔ xiāo", vn: "nếu mưa thì chúng ta hủy" },
+        { zh: "如果你有时间，就来吧", py: "rú guǒ nǐ yǒu shí jiān, jiù lái ba", vn: "nếu bạn có thời gian thì hãy đến" },
+        { zh: "如果明天下雨，我们就不去了", py: "rú guǒ míng tiān xià yǔ, wǒ men jiù bú qù le", vn: "nếu ngày mai mưa thì chúng ta sẽ không đi" }
+      ]
+    }
+  ];
+
+  // 5. 数字 — Số trong tiếng Trung (một chữ số → cấp Ức)
+  const NUMBERS = [
+    {
+      title: "0–10 基础数字（Số từ 0–10）",
+      note: "0–10 的基础数字。规则：直接读对应的字。｜Quy tắc: đọc trực tiếp từng chữ số.",
+      items: [
+        { zh:"零", py:"líng", vn:"Không (số 0)" },
+        { zh:"一", py:"yī", vn:"Một" },
+        { zh:"二", py:"èr", vn:"Hai" },
+        { zh:"三", py:"sān", vn:"Ba" },
+        { zh:"四", py:"sì", vn:"Bốn" },
+        { zh:"五", py:"wǔ", vn:"Năm" },
+        { zh:"六", py:"liù", vn:"Sáu" },
+        { zh:"七", py:"qī", vn:"Bảy" },
+        { zh:"八", py:"bā", vn:"Tám" },
+        { zh:"九", py:"jiǔ", vn:"Chín" },
+        { zh:"十", py:"shí", vn:"Mười" }
+      ]
+    },
+    {
+      title: "两位数（Số hai chữ số）",
+      note: "规则：几十 + 几。整十读『几十』，个位是零则省略。｜Quy tắc: chục + đơn vị; số tròn chục đọc 'mấy mươi', bỏ đơn vị nếu là 0.",
+      examples: [
+        { zh:"二十三", py:"èr shí sān", vn:"Hai mươi ba (23)" },
+        { zh:"四十五", py:"sì shí wǔ", vn:"Bốn mươi lăm (45)" },
+        { zh:"二十", py:"èr shí", vn:"Hai mươi (20)" },
+        { zh:"十一", py:"shí yī", vn:"Mười một (11)" },
+        { zh:"九十九", py:"jiǔ shí jiǔ", vn:"Chín mươi chín (99)" }
+      ]
+    },
+    {
+      title: "百位与千位（Trăm và Nghìn）",
+      note: "三位数：几百 + 几十 + 几；中间缺位用『零』。四位数同理加『千』。｜Số 3 chữ số: mấy trăm + mấy chục + đơn vị; chỗ thiếu dùng 『零』(líng). Số 4 chữ số thêm 'nghìn'.",
+      examples: [
+        { zh:"一百", py:"yì bǎi", vn:"Một trăm (100)" },
+        { zh:"一百零五", py:"yì bǎi líng wǔ", vn:"Một trăm lẻ năm (105)" },
+        { zh:"二百三十", py:"èr bǎi sān shí", vn:"Hai trăm ba mươi (230)" },
+        { zh:"一千", py:"yì qiān", vn:"Một nghìn (1000)" },
+        { zh:"一千二百三十四", py:"yì qiān èr bǎi sān shí sì", vn:"Một nghìn hai trăm ba mươi bốn (1234)" },
+        { zh:"二千零八", py:"èr qiān líng bā", vn:"Hai nghìn lẻ tám (2008)" }
+      ]
+    },
+    {
+      title: "万级单位（Cấp Vạn）",
+      note: "一万 = 10,000。中文每四位为一节，万是特有的大数单位。｜Vạn là đơn vị lớn đặc biệt, mỗi 4 chữ số một ngắt.",
+      examples: [
+        { zh:"一万", py:"yí wàn", vn:"Mười nghìn / một vạn (10,000)" },
+        { zh:"十万", py:"shí wàn", vn:"Một trăm nghìn (100,000)" },
+        { zh:"一百万", py:"yì bǎi wàn", vn:"Một triệu (1,000,000)" },
+        { zh:"一千万", py:"yì qiān wàn", vn:"Mười triệu (10,000,000)" },
+        { zh:"一万二千三百四十五", py:"yí wàn èr qiān sān bǎi sì shí wǔ", vn:"Mười hai nghìn ba trăm bốn mươi lăm (12,345)" }
+      ]
+    },
+    {
+      title: "亿级单位（Cấp Ức）",
+      note: "一亿 = 100,000,000（一亿 = 一万万）。亿是比万更高一级的单位。｜Ức = 100 triệu, cao hơn một cấp so với vạn.",
+      examples: [
+        { zh:"一亿", py:"yí yì", vn:"Một trăm triệu (100,000,000)" },
+        { zh:"一亿二千三百四十五万六千七百八十九", py:"yí yì èr qiān sān bǎi sì shí wǔ wàn liù qiān qī bǎi bā shí jiǔ", vn:"Một trăm hai mươi ba triệu bốn trăm năm mươi sáu nghìn bảy trăm tám mươi chín (123,456,789)" },
+        { zh:"二亿零五百万", py:"èr yì líng wǔ bǎi wàn", vn:"205,000,000" }
+      ]
+    }
+  ];
+
+  /* =====================================================================
+   *  朗读层 (Speech Layer)
+   *  优先播放预生成音频（audio/ 目录，_gen_chinese_audio.py 生成），
+   *  学生设备无需安装任何中文语音包；音频缺失或播放失败时回退系统 speechSynthesis。
+   * ===================================================================== */
+  var AUDIO_MAP = {"你好":"audio/0001.mp3","您好":"audio/0002.mp3","早上好":"audio/0003.mp3","下午好":"audio/0004.mp3","晚上好":"audio/0005.mp3","再见":"audio/0006.mp3","明天见":"audio/0007.mp3","晚安":"audio/0008.mp3","你叫什么名字":"audio/0009.mp3","我叫…":"audio/0010.mp3","你来自哪里":"audio/0011.mp3","我来自越南":"audio/0012.mp3","久仰大名":"audio/0013.mp3","最近好吗":"audio/0014.mp3","好久不见":"audio/0015.mp3","代我向…问好":"audio/0016.mp3","恭喜":"audio/0017.mp3","生日快乐":"audio/0018.mp3","谢谢":"audio/0019.mp3","非常感谢":"audio/0020.mp3","不客气":"audio/0021.mp3","对不起":"audio/0022.mp3","没关系":"audio/0023.mp3","请原谅":"audio/0024.mp3","多谢":"audio/0025.mp3","麻烦你了":"audio/0026.mp3","抱歉":"audio/0027.mp3","我错了":"audio/0028.mp3","请稍等":"audio/0029.mp3","请":"audio/0030.mp3","请问":"audio/0031.mp3","你能帮我吗":"audio/0032.mp3","我不懂":"audio/0033.mp3","请再说一遍":"audio/0034.mp3","慢一点":"audio/0035.mp3","请问卫生间在哪里":"audio/0036.mp3","这是什么意思":"audio/0037.mp3","我不会说中文":"audio/0038.mp3","请说慢一点":"audio/0039.mp3","我可以…吗":"audio/0040.mp3","你吃饭了吗":"audio/0041.mp3","很好，谢谢":"audio/0042.mp3","好吃":"audio/0043.mp3","我要一杯水":"audio/0044.mp3","多少钱":"audio/0045.mp3","太贵了":"audio/0046.mp3","便宜一点":"audio/0047.mp3","我要这个":"audio/0048.mp3","可以打折吗":"audio/0049.mp3","菜单":"audio/0050.mp3","买单":"audio/0051.mp3","这个多少钱":"audio/0052.mp3","我饱了":"audio/0053.mp3","打折吗":"audio/0054.mp3","今天天气很好":"audio/0055.mp3","今天几号":"audio/0056.mp3","现在几点":"audio/0057.mp3","星期一":"audio/0058.mp3","周末":"audio/0059.mp3","下雨了":"audio/0060.mp3","很冷":"audio/0061.mp3","今天":"audio/0062.mp3","明天":"audio/0063.mp3","昨天":"audio/0064.mp3","下雨":"audio/0065.mp3","很热":"audio/0066.mp3","飞机场":"audio/0067.mp3","火车站":"audio/0068.mp3","地铁":"audio/0069.mp3","出租车":"audio/0070.mp3","怎么去":"audio/0071.mp3","票":"audio/0072.mp3","出发":"audio/0073.mp3","到达":"audio/0074.mp3","打电话":"audio/0075.mp3","发邮件":"audio/0076.mp3","我的电话是…":"audio/0077.mp3","请留言":"audio/0078.mp3","收到了":"audio/0079.mp3","信号不好":"audio/0080.mp3","我生病了":"audio/0081.mp3","医院":"audio/0082.mp3","医生":"audio/0083.mp3","头疼":"audio/0084.mp3","吃药":"audio/0085.mp3","好多了":"audio/0086.mp3","一":"audio/0087.mp3","二":"audio/0088.mp3","三":"audio/0089.mp3","十":"audio/0090.mp3","百":"audio/0091.mp3","千":"audio/0092.mp3","多少":"audio/0093.mp3","几个":"audio/0094.mp3","爸爸":"audio/0095.mp3","妈妈":"audio/0096.mp3","朋友":"audio/0097.mp3","同事":"audio/0098.mp3","老板":"audio/0099.mp3","家人":"audio/0100.mp3","高兴":"audio/0101.mp3","累":"audio/0102.mp3","生气":"audio/0103.mp3","担心":"audio/0104.mp3","满意":"audio/0105.mp3","会议":"audio/0106.mp3","我们需要开会讨论":"audio/0107.mp3","会议几点开始":"audio/0108.mp3","主持会议":"audio/0109.mp3","参加会议":"audio/0110.mp3","会议室":"audio/0111.mp3","主持人":"audio/0112.mp3","议程":"audio/0113.mp3","记录":"audio/0114.mp3","讨论":"audio/0115.mp3","决定":"audio/0116.mp3","取消会议":"audio/0117.mp3","进度":"audio/0118.mp3","项目进度顺利":"audio/0119.mp3","完成":"audio/0120.mp3","我们要加快进度":"audio/0121.mp3","一半":"audio/0122.mp3","按时":"audio/0123.mp3","延期":"audio/0124.mp3","提前":"audio/0125.mp3","百分之五十":"audio/0126.mp3","里程碑":"audio/0127.mp3","风险评估":"audio/0128.mp3","计划":"audio/0129.mp3","目标":"audio/0130.mp3","截止日期":"audio/0131.mp3","请按时提交报告":"audio/0132.mp3","下周一我们会完成":"audio/0133.mp3","我们计划下个月开始":"audio/0134.mp3","预算":"audio/0135.mp3","资源":"audio/0136.mp3","安排":"audio/0137.mp3","季度":"audio/0138.mp3","年度":"audio/0139.mp3","优先级":"audio/0140.mp3","问题":"audio/0141.mp3","解决":"audio/0142.mp3","这个问题已经解决了":"audio/0143.mp3","遇到困难":"audio/0144.mp3","需要帮助":"audio/0145.mp3","风险":"audio/0146.mp3","延迟":"audio/0147.mp3","缺陷":"audio/0148.mp3","反馈":"audio/0149.mp3","改进":"audio/0150.mp3","失误":"audio/0151.mp3","报告":"audio/0152.mp3","项目":"audio/0153.mp3","团队":"audio/0154.mp3","客户":"audio/0155.mp3","我来汇报一下进度":"audio/0156.mp3","目前情况良好":"audio/0157.mp3","请确认":"audio/0158.mp3","谢谢您的支持":"audio/0159.mp3","总结":"audio/0160.mp3","汇报":"audio/0161.mp3","建议":"audio/0162.mp3","需要支持":"audio/0163.mp3","下次会议":"audio/0164.mp3","已提交":"audio/0165.mp3","数据":"audio/0166.mp3","增长":"audio/0167.mp3","下降":"audio/0168.mp3","统计":"audio/0169.mp3","报表":"audio/0170.mp3","趋势":"audio/0171.mp3","附件":"audio/0172.mp3","抄送":"audio/0173.mp3","回复":"audio/0174.mp3","转发":"audio/0175.mp3","主题":"audio/0176.mp3","打扰了":"audio/0177.mp3","辛苦了":"audio/0178.mp3","请多指教":"audio/0179.mp3","合作愉快":"audio/0180.mp3","欢迎":"audio/0181.mp3","考核":"audio/0182.mp3","业绩":"audio/0183.mp3","效率":"audio/0184.mp3","质量":"audio/0185.mp3","达标":"audio/0186.mp3","需求":"audio/0187.mp3","签约":"audio/0188.mp3","报价":"audio/0189.mp3","合同":"audio/0190.mp3","满意度":"audio/0191.mp3","我的书":"audio/0192.mp3","公司的项目":"audio/0193.mp3","她的名字":"audio/0194.mp3","我吃了":"audio/0195.mp3","他走了":"audio/0196.mp3","我们看完了":"audio/0197.mp3","我有时间":"audio/0198.mp3","他没有钱":"audio/0199.mp3","公司有问题":"audio/0200.mp3","他比我高":"audio/0201.mp3","今天比昨天冷":"audio/0202.mp3","这个项目比那个难":"audio/0203.mp3","你是学生吗？":"audio/0204.mp3","我很好，你呢？":"audio/0205.mp3","会议结束了吗？":"audio/0206.mp3","我把书放在桌子上":"audio/0207.mp3","请把门关上":"audio/0208.mp3","他把作业做完了":"audio/0209.mp3","门开着":"audio/0210.mp3","他穿着外套":"audio/0211.mp3","灯亮着":"audio/0212.mp3","我去过中国":"audio/0213.mp3","你吃过火锅吗":"audio/0214.mp3","她学过法语":"audio/0215.mp3","文件被删除了":"audio/0216.mp3","手机被偷了":"audio/0217.mp3","问题被解决了":"audio/0218.mp3","因为下雨，所以取消会议":"audio/0219.mp3","因为他迟到了，所以被批评":"audio/0220.mp3","因为天气寒冷，所以穿外套":"audio/0221.mp3","如果下雨，我们就取消":"audio/0222.mp3","如果你有时间，就来吧":"audio/0223.mp3","如果明天下雨，我们就不去了":"audio/0224.mp3","零":"audio/0225.mp3","四":"audio/0226.mp3","五":"audio/0227.mp3","六":"audio/0228.mp3","七":"audio/0229.mp3","八":"audio/0230.mp3","九":"audio/0231.mp3","二十三":"audio/0232.mp3","四十五":"audio/0233.mp3","二十":"audio/0234.mp3","十一":"audio/0235.mp3","九十九":"audio/0236.mp3","一百":"audio/0237.mp3","一百零五":"audio/0238.mp3","二百三十":"audio/0239.mp3","一千":"audio/0240.mp3","一千二百三十四":"audio/0241.mp3","二千零八":"audio/0242.mp3","一万":"audio/0243.mp3","十万":"audio/0244.mp3","一百万":"audio/0245.mp3","一千万":"audio/0246.mp3","一万二千三百四十五":"audio/0247.mp3","一亿":"audio/0248.mp3","一亿二千三百四十五万六千七百八十九":"audio/0249.mp3","二亿零五百万":"audio/0250.mp3"};
+  var _audioCache = {};
+  let zhVoice = null;
+
+  function initVoices() {
+    if (!('speechSynthesis' in window)) return;
+    const voices = window.speechSynthesis.getVoices();
+    // 优先选择 zh-CN 语音，其次任何 zh 语音
+    zhVoice = voices.find(function (v) { return /zh[-_]?CN/i.test(v.lang); })
+           || voices.find(function (v) { return /^zh/i.test(v.lang); })
+           || null;
+  }
+
+  if ('speechSynthesis' in window) {
+    initVoices();
+    // 部分浏览器异步加载语音列表
+    window.speechSynthesis.onvoiceschanged = initVoices;
+  }
+
+  /** 浏览器 speechSynthesis 兜底朗读（无预生成音频或播放失败时） */
+  function speakViaTTS(text) {
+    if (!('speechSynthesis' in window)) {
+      showToast("⚠️ 您的浏览器不支持语音朗读 (Trình duyệt không hỗ trợ đọc giọng nói)。");
+      return;
+    }
+    try {
+      window.speechSynthesis.cancel(); // 停止当前朗读，避免排队堆积
+      const u = new SpeechSynthesisUtterance(text);
+      u.lang = "zh-CN";
+      u.rate = 0.9;
+      u.pitch = 1.0;
+      if (zhVoice) u.voice = zhVoice;
+      window.speechSynthesis.speak(u);
+    } catch (e) {
+      showToast("⚠️ 朗读出错：" + e.message);
+    }
+  }
+
+  /**
+   * 朗读中文：优先播放预生成 MP3（无需中文语音包）；
+   * 音频不存在或播放失败时，回退浏览器语音合成。
+   * @param {string} text 需要朗读的中文文本
+   */
+  function speak(text) {
+    const file = AUDIO_MAP[text];
+    if (file) {
+      let a = _audioCache[text];
+      if (!a) {
+        a = new Audio(file);
+        a.preload = "auto";
+        _audioCache[text] = a;
+      }
+      if ('speechSynthesis' in window) {
+        try { window.speechSynthesis.cancel(); } catch (e) {}
+      }
+      try {
+        a.currentTime = 0;
+        const p = a.play();
+        if (p && typeof p.catch === "function") {
+          p.catch(function () { speakViaTTS(text); });
+        }
+        return;
+      } catch (e) { /* 播放异常，落到 TTS 兜底 */ }
+    }
+    speakViaTTS(text);
+  }
+
+  /* =====================================================================
+   *  渲染层 (Render Layer)
+   * ===================================================================== */
+
+  /** 生成一张短语卡片的 HTML（中文大字 + 拼音小字 + 越南语 + 🔊） */
+  function cardHTML(item) {
+    const zh = escapeHTML(item.zh);
+    const py = escapeHTML(item.py);
+    const vn = escapeHTML(item.vn);
+    const speakAttr = escapeAttr(item.zh);
+    return (
+      '<div class="card">' +
+        '<div class="zh">' + zh + '</div>' +
+        '<div class="py">' + py + '</div>' +
+        '<div class="vn">' + vn + '</div>' +
+        '<button class="speak-btn" data-speak="' + speakAttr + '" title="朗读">🔊</button>' +
+      '</div>'
+    );
+  }
+
+  /** 渲染“日常交流”与“工作报告”这类分类列表 */
+  function renderCategoryList(containerId, dataList) {
+    let html = "";
+    dataList.forEach(function (cat) {
+      html += '<div class="cat-title">' + escapeHTML(cat.name) +
+              ' <span class="vn">' + escapeHTML(cat.vn) + '</span></div>';
+      html += '<div class="grid">';
+      cat.items.forEach(function (item) {
+        html += cardHTML(item);
+      });
+      html += '</div>';
+    });
+    document.getElementById(containerId).innerHTML = html;
+  }
+
+  /** 渲染语法卡片 */
+  function renderGrammar() {
+    let html = "";
+    GRAMMAR.forEach(function (g) {
+      let exHTML = "";
+      g.examples.forEach(function (ex) {
+        exHTML +=
+          '<div class="example">' +
+            '<button class="speak-btn" data-speak="' + escapeAttr(ex.zh) + '" title="朗读">🔊</button>' +
+            '<div class="ex-body">' +
+              '<div class="ex-zh">' + escapeHTML(ex.zh) + '</div>' +
+              '<div class="ex-py">' + escapeHTML(ex.py) + '</div>' +
+              '<div class="ex-vn">' + escapeHTML(ex.vn) + '</div>' +
+            '</div>' +
+          '</div>';
+      });
+      html +=
+        '<div class="grammar-card">' +
+          '<h3>' + escapeHTML(g.name) + ' <span class="py">' + escapeHTML(g.py) + '</span></h3>' +
+          '<div class="desc">' + escapeHTML(g.vn) + '</div>' +
+          '<div class="structure">' + escapeHTML(g.structure) + '</div>' +
+          exHTML +
+        '</div>';
+    });
+    document.getElementById("grammarRoot").innerHTML = html;
+  }
+
+  /** 渲染“数字”页：按分级小节渲染（小节标题 + 规则说明 + 示例卡片）。
+   *  卡片复用 cardHTML（中文大字 + 拼音小字 + 越南语 + 🔊），朗读复用现有 data-speak 机制。 */
+  function renderNumbers() {
+    let html = "";
+    NUMBERS.forEach(function (sec) {
+      html += '<div class="cat-title">' + escapeHTML(sec.title) + '</div>';
+      if (sec.note) {
+        html += '<div class="num-note">' + escapeHTML(sec.note) + '</div>';
+      }
+      const list = sec.items || sec.examples || [];
+      html += '<div class="grid">';
+      list.forEach(function (item) {
+        html += cardHTML(item);
+      });
+      html += '</div>';
+    });
+    document.getElementById("numberRoot").innerHTML = html;
+  }
+
+  /* =====================================================================
+   *  作业生成 (Quiz Generator)
+   *  题型轮转: ① 中译越 ② 拼音填空 ③ 造句
+   * ===================================================================== */
+  const QUIZ_TYPES = ["translate", "pinyin", "sentence"];
+
+  /** 汇总所有短语条目，作为中译越/拼音填空的题库 */
+  function buildPhrasePool() {
+    const pool = [];
+    DAILY.forEach(function (cat) { cat.items.forEach(function (i) { pool.push(i); }); });
+    WORK.forEach(function (cat) { cat.items.forEach(function (i) { pool.push(i); }); });
+    return pool;
+  }
+
+  /** 随机抽取数组中的一个元素 */
+  function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+  /** 随机抽取一个尚未使用过的元素，以 it.zh 作为去重键；供多题型共用同一 used 集合 */
+  function pickUnique(arr, used) {
+    let it;
+    do { it = pick(arr); } while (used[it.zh]);
+    used[it.zh] = true;
+    return it;
+  }
+
+  /** 生成作业并渲染 */
+  function generateQuiz() {
+    const pool = buildPhrasePool();
+    if (!pool.length) { showToast("题库为空"); return; }
+    const count = 5 + Math.floor(Math.random() * 4); // 5 ~ 8 题
+    let html = "";
+    const used = {};
+
+    for (let k = 0; k < count; k++) {
+      const type = QUIZ_TYPES[k % QUIZ_TYPES.length];
+      const qid = "q" + k;
+
+      if (type === "sentence") {
+        // 造句题: 给语法点关键词，提供示例答案
+        const g = pick(GRAMMAR);
+        const ex = pick(g.examples);
+        html +=
+          '<div class="quiz-card">' +
+            '<div class="q-head">' +
+              '<span class="q-num">' + (k + 1) + '</span>' +
+              '<span class="q-type">造句 <span class="vn">(Tạo câu)</span></span>' +
+            '</div>' +
+            '<div class="q-zh">用「' + escapeHTML(g.name) + '」造句</div>' +
+            '<div class="q-hint">Hãy tạo một câu sử dụng "' + escapeHTML(g.name) + '" (' + escapeHTML(g.py) + ').</div>' +
+            '<div class="q-hint">提示 / Gợi ý: ' + escapeHTML(g.structure) + '</div>' +
+            '<button class="reveal-btn" data-reveal="' + qid + '">显示答案</button>' +
+            '<div class="answer" id="' + qid + '">' +
+              '<span class="label">示例:</span>' + escapeHTML(ex.zh) + ' &nbsp;<i style="color:var(--accent-strong)">' + escapeHTML(ex.py) + '</i><br>' +
+              '<span style="color:var(--muted)">' + escapeHTML(ex.vn) + '</span>' +
+              ' <button class="speak-btn" style="display:inline-flex;vertical-align:middle" data-speak="' + escapeAttr(ex.zh) + '">🔊</button>' +
+            '</div>' +
+          '</div>';
+      } else if (type === "pinyin") {
+        // 拼音填空题: 显示中文+越南语，隐藏拼音，用户回忆
+        const item = pickUnique(pool, used);
+        html +=
+          '<div class="quiz-card">' +
+            '<div class="q-head">' +
+              '<span class="q-num">' + (k + 1) + '</span>' +
+              '<span class="q-type">拼音填空 <span class="vn">(Điền pinyin)</span></span>' +
+            '</div>' +
+            '<div class="q-zh">' + escapeHTML(item.zh) + '</div>' +
+            '<div class="q-vn">越南语 / Tiếng Việt: ' + escapeHTML(item.vn) + '</div>' +
+            '<button class="reveal-btn" data-reveal="' + qid + '">显示拼音</button>' +
+            '<div class="answer" id="' + qid + '">' +
+              '<span class="label">拼音:</span>' + escapeHTML(item.py) +
+              ' <button class="speak-btn" style="display:inline-flex;vertical-align:middle" data-speak="' + escapeAttr(item.zh) + '">🔊</button>' +
+            '</div>' +
+          '</div>';
+      } else {
+        // 中译越题: 显示中文+拼音，用户想越南语，点显示答案揭晓
+        const item = pickUnique(pool, used);
+        html +=
+          '<div class="quiz-card">' +
+            '<div class="q-head">' +
+              '<span class="q-num">' + (k + 1) + '</span>' +
+              '<span class="q-type">中译越 <span class="vn">(Trung → Việt)</span></span>' +
+            '</div>' +
+            '<div class="q-zh">' + escapeHTML(item.zh) + '</div>' +
+            '<div class="q-py">Pinyin: ' + escapeHTML(item.py) + '</div>' +
+            '<button class="speak-btn" data-speak="' + escapeAttr(item.zh) + '" title="朗读" style="width:auto;padding:0 12px">🔊 听发音</button>' +
+            '<div class="q-hint" style="margin-top:10px">你的答案 (Viết nghĩa tiếng Việt):</div>' +
+            '<input class="q-input" type="text" placeholder="Nhập tiếng Việt..." />' +
+            '<button class="reveal-btn" data-reveal="' + qid + '">显示答案</button>' +
+            '<div class="answer" id="' + qid + '">' +
+              '<span class="label">越南语:</span>' + escapeHTML(item.vn) +
+            '</div>' +
+          '</div>';
+      }
+    }
+
+    document.getElementById("quizRoot").innerHTML = html;
+    document.getElementById("quizMeta").textContent =
+      "已生成 " + count + " 题 · Đã tạo " + count + " câu hỏi";
+    showToast("🎲 已生成作业 (Đã tạo bài tập)");
+  }
+
+  /* =====================================================================
+   *  交互层 (Interaction Layer)
+   * ===================================================================== */
+
+  /** 切换底部 Tab */
+  function switchTab(tab) {
+    const sections = { daily: "sec-daily", work: "sec-work", grammar: "sec-grammar", quiz: "sec-quiz", numbers: "sec-numbers" };
+    Object.keys(sections).forEach(function (key) {
+      document.getElementById(sections[key]).classList.toggle("active", key === tab);
+    });
+    document.querySelectorAll("nav button").forEach(function (btn) {
+      btn.classList.toggle("active", btn.getAttribute("data-tab") === tab);
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  /** 切换深/浅色主题 */
+  function toggleTheme() {
+    const root = document.documentElement;
+    const isDark = root.getAttribute("data-theme") === "dark";
+    root.setAttribute("data-theme", isDark ? "light" : "dark");
+    document.getElementById("themeBtn").textContent = isDark ? "🌙 深色" : "☀️ 浅色";
+  }
+
+  /** 事件委托：处理所有 🔊 朗读按钮 */
+  document.addEventListener("click", function (e) {
+    const speakEl = e.target.closest("[data-speak]");
+    if (speakEl) {
+      speak(speakEl.getAttribute("data-speak"));
+      return;
+    }
+    const revealEl = e.target.closest("[data-reveal]");
+    if (revealEl) {
+      const ans = document.getElementById(revealEl.getAttribute("data-reveal"));
+      if (ans) {
+        ans.classList.add("show");
+        revealEl.style.display = "none";
+      }
+    }
+  });
+
+  /** 轻量 Toast 提示 */
+  let toastTimer = null;
+  function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.classList.remove("show"); }, 2200);
+  }
+
+  /** HTML 转义，防止数据中的特殊字符破坏结构 */
+  function escapeHTML(str) {
+    return String(str)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+  /** 属性值转义（用于 data-speak 等） */
+  function escapeAttr(str) {
+    return escapeHTML(str).replace(/"/g, "&quot;");
+  }
+
+  /* =====================================================================
+   *  初始化 (Init)
+   * ===================================================================== */
+  renderCategoryList("dailyRoot", DAILY);
+  renderCategoryList("workRoot", WORK);
+  renderGrammar();
+  renderNumbers();
+  // 进入“作业”页时若为空，先自动生成一次，避免空白
+  generateQuiz();
+  </script>
+</body>
+</html>
