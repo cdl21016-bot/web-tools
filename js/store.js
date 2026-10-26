@@ -16,7 +16,7 @@ const Store = (function () {
     homeToolsOrderTs: 'blog_home_tools_order_ts',
   };
 
-  const MAX_HOME_TOOLS = 24; // 主页最多展示 24 个在线工具窗口（4 页，每页 6 格）
+  const MAX_HOME_TOOLS = 30; // 主页最多展示 30 个在线工具窗口（5 页，每页 6 格）
 
   // ============================================
   // 示例文章数据
@@ -986,6 +986,14 @@ const Store = (function () {
         description: '面向越南语母语者的中文入门：日常交流/工作报告/语法/数字四大类，中文+拼音+越南语对照，内置发音音频，附随机作业',
         builtin: true,
         src: 'tools/中文基础学习/index.html',
+      },
+      {
+        id: 'tool_wh_safety',
+        name: '仓库安全法规判断',
+        icon: '🏭',
+        description: '中/美/欧/越四区域法规匹配：输入问题点（可带实测尺寸）自动判定合规性、指出违反的具体条款，可下载 HTML/Markdown 报告',
+        builtin: true,
+        src: 'tools/warehouse-safety-check.html',
       },
     ];
 
