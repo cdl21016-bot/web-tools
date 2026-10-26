@@ -132,6 +132,9 @@
   .dim-ico { font-weight: 800; flex: none; width: 18px; text-align: center; }
   .dim-row.ok .dim-ico { color: var(--good); }
   .dim-row.bad .dim-ico { color: var(--bad); }
+  .dim-row.need { background: var(--warn-soft); border-radius: 8px; padding: 6px 8px; }
+  .dim-row.need .dim-ico { color: var(--warn); }
+  .dim-tag.need { color: var(--warn); background: #fff; border: 1px solid var(--warn); }
   .dim-body { flex: 1; }
   .dim-line { font-size: 13.5px; }
   .dim-tag { font-size: 12px; font-weight: 700; border-radius: 5px; padding: 1px 7px; margin-left: 6px; }
@@ -285,6 +288,12 @@ var RULES = [
     requirement:'单位违反本法规定，有占用、堵塞、封闭疏散通道、安全出口或者其他妨碍安全疏散行为的，责令改正，处五千元以上五万元以下罚款。',
     advice:'本条为罚则条款：出现上述行为除立即整改外，还将面临五千至五万元罚款。',
     severity:'medium' },
+  { region:'CN', instrument:'《自动喷水灭火系统设计规范》GB 50084-2017', clause:'第5.0.8条 / 第5.0.5条',
+    topic:'高架仓库（货架高度>5.5m）未设自动喷水灭火系统；货架储物高度超过限值未设货架内置洒水喷头',
+    keywords:['货架高度','货架高','高架仓库','高架','储物高度','堆高','内置喷头','货架内置','自动喷水','高架库','喷淋系统','高架库'],
+    requirement:'高架仓库（货架高度大于 5.5m）应设置自动喷水灭火系统；货架仓库的最大储物高度超过本规范第 5.0.5 条规定时，应设货架内置洒水喷头，且货架内置洒水喷头上方的层间隔板应为实层板（仓库危险级Ⅰ/Ⅱ级自地面起每 3.0m 设一层，Ⅲ级每 1.5~3.0m 设一层）。',
+    advice:'对货架高度>5.5m 的高架仓库设置自动喷水灭火系统，并在储物高度超限时增设货架内置喷头；采用通透层板，保证喷头间距与净距符合规范。',
+    severity:'high' },
   { region:'CN', instrument:'《中华人民共和国安全生产法》（2021修正）', clause:'第二十八条',
     topic:'从业人员未经安全生产教育和培训合格上岗',
     keywords:['未培训','未经培训','培训缺失','未教育','安全培训','未持证','先上岗','培训不足','无证上岗','training'],
@@ -494,7 +503,7 @@ var RULES = [
   { region:'US', instrument:'IFC（国际消防规范）第32章 高堆储存', clause:'Chapter 32',
     topic:'高堆储存许可、通道宽度与堆高限制',
     keywords:['高堆','high-piled','堆高','许可',' aisle width','32章','货架高度'],
-    requirement:'High-piled combustible storage requires permits and compliance with aisle widths, pile height/area limits and fire protection requirements.（高堆可燃储存须许可并符合通道宽度、堆高与消防要求）',
+    requirement:'High-piled combustible storage requires permits and compliance with aisle widths, pile height/area limits and fire protection requirements. In-rack/ESFR sprinklers are required when storage height exceeds 25 ft (≈7.6 m) per NFPA 13.（高堆可燃储存须许可并符合通道宽度、堆高与消防要求；储物高度超过 25 ft≈7.6m 须按 NFPA 13 设货架内置/in-rack 喷头）',
     advice:'Obtain high-piled storage permit; mark aisle widths and enforce pile height limits.（办理高堆储存许可并执行通道/堆高规定）',
     severity:'medium' },
 
@@ -565,6 +574,12 @@ var RULES = [
     requirement:'Steel static storage systems must be inspected by a competent person (typically annual expert inspection plus regular user inspections); damaged components must be replaced.（货架须由胜任人员定期检查，损坏构件必须更换）',
     advice:'Set up weekly user checks + annual expert rack inspection; tag out damaged bays.（周检+年检专家货架检查，损坏货位停用）',
     severity:'high' },
+  { region:'EU', instrument:'EN 12845 / 成员国国内法（仓库自动喷水灭火系统）', clause:'高堆储存相关条款',
+    topic:'高架 / 高堆仓库（高货架储存）未设自动喷水灭火系统',
+    keywords:['高架','高堆','货架高度','high-bay','high rack','in-rack','高货架','rack height'],
+    requirement:'High-rack / high-piled storage in the EU must be protected by automatic sprinkler systems (EN 12845 / EN 16925 or national fire law); in-rack sprinklers are required above certain storage heights per the applicable standard.（欧盟高架/高堆储存须设自动喷水灭火系统，超一定储物高度须设货架内置喷头，按 EN 12845 或成员国国内法执行）',
+    advice:'Install automatic sprinkler protection for high-bay racking; add in-rack sprinklers where storage height exceeds the applicable limit; keep flue spaces clear.（设置自动喷淋；超高度加货架内置喷头，保持通道畅通）',
+    severity:'high' },
   { region:'EU', instrument:'Directive 2012/18/EU（Seveso III 重大事故危险）', clause:'相关条款',
     topic:'危化品存量达到 Seveso 阈值未履行义务',
     keywords:['seveso','重大危险源','存量','阈值','establishment','lower-tier','upper-tier'],
@@ -627,6 +642,12 @@ var RULES = [
     requirement:'QCVN quy định yêu cầu an toàn cháy cho công trình: phân chức năng, khoảng cách thoát nạn, thiết bị PCCC.（国家技术规范规定工程防火要求：功能分区、疏散距离、消防设施）',
     advice:'Đối chiếu thiết kế/thực tế kho với QCVN về an toàn cháy.（按 QCVN 防火条款核对仓库设计与实际）',
     severity:'medium' },
+  { region:'VN', instrument:'QCVN 06:2022/BXD、TCVN 5738（防火安全国家技术规范）', clause:'自动喷水灭火系统相关条款',
+    topic:'高架仓库 / 高货架储存未设自动喷水灭火系统',
+    keywords:['高架','货架高度','kho cao tầng','自动喷水','高架仓库','hệ thống phun nước','高货架'],
+    requirement:'Kho hàng cao tầng (giá kệ cao) phải được bảo vệ bằng hệ thống chữa cháy tự động (sprinkler) theo QCVN 06:2022/BXD, TCVN 5738.（高架仓库应按 QCVN 06:2022/BXD、TCVN 5738 设置自动喷水灭火系统）',
+    advice:'Lắp đặt hệ thống sprinkler tự động cho kho giá kệ cao; bổ sung đầu phun trong giá khi chiều cao lưu trữ vượt giới hạn.（高架仓库设自动喷淋，超高时加货架内置喷头）',
+    severity:'high' },
   { region:'VN', instrument:'Luật An toàn, vệ sinh lao động 2015 及配套文件', clause:'危险作业相关条款',
     topic:'高处作业、有限空间等危险作业无许可与监护',
     keywords:['高处','有限空间',' lạnh','冷库','作业许可','监护','nguy hiểm'],
@@ -654,7 +675,7 @@ var DIM_RULES = [
     advice:'实测净宽应≥下限；划线标识并保持全程畅通、无堆物占用；叉车交会作业区建议更宽。',
     severity:'high' },
   { id:'aisle', label:'库房主通道 / 一般通道净宽',
-    qKeywords:['主通道','库房主通道','库房通道','货位通道','storage aisle','通道宽','仓库通道'],
+    qKeywords:['主通道','库房主通道','库房通道','货位通道','storage aisle','仓库通道'],
     min:{ CN:2.00, US:1.12, EU:1.20, VN:1.40 },
     refs:{ CN:'GA 1131-2014《仓储场所消防安全管理通则》（库房内主通道宽度不应小于 2m）',
            US:'OSHA 29 CFR 1910.22 / 1910.176（保持通道安全净距、无障碍物）',
@@ -679,11 +700,20 @@ var DIM_RULES = [
     advice:'消防车道净宽≥4.0m、净高≥4.0m，严禁占用、设障碍物。',
     severity:'high' },
   { id:'sprinkler', label:'堆垛顶部与喷淋头净距',
-    qKeywords:['喷淋','喷头','sprinkler','净距','顶部间隙','堆垛与喷头','堆货距喷头','货架与喷头'],
+    qKeywords:['净距','顶部间隙','堆垛与喷头','堆货距喷头','货架与喷头','堆垛距喷淋','堆距喷头'],
     min:{ CN:0.50, US:0.457, EU:null, VN:null },
     refs:{ CN:'GA 1131-2014（物品堆垛与发热设备距离不小于 0.5m；喷淋头下方净距按规范）',
            US:'NFPA 13（储存物顶部与喷淋喷头之间至少保持 18 in ≈ 0.457m 净距）' },
     advice:'保持喷头下方净距，超高货垛须下移或重新布置，防止影响喷水灭火。',
+    severity:'high' },
+  { id:'rackh', label:'货架 / 储物高度（高架仓库阈值）', mode:'obligation',
+    qKeywords:['货架高度','货架高','高架','储物高度','堆高','高架仓库','high-bay','high rack','rack height','in-rack','高货架'],
+    min:{ CN:5.50, US:7.60, EU:null, VN:null },
+    refs:{ CN:'GB 50084-2017 第5.0.8条 / 高架仓库（货架高度>5.5m）应设自动喷水灭火系统',
+           US:'NFPA 13（储物高度>25 ft≈7.6m 须设货架内置/in-rack 喷头）',
+           EU:'EN 12845 / 成员国国内法（高架储存须设自动喷淋）',
+           VN:'QCVN 06:2022/BXD、TCVN 5738（高架仓库应设自动喷水灭火系统）' },
+    advice:'高架/高堆仓库应设置自动喷水灭火系统；储物高度超过限值时还应设货架内置喷头，并保持层板通透、喷头间距与净距符合规范。',
     severity:'high' }
 ];
 
@@ -717,12 +747,14 @@ var PROBLEM_LIBRARY = [
   '疏散通道宽1.2米',
   '安全出口门宽0.8米',
   '库房主通道净宽1.8米',
-  '堆垛距喷淋头0.3米'
+  '堆垛距喷淋头0.3米',
+  '高架仓库货架高度6米，未安装自动喷淋系统',
+  '货架高度4.5米，已设喷淋'
 ];
 
 var SEVERITY_RANK = { high: 3, medium: 2, low: 1 };
 var SEVERITY_LABEL = { high: '高危', medium: '中危', low: '低危' };
-var NEGATIVE_MARKERS = ['未','没有','缺','堵塞','占用','遮挡','圈占','封闭','锁','过期','失效','损坏','故障','私拉','乱接','混','超','无证','未佩戴','未设置','未建立','未制定','未组织','未检验','未检测','未维保','未演练','不足','不够','堆放','吸烟','明火','隐患','缺少','老化','改作','上锁','超高','不稳','无标','未培','不','否'];
+var NEGATIVE_MARKERS = ['未','没有','缺','堵塞','占用','遮挡','圈占','封闭','锁','过期','失效','损坏','故障','私拉','乱接','混','超','无证','未佩戴','未设置','未建立','未制定','未组织','未检验','未检测','未维保','未演练','不足','不够','堆放','吸烟','明火','隐患','缺少','老化','改作','上锁','超高','不稳','无标','未培','不','否','no sprinkler','no fire','absent','missing'];
 var POSITIVE_MARKERS = ['已整改','符合','正常','完好','有效','合格','合规','已设置','已配置','已培训','已演练','已建立','已制定','已检测','已检','已维护','已清理','已畅通','已落实','已配备','已验收'];
 
 /* =====================================================================
@@ -780,8 +812,8 @@ function round2(x) { return Math.round(x * 100) / 100; }
 /* 从文本中提取带单位的尺寸数值，统一换算为米；返回 [{meters,display,index,raw,unit}] */
 function parseDimensions(text) {
   var items = [];
-  var unitMap = { '米':1, 'm':1, '厘米':0.01, 'cm':0.01, '毫米':0.001, 'mm':0.001, '英寸':0.0254, '英尺':0.3048, 'ft':0.3048 };
-  var re = /(\d+(?:\.\d+)?)\s*(米|厘米|毫米|m|cm|mm|英寸|英尺|ft)/gi;
+  var unitMap = { '米':1, 'm':1, 'meters':1, 'meter':1, 'metres':1, '厘米':0.01, 'cm':0.01, '毫米':0.001, 'mm':0.001, '英寸':0.0254, '英尺':0.3048, 'ft':0.3048 };
+  var re = /(\d+(?:\.\d+)?)\s*(米|厘米|毫米|meters|metres|cm|mm|英寸|英尺|ft|m)/gi;
   var m;
   while ((m = re.exec(text))) {
     var u = m[2].toLowerCase();
@@ -809,35 +841,43 @@ function matchDims(text) {
     return { matches: [], hint: anyKw ? '（提示：可补充实测尺寸如「宽1.2米」以做数值判定）' : null };
   }
   var matches = [];
-  var used = {}; // 每条尺寸每个区域只被一条规则消费，避免重复计数
   Object.keys(state.regions).forEach(function (rg) {
     if (!state.regions[rg]) return;
-    used[rg] = {};
-    DIM_RULES.forEach(function (rule) {
-      var min = rule.min[rg];
-      if (min == null) return;
-      var bestKwPos = -1;
-      rule.qKeywords.forEach(function (kw) {
-        var p = text.indexOf(kw);
-        if (p >= 0 && (bestKwPos < 0 || p < bestKwPos)) bestKwPos = p;
-      });
-      if (bestKwPos < 0) return;
-      var bestDim = null, bestDiff = 1e9;
-      dims.forEach(function (d, idx) {
-        if (used[rg][idx]) return;
-        var center = d.index + d.raw.length / 2;
-        var diff = Math.abs(center - (bestKwPos + 1));
-        if (diff < bestDiff) { bestDiff = diff; bestDim = d; bestDim._idx = idx; }
-      });
-      if (bestDim && bestDiff <= 20) {
-        used[rg][bestDim._idx] = true;
-        var ok = bestDim.meters >= min - 1e-6;
-        matches.push({
-          id: rule.id, label: rule.label, region: rg,
-          value: round2(bestDim.meters), display: bestDim.display,
-          min: min, ok: ok, diff: round2(min - bestDim.meters),
-          ref: rule.refs[rg], advice: rule.advice, severity: rule.severity
+    dims.forEach(function (d) {
+      var center = d.index + d.raw.length / 2;
+      var bestRule = null, bestDist = 1e9;
+      DIM_RULES.forEach(function (rule) {
+        var min = rule.min[rg];
+        if (min == null) return;
+        var bestKwPos = -1;
+        rule.qKeywords.forEach(function (kw) {
+          var p = text.indexOf(kw);
+          if (p >= 0 && (bestKwPos < 0 || p < bestKwPos)) bestKwPos = p;
         });
+        if (bestKwPos < 0) return;
+        var dist = Math.abs(center - (bestKwPos + 1));
+        if (dist < bestDist) { bestDist = dist; bestRule = rule; }
+      });
+      if (bestRule && bestDist <= 20) {
+        var min = bestRule.min[rg];
+        if (bestRule.mode === 'obligation') {
+          if (d.meters >= min - 1e-6) {
+            matches.push({
+              id: bestRule.id, label: bestRule.label, region: rg,
+              value: round2(d.meters), display: d.display,
+              min: min, ok: false, need: true, threshold: min,
+              ref: bestRule.refs[rg], advice: bestRule.advice, severity: bestRule.severity
+            });
+          }
+        } else {
+          var ok = d.meters >= min - 1e-6;
+          matches.push({
+            id: bestRule.id, label: bestRule.label, region: rg,
+            value: round2(d.meters), display: d.display,
+            min: min, ok: ok, diff: round2(min - d.meters),
+            ref: bestRule.refs[rg], advice: bestRule.advice, severity: bestRule.severity
+          });
+        }
       }
     });
   });
@@ -871,12 +911,26 @@ function analyzeOne(text) {
 
   // 数值型判定叠加
   if (dims.length) {
-    var fails = dims.filter(function (d) { return !d.ok; });
+    var fails = dims.filter(function (d) { return !d.ok && !d.need; });
+    var needs = dims.filter(function (d) { return d.need; });
     if (fails.length) {
       var f = fails[0];
       verdict = 'bad';
       maxSev = 'high';
       reason = '实测 ' + f.display + '（' + REGION_META[f.region].name + '·' + f.label + '），小于法规下限 ≥' + f.min + 'm（差 ' + (+f.diff).toFixed(2) + 'm），不符合：' + f.ref + '。';
+    } else if (needs.length) {
+      // 阈值型义务：实测 ≥ 阈值 → 应满足某设置要求
+      var n = needs[0];
+      var nreg = REGION_META[n.region].name;
+      var obBase = '实测 ' + n.display + '（' + nreg + '·' + n.label + '）≥ ' + n.threshold + 'm，按 ' + n.ref + ' 应设自动喷水灭火系统（货架内置喷头），请确认是否已设置。';
+      if (pol.neg) {
+        verdict = 'bad';
+        maxSev = 'high';
+        reason = '实测 ' + n.display + '（' + nreg + '·' + n.label + '）≥ ' + n.threshold + 'm，触发高架/高堆仓库自动喷水灭火系统设置要求；描述显示未设置喷淋/内置喷头，不符合：' + n.ref + '。' + obBase;
+      } else {
+        if (verdict !== 'bad') verdict = 'warn';
+        reason += (reason ? ' ' : '') + obBase;
+      }
     } else if (!pol.neg) {
       verdict = 'good';
       maxSev = null;
@@ -993,12 +1047,21 @@ function renderResults() {
     if (r.dims && r.dims.length) {
       html += '<div class="dim-block">';
       r.dims.forEach(function (d) {
-        html += '<div class="dim-row ' + (d.ok ? 'ok' : 'bad') + '">' +
-          '<span class="dim-ico">' + (d.ok ? '✓' : '✕') + '</span>' +
-          '<div class="dim-body"><div class="dim-line"><b>' + esc(d.label) + '</b> · ' + REGION_META[d.region].name +
-          '：实测 <b>' + esc(d.display) + '</b> / 法规下限 <b>≥' + d.min + 'm</b> ' +
-          '<span class="dim-tag ' + (d.ok ? 'ok' : 'bad') + '">' + (d.ok ? '✓ 满足' : '✕ 不满足') + '</span></div>' +
-          '<div class="dim-ref">依据：' + esc(d.ref) + (d.ok ? '' : ' · 差 ' + (+d.diff).toFixed(2) + 'm') + '</div></div></div>';
+        if (d.need) {
+          html += '<div class="dim-row need">' +
+            '<span class="dim-ico">!</span>' +
+            '<div class="dim-body"><div class="dim-line"><b>' + esc(d.label) + '</b> · ' + REGION_META[d.region].name +
+            '：实测 <b>' + esc(d.display) + '</b> ≥ <b>' + d.threshold + 'm</b> ' +
+            '<span class="dim-tag need">! 应设自动喷淋</span></div>' +
+            '<div class="dim-ref">依据：' + esc(d.ref) + '</div></div></div>';
+        } else {
+          html += '<div class="dim-row ' + (d.ok ? 'ok' : 'bad') + '">' +
+            '<span class="dim-ico">' + (d.ok ? '✓' : '✕') + '</span>' +
+            '<div class="dim-body"><div class="dim-line"><b>' + esc(d.label) + '</b> · ' + REGION_META[d.region].name +
+            '：实测 <b>' + esc(d.display) + '</b> / 法规下限 <b>≥' + d.min + 'm</b> ' +
+            '<span class="dim-tag ' + (d.ok ? 'ok' : 'bad') + '">' + (d.ok ? '✓ 满足' : '✕ 不满足') + '</span></div>' +
+            '<div class="dim-ref">依据：' + esc(d.ref) + (d.ok ? '' : ' · 差 ' + (+d.diff).toFixed(2) + 'm') + '</div></div></div>';
+        }
       });
       html += '</div>';
     }
@@ -1043,8 +1106,12 @@ function buildReportHTML() {
     if (r.dims && r.dims.length) {
       details += '<p><b>数值判定：</b></p><ul>';
       r.dims.forEach(function (d) {
-        details += '<li>' + esc(d.label) + '（' + REGION_META[d.region].name + '）：实测 ' + esc(d.display) + ' / 法规下限 ≥' + d.min + 'm → ' +
-          (d.ok ? '<b>满足</b>' : '<b>不满足（差 ' + (+d.diff).toFixed(2) + 'm）</b>') + '。依据：' + esc(d.ref) + '</li>';
+        if (d.need) {
+          details += '<li>' + esc(d.label) + '（' + REGION_META[d.region].name + '）：实测 ' + esc(d.display) + ' ≥ ' + d.threshold + 'm → <b>应设自动喷水灭火系统（货架内置喷头）</b>。依据：' + esc(d.ref) + '</li>';
+        } else {
+          details += '<li>' + esc(d.label) + '（' + REGION_META[d.region].name + '）：实测 ' + esc(d.display) + ' / 法规下限 ≥' + d.min + 'm → ' +
+            (d.ok ? '<b>满足</b>' : '<b>不满足（差 ' + (+d.diff).toFixed(2) + 'm）</b>') + '。依据：' + esc(d.ref) + '</li>';
+        }
       });
       details += '</ul>';
     }
@@ -1099,7 +1166,11 @@ function buildReportMD() {
     if (r.dims && r.dims.length) {
       md += '**数值判定：**\n\n';
       r.dims.forEach(function (d) {
-        md += '- ' + d.label + '（' + REGION_META[d.region].name + '）：实测 ' + d.display + ' / 下限 ≥' + d.min + 'm → ' + (d.ok ? '满足' : '不满足（差 ' + (+d.diff).toFixed(2) + 'm）') + '。依据：' + d.ref + '\n';
+        if (d.need) {
+          md += '- ' + d.label + '（' + REGION_META[d.region].name + '）：实测 ' + d.display + ' ≥ ' + d.threshold + 'm → **应设自动喷水灭火系统（货架内置喷头）**。依据：' + d.ref + '\n';
+        } else {
+          md += '- ' + d.label + '（' + REGION_META[d.region].name + '）：实测 ' + d.display + ' / 下限 ≥' + d.min + 'm → ' + (d.ok ? '满足' : '不满足（差 ' + (+d.diff).toFixed(2) + 'm）') + '。依据：' + d.ref + '\n';
+        }
       });
       md += '\n';
     }
@@ -1175,6 +1246,7 @@ $('demoBtn').addEventListener('click', function () {
     '喷淋系统故障未检测\n' +
     '库房内有人吸烟\n' +
     '疏散通道实测净宽仅1.2米\n' +
+    '高架仓库货架高度6米，未安装自动喷淋系统\n' +
     '员工已全部完成安全培训并考核合格';
   state.regions = { CN: true, US: true, EU: true, VN: true };
   renderRegions();
