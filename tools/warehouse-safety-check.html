@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="仓库安全法规判断 · 中/美/欧/越四区域仓储安全法规条款匹配与合规初筛工具">
+<title>仓库安全法规判断</title>
+<style>
+  /* ================= 主题变量 ================= */
+  :root {
+    --bg: #f3f5f9; --card: #ffffff; --text: #1f2933; --muted: #64748b;
+    --accent: #1d4ed8; --accent-strong: #1e40af; --accent-soft: #e4ecfd;
+    --border: #e2e8f0; --shadow: 0 2px 10px rgba(15, 23, 42, .07);
+    --good: #15803d; --good-soft: #dcfce7;
+    --bad: #b91c1c; --bad-soft: #fee2e2;
+    --warn: #b45309; --warn-soft: #fef3c7;
+    --cn: #d93025; --us: #1a73e8; --eu: #7c3aed; --vn: #0f766e;
+  }
+  [data-theme="dark"] {
+    --bg: #0f172a; --card: #1c2535; --text: #e5e7eb; --muted: #94a3b8;
+    --accent: #60a5fa; --accent-strong: #3b82f6; --accent-soft: #1e3a5f;
+    --border: #2d3748; --shadow: 0 2px 10px rgba(0, 0, 0, .35);
+    --good: #4ade80; --good-soft: #14532d;
+    --bad: #f87171; --bad-soft: #450a0a;
+    --warn: #fbbf24; --warn-soft: #451a03;
+    --cn: #f87171; --us: #60a5fa; --eu: #a78bfa; --vn: #2dd4bf;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Noto Sans", "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.65;
+    transition: background .25s ease, color .25s ease;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 20px 16px 60px; }
+
+  /* ================= 头部 ================= */
+  header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  h1 { margin: 0; font-size: 24px; letter-spacing: .5px; }
+  .sub { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  .theme-btn {
+    border: 1px solid var(--border); background: var(--card); color: var(--text);
+    border-radius: 8px; padding: 7px 12px; font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  .theme-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 18px; margin-bottom: 16px; box-shadow: var(--shadow);
+  }
+  .card h2 { font-size: 16px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; }
+  .step {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%; background: var(--accent);
+    color: #fff; font-size: 12px; font-weight: 700; flex: none;
+  }
+
+  /* ================= 区域选择 ================= */
+  .region-row { display: flex; flex-wrap: wrap; gap: 10px; }
+  .region-chip {
+    display: inline-flex; align-items: center; gap: 7px; border: 1.5px solid var(--border);
+    background: var(--card); color: var(--text); border-radius: 10px; padding: 9px 14px;
+    font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; transition: .15s;
+  }
+  .region-chip .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .region-chip small { font-weight: 400; color: var(--muted); font-size: 12px; }
+  .region-chip.on { border-color: var(--rc); background: color-mix(in srgb, var(--rc) 10%, var(--card)); }
+  .region-chip.on .label { color: var(--rc); }
+  .region-note { margin: 10px 2px 0; font-size: 12px; color: var(--muted); }
+
+  /* ================= 输入 ================= */
+  textarea {
+    width: 100%; min-height: 130px; resize: vertical; font-family: inherit; font-size: 14px;
+    padding: 11px 12px; border: 1.5px solid var(--border); border-radius: 10px;
+    background: var(--bg); color: var(--text); line-height: 1.7;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); }
+  .chip-title { font-size: 13px; color: var(--muted); margin: 14px 0 8px; }
+  .chip-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .prob-chip {
+    border: 1px solid var(--border); background: var(--bg); color: var(--text);
+    border-radius: 999px; padding: 6px 12px; font-size: 12.5px; cursor: pointer; font-family: inherit;
+  }
+  .prob-chip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; align-items: center; }
+  .btn {
+    border: none; border-radius: 10px; padding: 10px 20px; font-size: 14px; font-weight: 600;
+    cursor: pointer; font-family: inherit; background: var(--accent); color: #fff; transition: .15s;
+  }
+  .btn:hover { background: var(--accent-strong); }
+  .btn.ghost { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
+  .btn.ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.small { padding: 7px 14px; font-size: 13px; }
+
+  /* ================= 结果 ================= */
+  #results { display: none; }
+  .summary-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .sum-pill {
+    border-radius: 999px; padding: 5px 13px; font-size: 13px; font-weight: 600; border: 1px solid var(--border);
+  }
+  .sum-pill.bad { color: var(--bad); background: var(--bad-soft); border-color: transparent; }
+  .sum-pill.good { color: var(--good); background: var(--good-soft); border-color: transparent; }
+  .sum-pill.warn { color: var(--warn); background: var(--warn-soft); border-color: transparent; }
+  .sum-pill.info { color: var(--accent); background: var(--accent-soft); border-color: transparent; }
+  .result-card { border: 1px solid var(--border); border-radius: 12px; padding: 15px 16px; margin-bottom: 12px; background: var(--bg); }
+  .result-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .problem-text { font-size: 14.5px; font-weight: 600; }
+  .problem-no { color: var(--muted); font-size: 12px; margin-right: 6px; }
+  .verdict { border-radius: 8px; padding: 4px 12px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+  .verdict.bad { color: var(--bad); background: var(--bad-soft); }
+  .verdict.good { color: var(--good); background: var(--good-soft); }
+  .verdict.warn { color: var(--warn); background: var(--warn-soft); }
+  .sev { font-size: 11.5px; border-radius: 6px; padding: 2px 8px; font-weight: 700; margin-left: 8px; white-space: nowrap; }
+  .sev.high { color: var(--bad); background: var(--bad-soft); }
+  .sev.medium { color: var(--warn); background: var(--warn-soft); }
+  .sev.low { color: var(--muted); background: var(--accent-soft); }
+  .rule-list { margin: 12px 0 0; padding: 0; list-style: none; }
+  .rule-item { border-left: 3px solid var(--rc, var(--border)); background: var(--card); border-radius: 0 8px 8px 0; padding: 10px 12px; margin-bottom: 8px; }
+  .rule-src { font-size: 13.5px; font-weight: 700; }
+  .rule-region { font-size: 11px; font-weight: 700; color: #fff; background: var(--rc, var(--muted)); border-radius: 5px; padding: 1px 7px; margin-right: 7px; }
+  .rule-clause { color: var(--accent); font-weight: 700; }
+  .rule-req { font-size: 13px; color: var(--muted); margin-top: 3px; }
+  .rule-hits { font-size: 12px; color: var(--muted); margin-top: 5px; }
+  .rule-hits b { color: var(--text); font-weight: 600; }
+  .advice { margin-top: 10px; font-size: 13px; background: var(--accent-soft); border-radius: 8px; padding: 9px 12px; }
+  .advice b { color: var(--accent); }
+  .empty-tip { color: var(--muted); font-size: 13.5px; text-align: center; padding: 26px 0; }
+
+  /* ================= 法规库抽屉 ================= */
+  details.lib { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 0 18px; margin-bottom: 16px; }
+  details.lib summary { cursor: pointer; font-weight: 700; font-size: 15px; padding: 15px 0; list-style: none; }
+  details.lib summary::-webkit-details-marker { display: none; }
+  details.lib summary::before { content: "📚 "; }
+  details.lib .lib-body { padding-bottom: 16px; }
+  .lib-counts { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .lib-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .lib-table th, .lib-table td { border-bottom: 1px solid var(--border); text-align: left; padding: 7px 8px; vertical-align: top; }
+  .lib-table th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+  .lib-table td.inst { font-weight: 600; }
+
+  footer { color: var(--muted); font-size: 12px; line-height: 1.8; margin-top: 22px; }
+  footer .disclaimer { background: var(--warn-soft); color: var(--warn); border-radius: 10px; padding: 10px 14px; font-weight: 600; }
+
+  /* ================= 打印 ================= */
+  #printArea { display: none; }
+  @media print {
+    body > *:not(#printArea) { display: none !important; }
+    #printArea { display: block !important; padding: 20px; color: #000; background: #fff; }
+    #printArea h1 { font-size: 20px; }
+    #printArea table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    #printArea th, #printArea td { border: 1px solid #999; padding: 5px 7px; text-align: left; vertical-align: top; }
+    #printArea th { background: #eee; }
+  }
+  @media (max-width: 640px) {
+    h1 { font-size: 20px; }
+    .card { padding: 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>⚖️ 仓库安全法规判断</h1>
+      <p class="sub">输入发现的问题点，自动匹配中国 / 美国 / 欧盟 / 越南四地仓储安全法规条款，判定是否合规并指出违反条款，可输出下载报告。</p>
+    </div>
+    <button class="theme-btn" id="themeBtn">🌙 深色模式</button>
+  </header>
+
+  <!-- 第一步：选择适用区域 -->
+  <section class="card">
+    <h2><span class="step">1</span>选择适用的法规区域</h2>
+    <div class="region-row" id="regionRow"></div>
+    <p class="region-note">可多选。同一问题将按所选区域分别匹配当地法规条款；美国以联邦 OSHA / NFPA / IFC 为基准（州计划州可能更严），欧盟指令需经成员国国内法落地，越南以越南语官方文本为准。</p>
+  </section>
+
+  <!-- 第二步：输入问题点 -->
+  <section class="card">
+    <h2><span class="step">2</span>输入发现的问题点</h2>
+    <textarea id="problemInput" placeholder="每行输入一个发现的问题点，例如：&#10;3号库房疏散通道被托盘堵塞&#10;叉车司机无证上岗&#10;灭火器过期未点检"></textarea>
+    <p class="chip-title">👇 常见问题速填（点击追加到输入框）：</p>
+    <div class="chip-grid" id="probChips"></div>
+    <div class="btn-row">
+      <button class="btn" id="analyzeBtn">🔍 开始判断</button>
+      <button class="btn ghost" id="demoBtn">📋 填入示例</button>
+      <button class="btn ghost" id="clearBtn">🗑 清空</button>
+    </div>
+  </section>
+
+  <!-- 第三步：结果 -->
+  <section class="card" id="results">
+    <h2><span class="step">3</span>判断结果</h2>
+    <div class="summary-bar" id="summaryBar"></div>
+    <div id="resultList"></div>
+    <div class="btn-row">
+      <button class="btn" id="dlHtmlBtn">⬇️ 下载 HTML 报告</button>
+      <button class="btn ghost" id="dlMdBtn">⬇️ 下载 Markdown 报告</button>
+      <button class="btn ghost" id="printBtn">🖨 打印报告</button>
+    </div>
+  </section>
+
+  <!-- 法规库 -->
+  <details class="lib">
+    <summary>查看内置法规库</summary>
+    <div class="lib-body">
+      <div class="lib-counts" id="libCounts"></div>
+      <div style="overflow-x:auto">
+        <table class="lib-table">
+          <thead><tr><th>区域</th><th>法规 / 标准</th><th>条款</th><th>适用情形</th></tr></thead>
+          <tbody id="libBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </details>
+
+  <footer>
+    <div class="disclaimer">⚠️ 免责声明：本工具基于内置法规库进行关键词匹配的<b>初步筛查</b>，不构成法律意见或执法结论；条款号与文本以现行有效的官方正式文本为准，正式引用前请核对官方公报/标准原文。跨境仓储还应同时遵守所在国/州的实施细则（如美国州计划州 OSHA、欧盟各成员国落地法、越南部级通知）。</div>
+    <p style="margin-top:8px">本地运行，数据不出浏览器 · 单文件离线可用</p>
+  </footer>
+</div>
+
+<!-- 打印专用区域（屏幕隐藏） -->
+<div id="printArea"></div>
+
+<script>
+/* =====================================================================
+ * 仓库安全法规判断 —— 数据层
+ * 规则库字段：
+ *   region      适用区域 CN/US/EU/VN
+ *   instrument  法规 / 标准名称
+ *   clause      条款号（不确定具体条号的仅注明法规名与主题）
+ *   topic       适用情形（匹配主题）
+ *   keywords    中英文匹配关键词（问题描述中包含即命中）
+ *   requirement 条款要求摘要
+ *   advice      整改建议
+ *   severity    high / medium / low
+ * ===================================================================== */
+var REGION_META = {
+  CN: { name: '中国', short: '中', color: 'var(--cn)', note: '以中国现行法律、法规与国家标准为准' },
+  US: { name: '美国', short: '美', color: 'var(--us)', note: '以联邦 OSHA 29 CFR 1910、NFPA、IFC 为基准' },
+  EU: { name: '欧盟', short: '欧', color: 'var(--eu)', note: '欧盟指令需经成员国国内法转化落地' },
+  VN: { name: '越南', short: '越', color: 'var(--vn)', note: '以越南语官方文本为准' }
+};
+
+var RULES = [
+  /* ================= 中国 ================= */
+  { region:'CN', instrument:'《中华人民共和国消防法》（2021修正）', clause:'第二十八条',
+    topic:'占用、堵塞、封闭疏散通道、安全出口、消防车通道；遮挡消火栓、占用防火间距',
+    keywords:['堵塞','占用','疏散通道','安全出口','消防车通道','封闭','锁闭','上锁','消火栓','圈占','遮挡','防火间距','防火分区','堆物','堆杂','exit','aisle','逃生'],
+    requirement:'任何单位、个人不得损坏、挪用或者擅自拆除、停用消防设施、器材，不得埋压、圈占、遮挡消火栓或者占用防火间距，不得占用、堵塞、封闭疏散通道、安全出口、消防车通道。人员密集场所门窗不得设置影响逃生和灭火救援的障碍物。',
+    advice:'立即清除堆物、恢复通道与安全出口畅通，安全出口严禁锁闭；将通道巡查纳入每日班前检查并留存记录。',
+    severity:'high' },
+  { region:'CN', instrument:'《中华人民共和国消防法》（2021修正）', clause:'第十六条',
+    topic:'单位未落实消防安全职责：疏散通道不畅、消防设施器材未配置或未定期检测维修',
+    keywords:['消防安全职责','消防设施','器材','未配置','未检测','未维修','消防管理','未落实'],
+    requirement:'机关、团体、企业、事业等单位应当保障疏散通道、安全出口畅通，设置消防安全标志，配置消防设施器材，定期组织检验维修，确保完好有效。',
+    advice:'建立消防安全责任制，按标准配置并定期检测消防设施器材，保持疏散通道畅通。',
+    severity:'high' },
+  { region:'CN', instrument:'《中华人民共和国消防法》（2021修正）', clause:'第二十一条',
+    topic:'在具有火灾、爆炸危险的场所吸烟或使用明火',
+    keywords:['吸烟','明火','烟火','动火','焊割','焚烧','smoking','hot work'],
+    requirement:'禁止在具有火灾、爆炸危险的场所吸烟、使用明火；因施工等特殊情况需要使用明火作业的，应当按照规定事先办理审批手续，采取相应的消防安全措施。',
+    advice:'库区内严禁吸烟与无审批动火；确需动火的执行审批、监护、清理现场可燃物等防火措施。',
+    severity:'high' },
+  { region:'CN', instrument:'《中华人民共和国消防法》（2021修正）', clause:'第六十条',
+    topic:'违反第二十八条等条款的法律责任',
+    keywords:['处罚','罚款','违法','违规','责任'],
+    requirement:'单位违反本法规定，有占用、堵塞、封闭疏散通道、安全出口或者其他妨碍安全疏散行为的，责令改正，处五千元以上五万元以下罚款。',
+    advice:'本条为罚则条款：出现上述行为除立即整改外，还将面临五千至五万元罚款。',
+    severity:'medium' },
+  { region:'CN', instrument:'《中华人民共和国安全生产法》（2021修正）', clause:'第二十八条',
+    topic:'从业人员未经安全生产教育和培训合格上岗',
+    keywords:['未培训','未经培训','培训缺失','未教育','安全培训','未持证','先上岗','培训不足','无证上岗','training'],
+    requirement:'生产经营单位应当对从业人员进行安全生产教育和培训，保证从业人员具备必要的安全生产知识；未经安全生产教育和培训合格的从业人员，不得上岗作业。',
+    advice:'建立三级安全教育档案，新员工、转岗员工培训合格后方可上岗，培训记录留存备查。',
+    severity:'high' },
+  { region:'CN', instrument:'《中华人民共和国安全生产法》（2021修正）', clause:'第三十条',
+    topic:'特种作业人员未取得相应资格上岗',
+    keywords:['叉车','特种作业','无证','证书','资格','操作证','驾驶','高处作业证','电工证','certification','forklift'],
+    requirement:'生产经营单位的特种作业人员必须按照国家有关规定经专门的安全作业培训，取得相应资格，方可上岗作业。',
+    advice:'叉车等设备操作人员须经专门培训考核持证后方可操作，证书原件或电子件现场可查。',
+    severity:'high' },
+  { region:'CN', instrument:'《中华人民共和国安全生产法》（2021修正）', clause:'第三十五条',
+    topic:'有较大危险因素的场所和设施设备上未设置明显安全警示标志',
+    keywords:['警示标志','安全标志','标识','标示','未设置','warning','sign'],
+    requirement:'生产经营单位应当在有较大危险因素的场所和有关设施、设备上，设置明显的安全警示标志。',
+    advice:'在装卸区、月台边缘、有电部位、化学品储存区等危险部位补设醒目的安全警示标志。',
+    severity:'medium' },
+  { region:'CN', instrument:'《中华人民共和国安全生产法》（2021修正）', clause:'第三十六条',
+    topic:'安全设备未定期检测、维护保养，不能保证正常运转',
+    keywords:['设备','未检测','未维保','维护保养','故障','失效','过期','安全设备','点检','检测'],
+    requirement:'安全设备的设计、制造、安装、使用、检测、维修、改造和报废，应当符合国家标准或者行业标准；生产经营单位必须对安全设备进行经常性维护、保养，并定期检测，保证正常运转。',
+    advice:'建立设备台账与点检制度，灭火器、报警、喷淋等安全设备按期检测维保并记录。',
+    severity:'high' },
+  { region:'CN', instrument:'《中华人民共和国安全生产法》（2021修正）', clause:'第四十一条',
+    topic:'未建立健全事故隐患排查治理制度，隐患未及时排除',
+    keywords:['隐患排查','隐患','未排查','未整改','未治理','风险分级','双重预防'],
+    requirement:'生产经营单位应当建立健全并落实生产安全事故隐患排查治理制度，及时发现并消除事故隐患；重大事故隐患排查治理情况应当及时报告。',
+    advice:'建立隐患自查—登记—整改—验收闭环台账，明确责任人与时限，重大隐患按规定报告。',
+    severity:'medium' },
+  { region:'CN', instrument:'《中华人民共和国安全生产法》（2021修正）', clause:'第八十一条',
+    topic:'未制定应急救援预案或未定期组织演练',
+    keywords:['应急预案','未演练','未制定','演练','应急救援','处置方案'],
+    requirement:'生产经营单位应当制定本单位生产安全事故应急救援预案，与政府预案相衔接，并定期组织演练。',
+    advice:'编制火灾、疏散、危险品泄漏等专项预案，每年至少一次综合/专项演练、每半年一次现场处置演练。',
+    severity:'medium' },
+  { region:'CN', instrument:'《中华人民共和国安全生产法》（2021修正）', clause:'第一百零二条',
+    topic:'未采取措施消除事故隐患的法律责任',
+    keywords:['未消除','拒不整改','停产','罚则','责任'],
+    requirement:'生产经营单位未采取措施消除事故隐患的，责令立即消除或者限期消除，处五万元以下的罚款；拒不执行的，责令停产停业整顿。',
+    advice:'对已排查出的隐患拒不整改的，将面临责令停产停业整顿及罚款。',
+    severity:'medium' },
+  { region:'CN', instrument:'《危险化学品安全管理条例》（2013修订）', clause:'第二十条',
+    topic:'危化品作业场所未设安全警示标志、未设通信报警装置',
+    keywords:['危险化学品','危化','化学品','警示标志','报警装置','通信','未设置'],
+    requirement:'生产、储存危险化学品的单位，应当在其作业场所和安全设施、设备上设置明显的安全警示标志，并在作业场所设置通信、报警装置。',
+    advice:'危化品仓库规范设置安全标志与通信、报警装置，保持完好有效。',
+    severity:'high' },
+  { region:'CN', instrument:'《危险化学品安全管理条例》（2013修订）', clause:'第二十四条',
+    topic:'危化品未储存在专用仓库、剧毒品未双人收发双人保管',
+    keywords:['危化品仓库','专用仓库','混存','混放','剧毒','双人收发','单独存放','储存数量'],
+    requirement:'危险化学品应当储存在专用仓库、专用场地或者专用储存室内，并由专人负责管理；剧毒化学品以及储存数量构成重大危险源的其他危险化学品，应当在专用仓库内单独存放，并实行双人收发、双人保管制度。',
+    advice:'按化学品相容性分类分区存放，禁忌物料分离；剧毒及重大危险源危化品专库单独存放、双人收发双人保管。',
+    severity:'high' },
+  { region:'CN', instrument:'《仓储场所消防安全管理通则》（GA 1131-2014）', clause:'消防安全措施相关条款',
+    topic:'库房内主通道宽度不足、堆垛间距与灯距不符合要求',
+    keywords:['主通道','通道宽度','垛距','墙距','柱距','灯距','堆垛','间距','堆高','堆放过高','高度',' aisle','clearance'],
+    requirement:'库房内主通道宽度不应小于 2m；垛与垛间距不小于 1m、垛与墙间距不小于 0.5m、垛与柱间距不小于 0.3m；物品堆垛与照明灯具等发热设备的距离不小于 0.5m，物品距屋顶应符合荷载与消防要求。',
+    advice:'按通则丈量并划线管理主通道（≥2m）与堆垛间距，超重超高货物整改到位。',
+    severity:'high' },
+  { region:'CN', instrument:'《建筑设计防火规范》（GB 50016-2014，2018年版）', clause:'第3.8节（仓库的安全疏散）',
+    topic:'仓库安全出口数量不足、疏散门不符合要求',
+    keywords:['安全出口','出口数量','疏散门','防火门','疏散距离','出口不足','逃生'],
+    requirement:'仓库的安全出口应分散布置；每座仓库（每个防火分区）的安全出口不应少于 2 个（符合规定面积条件的可设 1 个）；疏散门应向疏散方向开启。',
+    advice:'核查仓库安全出口数量与疏散距离，防火分区不得擅自改变使用性质或封堵出口。',
+    severity:'high' },
+  { region:'CN', instrument:'《常用化学危险品贮存通则》（GB 15603-2022）', clause:'贮存相关条款',
+    topic:'危化品贮存堆垛、通道、禁忌物料分离不符合要求',
+    keywords:['化学危险品','贮存','堆垛','禁忌','分离','垛高','搬运'],
+    requirement:'化学危险品贮存应按化学性质分类分区，禁忌物料分离贮存；堆垛应稳妥、限高，通道与墙柱距满足通行与检查要求。',
+    advice:'绘制危化品仓库定置图，按相容性表分区存放，设专用通道。',
+    severity:'medium' },
+  { region:'CN', instrument:'《固定式钢梯及平台安全要求》（GB 4053）', clause:'相关分则',
+    topic:'钢斜梯、平台、防护栏杆不符合要求',
+    keywords:['平台','护栏','栏杆','防护栏','钢梯','临边','洞口','坠落','跌落',' guardrail'],
+    requirement:'固定式钢直梯、斜梯及平台应设置防护栏杆；临空平台边缘防护栏杆高度不低于 1050mm（距基准面 2m 以内）/1200mm（2m 以上 20m 以内）等要求。',
+    advice:'对二层平台、月台临边补装防护栏杆与踢脚板，洞口加盖板或围护。',
+    severity:'high' },
+  { region:'CN', instrument:'《工作场所有害因素职业接触限值 第2部分：物理因素》（GBZ 2.2）', clause:'噪声部分',
+    topic:'工作场所噪声超过职业接触限值',
+    keywords:['噪声','噪音','超标','聋','耳鸣','noise'],
+    requirement:'工作场所噪声职业接触限值：每周工作 5 天、每天 8h 稳态噪声限值为 85dB(A)；超过限值应采取工程控制并配备护耳器。',
+    advice:'对高噪声设备采取减振隔声措施，安排听力监护，配戴护耳器并监督使用。',
+    severity:'medium' },
+  { region:'CN', instrument:'《工贸企业有限空间作业安全管理与监督暂行规定》', clause:'相关条款',
+    topic:'有限空间作业未审批、未通风检测',
+    keywords:['有限空间','冷库','地下室','罐内','容器内','作业审批','通风','检测','窒息'],
+    requirement:'有限空间作业应当严格执行作业审批制度，遵循“先通风、再检测、后作业”原则，现场设专人监护并配备应急装备。',
+    advice:'冷库、罐体等有限空间作业执行审批与监护制度，先通风检测合格后作业。',
+    severity:'high' },
+  { region:'CN', instrument:'《爆炸危险环境电力装置设计规范》（GB 50058）', clause:'相关条款',
+    topic:'爆炸危险场所电气设备不防爆、线路不符合要求',
+    keywords:['防爆','电气','线路','私拉','乱接','老化','配电','非防爆','明敷'],
+    requirement:'爆炸危险环境的电气线路与设备应符合防爆要求，选型与危险区域划分匹配，不得私拉乱接。',
+    advice:'危化品库等爆炸危险场所使用防爆电气，规范布线并定期检测。',
+    severity:'high' },
+
+  /* ================= 美国 ================= */
+  { region:'US', instrument:'OSHA 29 CFR 1910.176（材料搬运与储存）', clause:'1910.176(b)',
+    topic:'货物堆垛不稳固、超高或可能倒塌',
+    keywords:['堆垛','堆放','堆高','不稳','倒塌','塌垛','超高','限高','stacking','blocking','pile'],
+    requirement:'Storage of material shall not create a hazard. Bags, containers, bundles, etc., stored in tiers shall be stacked, blocked, interlocked and limited in height so that they are stable and secure against sliding or collapse.（成层堆放的物料必须稳固、限高，防止滑移或倒塌）',
+    advice:'Re-stack unstable piles, limit tier height, use blocking/interlocking and dunnage; inspect after put-away.（重整堆垛、限高、加垫木交错堆放）',
+    severity:'high' },
+  { region:'US', instrument:'OSHA 29 CFR 1910.176 / 1910.22（通道与行走面）', clause:'1910.176(a)(c)、1910.22(a)',
+    topic:' aisle 被占用堵塞、地面与通道不良',
+    keywords:['aisle','通道','堵塞','占用','通道宽度','地面','坑洞','housekeeping','整洁','障碍'],
+    requirement:'Sufficient safe clearances shall be allowed for aisles, at loading docks, through doorways... Aisles and passageways shall be kept clear and in good repair, with no obstruction across or in aisles that could create a hazard.（装卸区与通道应保持安全净距，无障碍物）',
+    advice:'Clear aisles and mark aisle widths on the floor; fix floor defects and keep housekeeping.（清理通道、划线标识、修复地面）',
+    severity:'high' },
+  { region:'US', instrument:'OSHA 29 CFR 1910.178（动力工业车辆/叉车）', clause:'1910.178(l)',
+    topic:'叉车操作员未培训/无证',
+    keywords:['叉车','forklift','操作员','培训','无证','认证','执照','operator','training','powered industrial truck'],
+    requirement:'Powered industrial truck operators shall be trained and certified; certification must be evaluated at least once every three years.（叉车操作员必须经培训认证，每三年复评）',
+    advice:'Train, evaluate and certify every PIT operator; refresh every 3 years and after incidents.（落实叉车司机培训认证与三年复评）',
+    severity:'high' },
+  { region:'US', instrument:'OSHA 29 CFR 1910.178（动力工业车辆/叉车）', clause:'1910.178(p)(1)',
+    topic:'叉车未做每日/每班使用前检查',
+    keywords:['叉车','forklift','点检','日常检查','未检查','检查表','pre-use','inspection','daily'],
+    requirement:'Industrial trucks shall be examined before being placed in service, and such examination shall be made at least daily; where used round-the-clock, after each shift.（叉车投入使用前须检查，至少每日一次；连续使用的每班检查）',
+    advice:'Implement daily pre-shift inspection checklists and remove defective trucks from service.（执行班前点检表，故障车辆停用挂牌）',
+    severity:'high' },
+  { region:'US', instrument:'OSHA 29 CFR 1910.37 / 1910.36（出口路线）', clause:'1910.37(a)(b)',
+    topic:'出口路线被堵、出口标志或照明缺失',
+    keywords:['exit','出口','疏散','逃生','标志','照明','应急灯','堵塞','锁','obstruct','逃生路线'],
+    requirement:'Exit routes must be free and unobstructed; exit route doors must be unlocked from the inside; each exit must be marked with a visible sign and illuminated.（出口路线须畅通无阻，门不得上锁，出口须有明显标志和照明）',
+    advice:'Unlock exit doors, post illuminated exit signs, keep exit access clear.（开启出口门、安装带照明出口标志、保持畅通）',
+    severity:'high' },
+  { region:'US', instrument:'OSHA 29 CFR 1910.38（应急行动计划）', clause:'1910.38',
+    topic:'未制定书面应急预案或未培训员工',
+    keywords:['应急预案','未制定','演练','疏散预案','emergency action plan','EAP','未培训'],
+    requirement:'Employers must have an emergency action plan (written unless 10 or fewer employees), including evacuation procedures, alarm reporting, training and drills.（须有应急行动计划并培训演练）',
+    advice:'Adopt a written EAP, train employees and conduct evacuation drills.（制定书面应急预案并演练培训）',
+    severity:'medium' },
+  { region:'US', instrument:'OSHA 29 CFR 1910.157（便携式灭火器）', clause:'1910.157(e)',
+    topic:'灭火器未每月检查、未年度维护',
+    keywords:['灭火器','extinguisher','检查','维护','过期','压力','点检','月度'],
+    requirement:'Portable extinguishers shall be visually inspected monthly and subjected to maintenance annually; hydrostatic test per schedule.（灭火器须每月目视检查、每年维护）',
+    advice:'Tag extinguishers with monthly inspection initials and schedule annual maintenance.（灭火器贴月检卡并安排年检）',
+    severity:'medium' },
+  { region:'US', instrument:'OSHA 29 CFR 1910.106（易燃可燃液体）', clause:'1910.106(d)',
+    topic:'易燃液体储存超量、储存间/柜不符合要求',
+    keywords:['易燃','可燃','液体','油品','溶剂','乙醇','储存柜','超量','flamable','flammable','combustible'],
+    requirement:'Indoor storage of flammable liquids in containers/cabinets is limited (e.g., not more than 60 gal Class I/II per cabinet); storage rooms must meet construction, ventilation and spill control requirements.（易燃液体储存量与储存柜/间应符合限量与构造通风要求）',
+    advice:'Quantities within limits, use listed flammable storage cabinets with self-closing doors and spill containment.（控量、使用合规防爆柜并防溢流）',
+    severity:'high' },
+  { region:'US', instrument:'OSHA 29 CFR 1910.1200（危害沟通）', clause:'1910.1200(f)(h)',
+    topic:'化学品容器无标签、无 SDS、员工未培训',
+    keywords:['化学品','标签','label','SDS','MSDS','安全数据表','未培训','危害沟通','hazcom','secondary container'],
+    requirement:'Chemical containers must be labeled (shipped and workplace/secondary), SDS must be available, and employees must be trained on hazards.（容器须贴标签、SDS 可获取、员工须培训）',
+    advice:'Label all secondary containers, keep SDS accessible, train employees on hazards and PPE.（二次容器贴标、SDS 可取、危害培训）',
+    severity:'high' },
+  { region:'US', instrument:'OSHA 29 CFR 1910.132 / 1910.138（个人防护装备）', clause:'1910.132(a)',
+    topic:'未进行危害评估、未配备或未佩戴 PPE',
+    keywords:['ppe','防护用品','未佩戴','未配备','安全帽','护耳','手套','防护鞋','危害评估','protective'],
+    requirement:'Employers must assess the workplace for hazards, provide suitable PPE and ensure employees use it.（须评估危害、提供并监督使用 PPE）',
+    advice:'Document PPE hazard assessment, issue required PPE and enforce use.（做 PPE 危害评估、发放并监督佩戴）',
+    severity:'medium' },
+  { region:'US', instrument:'OSHA 29 CFR 1910.95（职业噪声）', clause:'1910.95',
+    topic:'噪声暴露超过行动水平/限值',
+    keywords:['噪声','噪音','超标','听力','护耳','noise','85','90'],
+    requirement:'Occupational noise exposure shall not exceed 90 dBA TWA (8h); a hearing conservation program is required at/above the 85 dBA action level.（噪声不得超 90dBA，85dBA 起须听力保护计划）',
+    advice:'Add noise controls, monitoring and a hearing conservation program with audiometric testing.（噪声治理、监测并建听力保护计划）',
+    severity:'medium' },
+  { region:'US', instrument:'OSHA 29 CFR 1910.146（许可式有限空间）', clause:'1910.146',
+    topic:'有限空间进入未许可、未检测、无监护人',
+    keywords:['有限空间','confined space','进入','许可','检测','监护','冷库','罐','窒息'],
+    requirement:'Permit-required confined space entry requires permits, atmospheric testing, attendants, and rescue arrangements.（进入许可式有限空间须许可、检测、设监护人并安排救援）',
+    advice:'Permit and monitor confined space entries; post attendant and arrange rescue.（有限空间作业许可+检测+监护+救援安排）',
+    severity:'high' },
+  { region:'US', instrument:'OSHA 29 CFR 1910.147（上锁挂牌 LOTO）', clause:'1910.147',
+    topic:'设备检修未执行能量隔离上锁挂牌',
+    keywords:['检修','维修','上锁','挂牌','loto','能量隔离','lockout','tagout','保养'],
+    requirement:'Servicing/maintenance where unexpected energization could injure employees must be controlled by lockout/tagout procedures.（存在意外能量释放风险的检修须执行 LOTO）',
+    advice:'Apply locks and tags, verify zero energy before servicing conveyor/racking equipment.（检修前挂牌上锁并验证零能量）',
+    severity:'high' },
+  { region:'US', instrument:'OSHA 29 CFR 1910.212（机械防护）', clause:'1910.212',
+    topic:'运转机械部件无防护罩',
+    keywords:['机械','防护罩','防护网','夹点','卷入','传送带','machine','guarding'],
+    requirement:'One or more methods of machine guarding shall be provided to protect employees from point of operation and rotating parts.（运转部件与危险点须设机械防护）',
+    advice:'Install guards on conveyors, balers and dock levelers, interlocks where required.（输送线等加装防护罩/联锁）',
+    severity:'medium' },
+  { region:'US', instrument:'OSHA 29 CFR 1910.28 / Subpart D（坠落防护）', clause:'1910.28(b)',
+    topic:'平台/月台临边无护栏或护栏不合规',
+    keywords:['坠落','跌落','护栏','临边','平台','月台','mezzanine','防护栏','fall','guardrail','dock'],
+    requirement:'Guardrail systems are required on walking-working surfaces with unprotected sides/edges 4 feet or more above lower levels; dock edges must be protected or chocked.（4 英尺以上临边须护栏，月台须防护或车轮挡）',
+    advice:'Install compliant guardrails on mezzanines and docks, or use wheel chocks/dock locks.（平台月台加护栏或用车轮挡）',
+    severity:'high' },
+  { region:'US', instrument:'NFPA 13（自动喷水灭火系统安装标准）', clause:'喷头与储存物净距条款',
+    topic:'堆垛与喷头净距不足 18 英寸',
+    keywords:['喷淋','喷头','sprinkler','18英寸','净距','顶部间隙','货架与喷头'],
+    requirement:'A minimum clearance of 18 in. (457 mm) shall be maintained between the top of storage and sprinkler deflectors.（储存物顶部与喷头之间至少保持 18 英寸净距）',
+    advice:'Maintain 18-inch clearance below sprinklers; relocate overheight storage.（保持喷头下方 18 英寸净距，整改超高货垛）',
+    severity:'high' },
+  { region:'US', instrument:'NFPA 101（生命安全规范）', clause:'疏散能力与出口通道条款',
+    topic:'疏散通道宽度、出口数量与疏散距离不足',
+    keywords:['逃生','疏散','出口','通道宽度','egress','life safety','容量','出口数量'],
+    requirement:'Means of egress must have adequate capacity, exit access widths and travel distances for the occupant load.（疏散设施须满足容量、通道宽度与疏散距离要求）',
+    advice:'Verify egress capacity/width/travel distance against NFPA 101 for your occupancy.（按 NFPA 101 核算疏散能力）',
+    severity:'high' },
+  { region:'US', instrument:'NFPA 30（易燃可燃液体规范）', clause:'储存相关条款',
+    topic:'易燃液体储存超过控制面积/柜量',
+    keywords:['易燃','可燃','液体','nfpa30',' cabinet','控制面积','储存柜'],
+    requirement:'Flammable and combustible liquid storage must comply with NFPA 30 control area and cabinet limits.（易燃液体储存须符合 NFPA 30 控制面积与柜量限制）',
+    advice:'Limit quantities per control area and use listed cabinets/rooms per NFPA 30.（按 NFPA 30 控制储量与柜量）',
+    severity:'high' },
+  { region:'US', instrument:'IFC（国际消防规范）第32章 高堆储存', clause:'Chapter 32',
+    topic:'高堆储存许可、通道宽度与堆高限制',
+    keywords:['高堆','high-piled','堆高','许可',' aisle width','32章','货架高度'],
+    requirement:'High-piled combustible storage requires permits and compliance with aisle widths, pile height/area limits and fire protection requirements.（高堆可燃储存须许可并符合通道宽度、堆高与消防要求）',
+    advice:'Obtain high-piled storage permit; mark aisle widths and enforce pile height limits.（办理高堆储存许可并执行通道/堆高规定）',
+    severity:'medium' },
+
+  /* ================= 欧盟 ================= */
+  { region:'EU', instrument:'Directive 89/391/EEC（职业安全健康框架指令）', clause:'第6条（风险评估）等',
+    topic:'未开展职业安全健康风险评估',
+    keywords:['风险评估','未评估','风险','评估','risk assessment','安全健康','管理'],
+    requirement:'Employers must evaluate all risks to safety and health, decide on protective measures and record the results in a document.（雇主须评估全部安全健康风险、确定防护措施并形成文件）',
+    advice:'Carry out and document a warehouse OSH risk assessment, review after changes/incidents.（形成仓库 OSH 风险评估文件并动态更新）',
+    severity:'high' },
+  { region:'EU', instrument:'Directive 2009/104/EC（工作设备使用指令）', clause:'相关条款',
+    topic:'设备（含货架、叉车）不适合、未维护或未培训',
+    keywords:['设备','货架','叉车','维护','未培训','rack','forklift','equipment','检查'],
+    requirement:'Work equipment must be suitable for the work; employers must ensure maintenance, adequate information and training of users.（设备须适用，雇主须保证维护、告知与培训）',
+    advice:'Set up maintenance plans for trucks and racking; train and instruct users.（建立叉车货架维护计划并培训使用者）',
+    severity:'high' },
+  { region:'EU', instrument:'Directive 92/58/EEC（安全与健康标志指令）', clause:'相关条款',
+    topic:'出口标志、消防设备标志、禁烟标志缺失或不规范',
+    keywords:['标志','sign','出口标志','疏散指示','禁烟','消防设备标志','未设置','标识'],
+    requirement:'Safety signs are required where risks cannot be avoided: green exit signs, red fire-fighting equipment signs, prohibition signs (e.g. no smoking) must be used.（无法避免的风险须设安全标志：绿色出口、红色消防、禁止类标志）',
+    advice:'Install compliant exit, fire equipment and prohibition signage at required locations.（按规定设置出口/消防/禁烟等安全标志）',
+    severity:'high' },
+  { region:'EU', instrument:'Directive 1999/92/EC（爆炸性环境最低要求）', clause:'相关条款',
+    topic:'粉尘/气体爆炸环境未做防爆评估与分区',
+    keywords:['粉尘','dust','爆炸','防爆','ATEX',' zone','分区','可燃粉尘'],
+    requirement:'Employers must assess explosion risks, classify hazardous zones, and apply explosion protection measures and an explosion protection document.（须评估爆炸风险、划分危险区并落实防爆措施形成文件）',
+    advice:'Assess combustible dust (e.g. flour/grain dust) explosion risk, zone and document protection measures.（可燃粉尘爆炸评估+分区+防爆文件）',
+    severity:'high' },
+  { region:'EU', instrument:'Regulation (EC) 1272/2008（CLP 法规）', clause:'标签相关条款',
+    topic:'化学品未按 CLP 分类、标签不规范',
+    keywords:['化学品','标签','label','clp','分类','混合物','未贴标','signal word'],
+    requirement:'Substances and mixtures must be classified, labelled and packaged according to CLP before placing on the market/use.（物质与混合物须按 CLP 分类、贴标、包装）',
+    advice:'Classify and label chemicals per CLP (pictograms, H/P statements).（按 CLP 象形图与 H/P 短语贴标）',
+    severity:'high' },
+  { region:'EU', instrument:'Regulation (EC) 1907/2006（REACH）', clause:'附件 II（SDS）',
+    topic:'化学品未提供或未获取安全数据表',
+    keywords:['sds','安全数据表','msds','reach','未提供','supply'],
+    requirement:'Suppliers must provide a safety data sheet with substances/mixtures meeting Annex II requirements.（供应物质须附符合附件 II 的 SDS）',
+    advice:'Obtain and keep SDS for all hazardous substances in use.（索取并保存全部在用危化品 SDS）',
+    severity:'medium' },
+  { region:'EU', instrument:'Directive 98/24/EC（工作场所化学剂）', clause:'相关条款',
+    topic:'化学品作业未评估与预防',
+    keywords:['化学剂','化学品','暴露','通风','防护','chemical agent','预防'],
+    requirement:'Risks from chemical agents must be assessed and prevented/controlled; exposure limits and PPE apply.（须评估并控制化学剂风险，执行接触限值与 PPE）',
+    advice:'Assess chemical agent exposure; control with ventilation/PPE and monitor.（化学品暴露评估+通风/PPE 控制）',
+    severity:'high' },
+  { region:'EU', instrument:'Directive 90/269/EEC（人工搬运载荷）', clause:'相关条款',
+    topic:'人工搬运重物未评估与辅助',
+    keywords:['搬运','人工搬运','重物','腰','拉伤','manual handling','辅助设备',' ergonomic'],
+    requirement:'Employers must assess manual handling risks, avoid/ reduce them, use aids and train workers.（须评估人工搬运风险，采取措施并培训）',
+    advice:'Assess MHO, provide lift aids/trolleys and train safe handling techniques.（搬运评估+辅助设备+技巧培训）',
+    severity:'medium' },
+  { region:'EU', instrument:'Directive 2003/10/EC（工作场所噪声）', clause:'相关条款',
+    topic:'噪声超过暴露行动值/限值',
+    keywords:['噪声','噪音','超标','听力','护耳','noise','暴露'],
+    requirement:'Daily noise exposure must be limited; hearing protection required above exposure action values.（噪声暴露须受限，超行动值须护耳）',
+    advice:'Map noise exposure, reduce at source and issue hearing protection.（噪声测绘+源头治理+护耳）',
+    severity:'medium' },
+  { region:'EU', instrument:'Directive 2001/45/EC（高空作业）', clause:'相关条款',
+    topic:'高处作业未防护或未评估',
+    keywords:['高处作业','高空','坠落','护栏','平台','work at height','脚手架','坠落防护'],
+    requirement:'Work at height must be properly planned, risk assessed and protected (collective protection preferred, PPE as last resort).（高处作业须计划、评估并设防护，优先集体防护）',
+    advice:'Plan and protect work at height; guardrails/Harness where needed.（高处作业计划+护栏/安全带防护）',
+    severity:'high' },
+  { region:'EU', instrument:'EN 15635（钢制静态货架系统——安全使用）', clause:'检查相关条款',
+    topic:'货架未定期检查、变形损坏仍继续使用',
+    keywords:['货架','rack','racking','变形','损坏','检查',' inspection','shelving','倾斜'],
+    requirement:'Steel static storage systems must be inspected by a competent person (typically annual expert inspection plus regular user inspections); damaged components must be replaced.（货架须由胜任人员定期检查，损坏构件必须更换）',
+    advice:'Set up weekly user checks + annual expert rack inspection; tag out damaged bays.（周检+年检专家货架检查，损坏货位停用）',
+    severity:'high' },
+  { region:'EU', instrument:'Directive 2012/18/EU（Seveso III 重大事故危险）', clause:'相关条款',
+    topic:'危化品存量达到 Seveso 阈值未履行义务',
+    keywords:['seveso','重大危险源','存量','阈值','establishment','lower-tier','upper-tier'],
+    requirement:'Establishments with dangerous substances above thresholds must fulfill Seveso III duties (notification, MAPP, safety report).（危化品存量超阈值场所须履行 Seveso III 义务）',
+    advice:'Check substance quantities against Seveso thresholds; comply if above lower tier.（核对存量是否达 Seveso 阈值并履行义务）',
+    severity:'high' },
+  { region:'EU', instrument:'成员国国内法（示例：德国 ArbStättG/ArbStättV）', clause:'逃生路线相关条款',
+    topic:'逃生路线、出口与应急照明不符合国内法',
+    keywords:['逃生','疏散','出口','通道','aisle','堵塞','占用','应急照明','escape route','德国','法国','成员国','国内法'],
+    requirement:'Fire/escape safety is regulated by national law (e.g., Germany ArbStättV requires clear escape routes and exits; France Code du travail).（消防安全与逃生路线由成员国国内法规定）',
+    advice:'Verify escape routes/emergency lighting against your member state workplace rules.（按所在成员国国内法核对逃生路线与应急照明）',
+    severity:'high' },
+
+  /* ================= 越南 ================= */
+  { region:'VN', instrument:'Luật An toàn, vệ sinh lao động 2015（第84/2015/QH13号《劳动安全卫生法》）', clause:'培训与设备相关条款',
+    topic:'员工未接受劳动安全卫生培训；设备安全措施不到位',
+    keywords:['培训','未培训','安全卫生','劳动安全','设备','叉车','training','equipment'],
+    requirement:'Người sử dụng lao động phải tổ chức đào tạo an toàn, vệ sinh lao động; trang bị phương tiện bảo vệ, thiết bị an toàn phù hợp.（雇主须组织劳动安全卫生培训，配备适用的防护用品与安全设备）',
+    advice:'Tổ chức đào tạo ATVSLĐ trước khi tuyển dụng, điều chuyển công việc; trang bị đầy đủ phương tiện bảo vệ.（入职/转岗培训+配齐防护用品）',
+    severity:'high' },
+  { region:'VN', instrument:'Nghị định 44/2016/NĐ-CP（《劳动安全卫生法》实施细则）', clause:'劳动安全相关条款',
+    topic:'作业场所安全措施、危险告知与个体防护不落实',
+    keywords:['实施细则','安全措施','危险告知','防护用品','ppe','标识','培训'],
+    requirement:'Quy định chi tiết về an toàn lao động: khai báo nguy hiểm, trang bị phương tiện bảo vệ, biển báo, đào tạo...（细化劳动安全：危害告知、防护用品、标志与培训要求）',
+    advice:'Thực hiện khai báo nguy hiểm, treo biển báo, trang bị PPE và lập hồ sơ đào tạo.（危害告知+标志+PPE+培训档案）',
+    severity:'medium' },
+  { region:'VN', instrument:'Luật Phòng cháy và chữa cháy 2001（《消防法》，经修正补充）', clause:'相关条款',
+    topic:'疏散通道被堵、消防设施被挪用停用',
+    keywords:['消防','疏散','逃生','通道','pccc','lối thoát hiểm','thiết bị pccc','占用','堵塞'],
+    requirement:'Phải bảo đảm lối thoát hiểm thông suốt; không được cản trở, chiếm dụng lối thoát hiểm; thiết bị PCCC phải được duy trì hoạt động.（须保持逃生路线畅通，不得占用阻挡，消防设施保持完好）',
+    advice:'Giữ lối thoát hiểm thông thoáng, kiểm tra bảo dưỡng thiết bị PCCC định kỳ.（保持逃生畅通+消防设施定期维保）',
+    severity:'high' },
+  { region:'VN', instrument:'Nghị định 79/2014/NĐ-CP（《消防法》实施细则）', clause:'相关条款',
+    topic:'消防条件、通道与消防器材管理不符合细则',
+    keywords:['消防细则','通道','消防车通道','器材','pccc','sẵn sàng','nước'],
+    requirement:'Quy định chi tiết Luật PCCC: bảo đảm lối đi, lối thoát nạn, nguồn nước và thiết bị PCCC sẵn sàng hoạt động.（细化消防法：保证道路与逃生通道、水源与消防器材随时可用）',
+    advice:'Rà soát lối thoát nạn, nguồn nước PCCC và thiết bị chữa cháy theo Nghị định 79/2014.（按细则核查逃生通道/消防水源/器材）',
+    severity:'medium' },
+  { region:'VN', instrument:'Luật Hoá chất 2007（第06/2007/QH12号《化学品法》）', clause:'相关条款',
+    topic:'化学品分类、标识与安全数据表不合规',
+    keywords:['化学品','hoá chất','标识','msds','sds','分类','混合','标签'],
+    requirement:'Hoá chất phải được phân loại, ghi nhãn, khai báo; phải có bản An toàn hoá chất (MSDS) kèm theo.（化学品须分类、贴标、申报，并附 MSDS）',
+    advice:'Phân loại, ghi nhãn hoá chất và lập hồ sơ MSDS tại kho.（化学品分类贴标+MSDS 建档）',
+    severity:'high' },
+  { region:'VN', instrument:'Nghị định 113/2017/NĐ-CP（《化学品法》实施细则）', clause:'相关条款',
+    topic:'危化品储存、混存与人员管理不符合细则',
+    keywords:['危化','hóa chất nguy hiểm','混存','储存',' kho','禁令','标识'],
+    requirement:'Quy định chi tiết Luật Hoá chất về quản lý hoá chất nguy hiểm: điều kiện kho, phân loại, không để chung hoá chất tương tác.（细化危化品管理：仓库条件、分类存放、禁忌物料不得混存）',
+    advice:'Kiểm tra điều kiện kho, phân khu vực lưu trữ, không lưu chung hoá chất xung khắc.（核查仓库条件、分区存放、禁忌物料不混存）',
+    severity:'high' },
+  { region:'VN', instrument:'Nghị định 85/2019/NĐ-CP（劳动领域行政处罚）', clause:'劳动安全相关罚则',
+    topic:'违反劳动安全卫生规定的行政处罚',
+    keywords:['处罚','罚款','phạt','行政处罚','责任'],
+    requirement:'Quy định mức phạt vi phạm hành chính trong lĩnh vực lao động, an toàn vệ sinh lao động: phạt tiền, buộc khắc phục...（规定劳动与劳动安全卫生领域行政处罚：罚款、责令改正等）',
+    advice:'Ngoài khắc phục tồn tại, vi phạm ATVSLĐ có thể bị phạt tiền theo Nghị định 85/2019.（整改之外还可能被罚款）',
+    severity:'medium' },
+  { region:'VN', instrument:'QCVN（越南国家技术规范）关于建筑防火安全', clause:'防火安全相关条款',
+    topic:'建筑防火分区、疏散距离与消防设施不符合国标',
+    keywords:['防火','qcvn','国标','技术规范','疏散距离','防火分区','建筑'],
+    requirement:'QCVN quy định yêu cầu an toàn cháy cho công trình: phân chức năng, khoảng cách thoát nạn, thiết bị PCCC.（国家技术规范规定工程防火要求：功能分区、疏散距离、消防设施）',
+    advice:'Đối chiếu thiết kế/thực tế kho với QCVN về an toàn cháy.（按 QCVN 防火条款核对仓库设计与实际）',
+    severity:'medium' },
+  { region:'VN', instrument:'Luật An toàn, vệ sinh lao động 2015 及配套文件', clause:'危险作业相关条款',
+    topic:'高处作业、有限空间等危险作业无许可与监护',
+    keywords:['高处','有限空间',' lạnh','冷库','作业许可','监护','nguy hiểm'],
+    requirement:'Công việc nguy hiểm (làm việc trên cao, không gian kín, nơi nguy hiểm...) phải có giấy phép, biện pháp an toàn và người giám sát.（高处、有限空间等危险作业须有作业票、安全措施与监护）',
+    advice:'Cấp giấy phép làm việc nguy hiểm, bố trí người giám sát và phương tiện cứu nạn.（危险作业许可+监护+救援装备）',
+    severity:'high' }
+];
+
+/* 常见问题速填（点击追加到输入框，文本自带强关键词） */
+var PROBLEM_LIBRARY = [
+  '疏散通道、安全出口被货物堵塞或锁闭',
+  '消防车通道被车辆或货物占用',
+  '消火栓、灭火器被遮挡或圈占',
+  '货物堆垛过高、不稳固，可能倒塌',
+  '货架变形、超载或未定期检查',
+  '叉车司机无证或未经培训上岗',
+  '叉车未做每日使用前点检',
+  '灭火器缺失、过期或未按月点检',
+  '喷淋、火灾报警系统故障或未定期检测',
+  '危险化学品混放、容器无标签、无MSDS',
+  '电气线路老化、私拉乱接',
+  '应急照明、疏散指示标志缺失或损坏',
+  '员工未接受安全培训即上岗',
+  '未制定应急预案或未组织演练',
+  '未配备劳动防护用品或员工未佩戴',
+  '作业场所噪声超标',
+  '存在可燃粉尘未进行爆炸风险评估',
+  '平台、月台临边无护栏，高处作业无防护',
+  '库区内吸烟或违规使用明火',
+  '库房主通道宽度不足',
+  '照明灯具与堆垛间距不足',
+  '装卸月台无车轮挡或防护',
+  '冷库等有限空间作业未审批、未检测',
+  '楼梯间堆放杂物',
+  '隐患已排查但未按期整改'
+];
+
+var SEVERITY_RANK = { high: 3, medium: 2, low: 1 };
+var SEVERITY_LABEL = { high: '高危', medium: '中危', low: '低危' };
+var NEGATIVE_MARKERS = ['未','没有','缺','堵塞','占用','遮挡','圈占','封闭','锁','过期','失效','损坏','故障','私拉','乱接','混','超','无证','未佩戴','未设置','未建立','未制定','未组织','未检验','未检测','未维保','未演练','不足','不够','堆放','吸烟','明火','隐患','缺少','老化','改作','上锁','超高','不稳','无标','未培','不','否'];
+var POSITIVE_MARKERS = ['已整改','符合','正常','完好','有效','合格','合规','已设置','已配置','已培训','已演练','已建立','已制定','已检测','已检','已维护','已清理','已畅通','已落实','已配备','已验收'];
+
+/* =====================================================================
+ * 状态与工具函数
+ * ===================================================================== */
+var state = {
+  regions: { CN: true, US: false, EU: false, VN: false },
+  results: null
+};
+
+function $(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function nowText() {
+  var d = new Date();
+  function p(n) { return (n < 10 ? '0' : '') + n; }
+  return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+}
+function reportNo() {
+  var d = new Date();
+  function p(n) { return (n < 10 ? '0' : '') + n; }
+  return 'WSR-' + d.getFullYear() + p(d.getMonth() + 1) + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds());
+}
+
+/* =====================================================================
+ * 判定引擎
+ * ===================================================================== */
+function matchRules(text) {
+  var lower = text.toLowerCase();
+  var out = [];
+  RULES.forEach(function (r) {
+    if (!state.regions[r.region]) return;
+    var hits = [];
+    r.keywords.forEach(function (k) {
+      if (lower.indexOf(k.toLowerCase()) !== -1) hits.push(k);
+    });
+    if (hits.length > 0) out.push({ rule: r, hits: hits });
+  });
+  out.sort(function (a, b) {
+    if (b.hits.length !== a.hits.length) return b.hits.length - a.hits.length;
+    return SEVERITY_RANK[b.rule.severity] - SEVERITY_RANK[a.rule.severity];
+  });
+  return out;
+}
+
+function detectPolarity(text) {
+  var neg = NEGATIVE_MARKERS.some(function (m) { return text.indexOf(m) !== -1; });
+  var pos = POSITIVE_MARKERS.some(function (m) { return text.indexOf(m) !== -1; });
+  return { neg: neg, pos: pos };
+}
+
+function analyzeOne(text) {
+  var matched = matchRules(text);
+  var pol = detectPolarity(text);
+  var verdict, reason;
+  if (pol.pos && !pol.neg) {
+    verdict = 'good';
+    reason = '描述为已符合/已整改状态，所选区域未发现对应违规点。';
+  } else if (matched.length > 0 && pol.neg) {
+    verdict = 'bad';
+    reason = '描述包含不合规情形，命中以下法规条款要求。';
+  } else if (matched.length > 0) {
+    verdict = 'warn';
+    reason = '命中相关条款，但描述中未明确违规或合规状态，建议人工复核。';
+  } else {
+    verdict = 'warn';
+    reason = '未命中内置法规库关键词，建议人工复核或补充问题描述。';
+  }
+  var maxSev = matched.reduce(function (m, x) {
+    return SEVERITY_RANK[x.rule.severity] > SEVERITY_RANK[m] ? x.rule.severity : m;
+  }, 'low');
+  if (matched.length === 0) maxSev = null;
+  return { text: text, verdict: verdict, reason: reason, matched: matched, severity: maxSev };
+}
+
+function analyzeAll() {
+  var raw = $('problemInput').value;
+  var lines = raw.split(/\n/).map(function (s) { return s.replace(/^\s*[·•\-*\d+\.、]+\s*/, '').trim(); }).filter(function (s) { return s.length > 0; });
+  if (lines.length === 0) {
+    alert('请先输入至少一个发现的问题点（每行一条）。');
+    return null;
+  }
+  var active = Object.keys(state.regions).filter(function (k) { return state.regions[k]; });
+  if (active.length === 0) {
+    alert('请至少选择一个法规区域。');
+    return null;
+  }
+  var results = lines.map(analyzeOne);
+  state.results = { reportNo: reportNo(), time: nowText(), regions: active, results: results };
+  return state.results;
+}
+
+/* =====================================================================
+ * 渲染：区域选择
+ * ===================================================================== */
+function renderRegions() {
+  var row = $('regionRow');
+  row.innerHTML = '';
+  Object.keys(REGION_META).forEach(function (key) {
+    var meta = REGION_META[key];
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'region-chip' + (state.regions[key] ? ' on' : '');
+    b.style.setProperty('--rc', meta.color);
+    b.innerHTML = '<span class="dot" style="background:' + meta.color + '"></span>' +
+      '<span class="label">' + meta.name + ' <small>' + meta.short + '</small></span>';
+    b.addEventListener('click', function () {
+      var activeCount = Object.keys(state.regions).filter(function (k) { return state.regions[k]; }).length;
+      if (state.regions[key] && activeCount <= 1) {
+        b.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-4px)' }, { transform: 'translateX(4px)' }, { transform: 'translateX(0)' }], { duration: 200 });
+        return;
+      }
+      state.regions[key] = !state.regions[key];
+      renderRegions();
+    });
+    row.appendChild(b);
+  });
+}
+
+/* =====================================================================
+ * 渲染：常见问题速填
+ * ===================================================================== */
+function renderProbChips() {
+  var box = $('probChips');
+  box.innerHTML = '';
+  PROBLEM_LIBRARY.forEach(function (p) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'prob-chip';
+    b.textContent = p;
+    b.addEventListener('click', function () {
+      var ta = $('problemInput');
+      var lines = ta.value.split('\n').filter(function (s) { return s.trim(); });
+      if (lines.indexOf(p) === -1) {
+        ta.value = (ta.value ? ta.value.replace(/\s*$/, '') + '\n' : '') + p;
+      }
+      ta.focus();
+    });
+    box.appendChild(b);
+  });
+}
+
+/* =====================================================================
+ * 渲染：结果
+ * ===================================================================== */
+var VERDICT_LABEL = { bad: '疑似违规', good: '符合要求', warn: '需人工复核' };
+
+function renderResults() {
+  var data = state.results;
+  if (!data) return;
+  $('results').style.display = 'block';
+
+  var counts = { bad: 0, good: 0, warn: 0 };
+  var sev = { high: 0, medium: 0 };
+  data.results.forEach(function (r) {
+    counts[r.verdict]++;
+    if (r.severity === 'high') sev.high++;
+    if (r.severity === 'medium') sev.medium++;
+  });
+  $('summaryBar').innerHTML =
+    '<span class="sum-pill bad">⚠ 疑似违规 ' + counts.bad + ' 项</span>' +
+    '<span class="sum-pill good">✓ 符合要求 ' + counts.good + ' 项</span>' +
+    '<span class="sum-pill warn">? 需人工复核 ' + counts.warn + ' 项</span>' +
+    (sev.high ? '<span class="sum-pill bad">🔴 高危 ' + sev.high + ' 项</span>' : '') +
+    (sev.medium ? '<span class="sum-pill warn">🟠 中危 ' + sev.medium + ' 项</span>' : '') +
+    '<span class="sum-pill info">共 ' + data.results.length + ' 个问题点 · ' + data.regions.map(function (r) { return REGION_META[r].name; }).join('/') + '</span>';
+
+  var html = '';
+  data.results.forEach(function (r, i) {
+    html += '<div class="result-card">' +
+      '<div class="result-head">' +
+        '<div class="problem-text"><span class="problem-no">#' + (i + 1) + '</span>' + esc(r.text) + '</div>' +
+        '<div><span class="verdict ' + r.verdict + '">' + VERDICT_LABEL[r.verdict] + '</span>' +
+        (r.severity ? '<span class="sev ' + r.severity + '">' + SEVERITY_LABEL[r.severity] + '</span>' : '') + '</div>' +
+      '</div>' +
+      '<div style="font-size:13px;color:var(--muted);margin-top:6px">' + esc(r.reason) + '</div>';
+    if (r.matched.length) {
+      html += '<ul class="rule-list">';
+      r.matched.slice(0, 8).forEach(function (m) {
+        var meta = REGION_META[m.rule.region];
+        html += '<li class="rule-item" style="--rc:' + meta.color + '">' +
+          '<div class="rule-src"><span class="rule-region">' + meta.name + '</span>' + esc(m.rule.instrument) +
+          (m.rule.clause ? ' <span class="rule-clause">' + esc(m.rule.clause) + '</span>' : '') + '</div>' +
+          '<div class="rule-req">' + esc(m.rule.requirement) + '</div>' +
+          '<div class="rule-hits">命中关键词：' + m.hits.map(function (h) { return '<b>' + esc(h) + '</b>'; }).join('、') + ' · 主题：' + esc(m.rule.topic) + '</div>' +
+        '</li>';
+      });
+      if (r.matched.length > 8) html += '<li style="font-size:12px;color:var(--muted)">…… 另有 ' + (r.matched.length - 8) + ' 条相关条款，详见报告</li>';
+      html += '</ul>';
+      var advices = [];
+      r.matched.forEach(function (m) { if (advices.indexOf(m.rule.advice) === -1) advices.push(m.rule.advice); });
+      html += '<div class="advice"><b>整改建议：</b>' + advices.map(esc).join('；') + '</div>';
+    }
+    html += '</div>';
+  });
+  $('resultList').innerHTML = html;
+}
+
+/* =====================================================================
+ * 报告生成（HTML / Markdown）
+ * ===================================================================== */
+function buildReportHTML() {
+  var d = state.results;
+  var counts = { bad: 0, good: 0, warn: 0 };
+  d.results.forEach(function (r) { counts[r.verdict]++; });
+  var rows = '';
+  d.results.forEach(function (r, i) {
+    rows += '<tr><td>' + (i + 1) + '</td><td>' + esc(r.text) + '</td><td>' + VERDICT_LABEL[r.verdict] +
+      '</td><td>' + (r.severity ? SEVERITY_LABEL[r.severity] : '—') + '</td><td>' + r.matched.length + '</td></tr>';
+  });
+  var details = '';
+  d.results.forEach(function (r, i) {
+    details += '<h3>问题 ' + (i + 1) + '：' + esc(r.text) + '</h3>' +
+      '<p><b>判定：' + VERDICT_LABEL[r.verdict] + '</b>' + (r.severity ? '（' + SEVERITY_LABEL[r.severity] + '）' : '') + ' — ' + esc(r.reason) + '</p>';
+    if (r.matched.length) {
+      details += '<p><b>命中法规条款：</b></p><ul>';
+      r.matched.forEach(function (m) {
+        details += '<li><b>[' + REGION_META[m.rule.region].name + '] ' + esc(m.rule.instrument) +
+          (m.rule.clause ? ' ' + esc(m.rule.clause) : '') + '</b>（' + esc(m.rule.topic) + '）：' + esc(m.rule.requirement) +
+          '<br><i>命中关键词：' + m.hits.map(esc).join('、') + '</i></li>';
+      });
+      details += '</ul>';
+      var advices = [];
+      r.matched.forEach(function (m) { if (advices.indexOf(m.rule.advice) === -1) advices.push(m.rule.advice); });
+      details += '<p><b>整改建议：</b>' + advices.map(esc).join('；') + '</p>';
+    }
+    details += '<hr>';
+  });
+  var regionNames = d.regions.map(function (r) { return REGION_META[r].name; }).join('、');
+  return '<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8"><title>仓库安全法规判断报告 ' + esc(d.reportNo) + '</title>' +
+    '<style>body{font-family:"Noto Sans","Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;max-width:860px;margin:24px auto;padding:0 18px;color:#1f2933;line-height:1.7}' +
+    'h1{font-size:22px;border-bottom:3px solid #1d4ed8;padding-bottom:8px}h2{font-size:17px;margin-top:26px}h3{font-size:15px;margin-top:20px}' +
+    '.meta{background:#f1f5f9;border-radius:8px;padding:10px 14px;font-size:13px}.warn{background:#fef3c7;color:#92400e;border-radius:8px;padding:10px 14px;font-size:13px}' +
+    'table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid #cbd5e1;padding:6px 8px;text-align:left;vertical-align:top}th{background:#e2e8f0}' +
+    'hr{border:none;border-top:1px dashed #cbd5e1;margin:18px 0}</style></head><body>' +
+    '<h1>仓库安全法规判断报告</h1>' +
+    '<div class="meta">报告编号：' + esc(d.reportNo) + ' ｜ 生成时间：' + esc(d.time) + ' ｜ 适用区域：' + esc(regionNames) +
+    ' ｜ 问题点：' + d.results.length + ' 项（疑似违规 ' + counts.bad + ' / 符合 ' + counts.good + ' / 待复核 ' + counts.warn + '）</div>' +
+    '<h2>一、判定汇总</h2><table><thead><tr><th>序号</th><th>问题描述</th><th>判定</th><th>严重程度</th><th>命中条款数</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+    '<h2>二、逐条判定明细</h2>' + details +
+    '<div class="warn"><b>免责声明：</b>本报告基于内置法规库的关键词匹配初步筛查，不构成法律意见或执法结论；条款号与文本以现行有效官方正式文本为准，正式引用前请核对官方公报/标准原文。跨境仓储还应同时遵守所在国/州的实施细则。</div>' +
+    '</body></html>';
+}
+
+function buildReportMD() {
+  var d = state.results;
+  var counts = { bad: 0, good: 0, warn: 0 };
+  d.results.forEach(function (r) { counts[r.verdict]++; });
+  var regionNames = d.regions.map(function (r) { return REGION_META[r].name; }).join('、');
+  var md = '# 仓库安全法规判断报告\n\n' +
+    '- 报告编号：' + d.reportNo + '\n' +
+    '- 生成时间：' + d.time + '\n' +
+    '- 适用区域：' + regionNames + '\n' +
+    '- 问题点：' + d.results.length + ' 项（疑似违规 ' + counts.bad + ' / 符合 ' + counts.good + ' / 待复核 ' + counts.warn + '）\n\n' +
+    '## 一、判定汇总\n\n| 序号 | 问题描述 | 判定 | 严重程度 | 命中条款数 |\n|---|---|---|---|---|\n';
+  d.results.forEach(function (r, i) {
+    md += '| ' + (i + 1) + ' | ' + r.text.replace(/\|/g, '/') + ' | ' + VERDICT_LABEL[r.verdict] + ' | ' + (r.severity ? SEVERITY_LABEL[r.severity] : '—') + ' | ' + r.matched.length + ' |\n';
+  });
+  md += '\n## 二、逐条判定明细\n';
+  d.results.forEach(function (r, i) {
+    md += '\n### 问题 ' + (i + 1) + '：' + r.text + '\n\n' +
+      '**判定：' + VERDICT_LABEL[r.verdict] + '**' + (r.severity ? '（' + SEVERITY_LABEL[r.severity] + '）' : '') + ' — ' + r.reason + '\n\n';
+    if (r.matched.length) {
+      md += '**命中法规条款：**\n\n';
+      r.matched.forEach(function (m) {
+        md += '- **[' + REGION_META[m.rule.region].name + '] ' + m.rule.instrument + (m.rule.clause ? ' ' + m.rule.clause : '') + '**（' + m.rule.topic + '）：' + m.rule.requirement + '\n  - 命中关键词：' + m.hits.join('、') + '\n';
+      });
+      var advices = [];
+      r.matched.forEach(function (m) { if (advices.indexOf(m.rule.advice) === -1) advices.push(m.rule.advice); });
+      md += '\n**整改建议：** ' + advices.join('；') + '\n';
+    }
+  });
+  md += '\n---\n\n> 免责声明：本报告基于内置法规库的关键词匹配初步筛查，不构成法律意见或执法结论；条款号与文本以现行有效官方正式文本为准，正式引用前请核对官方公报/标准原文。\n';
+  return md;
+}
+
+function download(filename, content, mime) {
+  var blob = new Blob([content], { type: mime });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+}
+
+/* =====================================================================
+ * 渲染：法规库抽屉
+ * ===================================================================== */
+function renderLibrary() {
+  var counts = {};
+  RULES.forEach(function (r) { counts[r.region] = (counts[r.region] || 0) + 1; });
+  $('libCounts').innerHTML = Object.keys(REGION_META).map(function (k) {
+    return '<span class="sum-pill info" style="--rc:' + REGION_META[k].color + '">' + REGION_META[k].name + ' ' + (counts[k] || 0) + ' 条</span>';
+  }).join('') + '<span class="sum-pill">合计 ' + RULES.length + ' 条</span>';
+  var html = '';
+  RULES.forEach(function (r) {
+    var meta = REGION_META[r.region];
+    html += '<tr><td style="color:' + meta.color + ';font-weight:700">' + meta.name + '</td>' +
+      '<td class="inst">' + esc(r.instrument) + '</td><td>' + esc(r.clause) + '</td><td>' + esc(r.topic) + '</td></tr>';
+  });
+  $('libBody').innerHTML = html;
+}
+
+/* =====================================================================
+ * 主题
+ * ===================================================================== */
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  $('themeBtn').textContent = t === 'dark' ? '☀️ 浅色模式' : '🌙 深色模式';
+  try { localStorage.setItem('whSafetyTheme', t); } catch (e) {}
+}
+
+/* =====================================================================
+ * 事件绑定与初始化
+ * ===================================================================== */
+$('analyzeBtn').addEventListener('click', function () {
+  if (analyzeAll()) {
+    renderResults();
+    $('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+});
+$('demoBtn').addEventListener('click', function () {
+  $('problemInput').value =
+    '3号库房疏散通道被托盘堵塞\n' +
+    '叉车司机无证上岗\n' +
+    '货架变形且未定期检查\n' +
+    '灭火器过期未点检\n' +
+    '危险化学品混放、容器无标签、无MSDS\n' +
+    '喷淋系统故障未检测\n' +
+    '库房内有人吸烟\n' +
+    '员工已全部完成安全培训并考核合格';
+  state.regions = { CN: true, US: true, EU: true, VN: true };
+  renderRegions();
+});
+$('clearBtn').addEventListener('click', function () {
+  $('problemInput').value = '';
+  state.results = null;
+  $('results').style.display = 'none';
+  $('problemInput').focus();
+});
+$('dlHtmlBtn').addEventListener('click', function () {
+  if (!state.results) return;
+  download('仓库安全法规判断报告_' + state.results.reportNo + '.html', buildReportHTML(), 'text/html;charset=utf-8');
+});
+$('dlMdBtn').addEventListener('click', function () {
+  if (!state.results) return;
+  download('仓库安全法规判断报告_' + state.results.reportNo + '.md', buildReportMD(), 'text/markdown;charset=utf-8');
+});
+$('printBtn').addEventListener('click', function () {
+  if (!state.results) return;
+  $('printArea').innerHTML = buildReportHTML();
+  window.print();
+});
+$('themeBtn').addEventListener('click', function () {
+  applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+});
+
+renderRegions();
+renderProbChips();
+renderLibrary();
+try {
+  var savedTheme = localStorage.getItem('whSafetyTheme');
+  if (savedTheme) applyTheme(savedTheme);
+} catch (e) {}
+</script>
+</body>
+</html>
