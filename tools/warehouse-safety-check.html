@@ -73,6 +73,7 @@
     width: 100%; min-height: 130px; resize: vertical; font-family: inherit; font-size: 14px;
     padding: 11px 12px; border: 1.5px solid var(--border); border-radius: 10px;
     background: var(--bg); color: var(--text); line-height: 1.7;
+    direction: ltr; text-align: left; unicode-bidi: isolate;
   }
   textarea:focus { outline: none; border-color: var(--accent); }
   .chip-title { font-size: 13px; color: var(--muted); margin: 14px 0 8px; }
@@ -171,7 +172,7 @@
   }
 </style>
 </head>
-<body>
+<body dir="ltr">
 <div class="wrap">
 
   <header>
@@ -192,7 +193,7 @@
   <!-- 第二步：输入问题点 -->
   <section class="card">
     <h2><span class="step">2</span>输入发现的问题点</h2>
-    <textarea id="problemInput" placeholder="每行输入一个发现的问题点，例如：&#10;3号库房疏散通道被托盘堵塞&#10;叉车司机无证上岗&#10;灭火器过期未点检"></textarea>
+    <textarea id="problemInput" dir="ltr" placeholder="每行输入一个发现的问题点，例如：&#10;3号库房疏散通道被托盘堵塞&#10;叉车司机无证上岗&#10;灭火器过期未点检"></textarea>
     <p class="hint">💡 若问题点带具体尺寸，工具会自动与法规下限比较是否达标，例如：「疏散通道宽1.2米」「安全出口门宽0.8米」「库房主通道净宽1.8米」「堆垛距喷淋头0.3米」。单位支持 米/m、厘米/cm、毫米/mm、英寸/英尺。</p>
     <p class="chip-title">👇 常见问题速填（点击追加到输入框）：</p>
     <div class="chip-grid" id="probChips"></div>
