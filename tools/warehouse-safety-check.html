@@ -125,6 +125,19 @@
   .rule-hits b { color: var(--text); font-weight: 600; }
   .advice { margin-top: 10px; font-size: 13px; background: var(--accent-soft); border-radius: 8px; padding: 9px 12px; }
   .advice b { color: var(--accent); }
+  .dim-block { margin-top: 10px; border: 1px dashed var(--border); border-radius: 10px; padding: 8px 12px; background: var(--card); }
+  .dim-row { display: flex; gap: 10px; align-items: flex-start; padding: 5px 0; }
+  .dim-row + .dim-row { border-top: 1px solid var(--border); }
+  .dim-ico { font-weight: 800; flex: none; width: 18px; text-align: center; }
+  .dim-row.ok .dim-ico { color: var(--good); }
+  .dim-row.bad .dim-ico { color: var(--bad); }
+  .dim-body { flex: 1; }
+  .dim-line { font-size: 13.5px; }
+  .dim-tag { font-size: 12px; font-weight: 700; border-radius: 5px; padding: 1px 7px; margin-left: 6px; }
+  .dim-tag.ok { color: var(--good); background: var(--good-soft); }
+  .dim-tag.bad { color: var(--bad); background: var(--bad-soft); }
+  .dim-ref { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .hint { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; line-height: 1.6; }
   .empty-tip { color: var(--muted); font-size: 13.5px; text-align: center; padding: 26px 0; }
 
   /* ================= 法规库抽屉 ================= */
@@ -180,6 +193,7 @@
   <section class="card">
     <h2><span class="step">2</span>输入发现的问题点</h2>
     <textarea id="problemInput" placeholder="每行输入一个发现的问题点，例如：&#10;3号库房疏散通道被托盘堵塞&#10;叉车司机无证上岗&#10;灭火器过期未点检"></textarea>
+    <p class="hint">💡 若问题点带具体尺寸，工具会自动与法规下限比较是否达标，例如：「疏散通道宽1.2米」「安全出口门宽0.8米」「库房主通道净宽1.8米」「堆垛距喷淋头0.3米」。单位支持 米/m、厘米/cm、毫米/mm、英寸/英尺。</p>
     <p class="chip-title">👇 常见问题速填（点击追加到输入框）：</p>
     <div class="chip-grid" id="probChips"></div>
     <div class="btn-row">
@@ -620,6 +634,58 @@ var RULES = [
     severity:'high' }
 ];
 
+/* =====================================================================
+ * 数值型判定规则库（带具体尺寸的“够不够”判定）
+ * 命中：问题点中同时出现“尺寸关键词 + 具体数值（带单位）”时，
+ *      自动与法规下限比较：实测 < 下限 → 不满足（疑似违规）；≥ 下限 → 满足。
+ * min：各区域法定最小限值（米）。ref：条款依据。severity：不满足时的严重度。
+ * 注意：建筑类型（厂房/仓库/公共建筑等）、人员数量、是否喷淋等均会影响限值，
+ *      此处取常见情形下从严或代表性的下限，正式设计以官方文本与专业核算为准。
+ * ===================================================================== */
+var DIM_RULES = [
+  { id:'corridor', label:'疏散走道 / 疏散通道净宽',
+    qKeywords:['疏散通道','疏散走道','走道','疏散','疏散口','逃生通道','疏散路线','逃生路线'],
+    min:{ CN:1.40, US:1.12, EU:1.20, VN:1.40 },
+    refs:{ CN:'GB 50016-2014(2018版) 表3.7.5 / 第3.8节（疏散走道最小净宽不宜小于 1.40m）',
+           US:'NFPA 101（仓储占用 aisle 最小净宽 44 in ≈ 1.12m）',
+           EU:'ASR A2.3 / 成员国国内法（逃生路线净宽：>5 人使用时 ≥1.20m，≤5 人 ≥0.90m）',
+           VN:'QCVN 06:2022/BXD（逃生路线净宽常按 ≥1.4m 从严，具体按火灾危险分组与人数核定）' },
+    advice:'实测净宽应≥下限；划线标识并保持全程畅通、无堆物占用；叉车交会作业区建议更宽。',
+    severity:'high' },
+  { id:'aisle', label:'库房主通道 / 一般通道净宽',
+    qKeywords:['主通道','库房主通道','库房通道','货位通道','storage aisle','通道宽','仓库通道'],
+    min:{ CN:2.00, US:1.12, EU:1.20, VN:1.40 },
+    refs:{ CN:'GA 1131-2014《仓储场所消防安全管理通则》（库房内主通道宽度不应小于 2m）',
+           US:'OSHA 29 CFR 1910.22 / 1910.176（保持通道安全净距、无障碍物）',
+           EU:'ASR A2.3 / 成员国国内法（逃生/交通路线净宽 ≥1.20m）',
+           VN:'QCVN 06:2022/BXD（通道净宽常按 ≥1.4m 从严）' },
+    advice:'主通道按≥2m管理（叉车通行与消防作业需要），划线并严禁占道堆货。',
+    severity:'high' },
+  { id:'door', label:'安全出口 / 疏散门净宽',
+    qKeywords:['安全出口','疏散门','出口门','门净宽','出口宽度','门宽','出口宽','疏散出口','逃生门'],
+    min:{ CN:0.90, US:0.81, EU:0.90, VN:0.90 },
+    refs:{ CN:'GB 50016-2014(2018版) 表3.7.5（疏散门最小净宽不宜小于 0.90m）',
+           US:'NFPA 101（出口门净宽最小 32 in ≈ 0.81m；仓储占用 915mm）',
+           EU:'成员国国内法（出口/门净宽通常 ≥0.90m）',
+           VN:'QCVN 06:2022/BXD（出口净宽一般 ≥0.90m）' },
+    advice:'疏散门净宽应满足下限并向疏散方向开启，严禁上锁。',
+    severity:'high' },
+  { id:'firelane', label:'消防车道净宽',
+    qKeywords:['消防车道','消防车通道','消防通道','fire lane','fire apparatus','消防车道净宽'],
+    min:{ CN:4.00, US:null, EU:null, VN:4.00 },
+    refs:{ CN:'GB 55037-2022《建筑防火通用规范》（消防车道净宽不应小于 4.0m）',
+           VN:'QCVN 06:2022/BXD / TCVN 5738（消防车道净宽通常 ≥4.0m）' },
+    advice:'消防车道净宽≥4.0m、净高≥4.0m，严禁占用、设障碍物。',
+    severity:'high' },
+  { id:'sprinkler', label:'堆垛顶部与喷淋头净距',
+    qKeywords:['喷淋','喷头','sprinkler','净距','顶部间隙','堆垛与喷头','堆货距喷头','货架与喷头'],
+    min:{ CN:0.50, US:0.457, EU:null, VN:null },
+    refs:{ CN:'GA 1131-2014（物品堆垛与发热设备距离不小于 0.5m；喷淋头下方净距按规范）',
+           US:'NFPA 13（储存物顶部与喷淋喷头之间至少保持 18 in ≈ 0.457m 净距）' },
+    advice:'保持喷头下方净距，超高货垛须下移或重新布置，防止影响喷水灭火。',
+    severity:'high' }
+];
+
 /* 常见问题速填（点击追加到输入框，文本自带强关键词） */
 var PROBLEM_LIBRARY = [
   '疏散通道、安全出口被货物堵塞或锁闭',
@@ -646,7 +712,11 @@ var PROBLEM_LIBRARY = [
   '装卸月台无车轮挡或防护',
   '冷库等有限空间作业未审批、未检测',
   '楼梯间堆放杂物',
-  '隐患已排查但未按期整改'
+  '隐患已排查但未按期整改',
+  '疏散通道宽1.2米',
+  '安全出口门宽0.8米',
+  '库房主通道净宽1.8米',
+  '堆垛距喷淋头0.3米'
 ];
 
 var SEVERITY_RANK = { high: 3, medium: 2, low: 1 };
@@ -704,10 +774,86 @@ function detectPolarity(text) {
   return { neg: neg, pos: pos };
 }
 
+function round2(x) { return Math.round(x * 100) / 100; }
+
+/* 从文本中提取带单位的尺寸数值，统一换算为米；返回 [{meters,display,index,raw,unit}] */
+function parseDimensions(text) {
+  var items = [];
+  var unitMap = { '米':1, 'm':1, '厘米':0.01, 'cm':0.01, '毫米':0.001, 'mm':0.001, '英寸':0.0254, '英尺':0.3048, 'ft':0.3048 };
+  var re = /(\d+(?:\.\d+)?)\s*(米|厘米|毫米|m|cm|mm|英寸|英尺|ft)/gi;
+  var m;
+  while ((m = re.exec(text))) {
+    var u = m[2].toLowerCase();
+    if (u === 'm') { var nx = text[re.lastIndex]; if (nx && /[a-z]/i.test(nx)) continue; } // 排除 min/month 等
+    var factor = unitMap[u];
+    if (factor === undefined) continue;
+    var meters = parseFloat(m[1]) * factor;
+    var isMeter = (u === 'm' || m[2] === '米');
+    var disp = isMeter ? (round2(meters) + 'm') : (round2(meters) + 'm（' + m[1] + m[2] + '）');
+    items.push({ meters: meters, display: disp, index: m.index, raw: m[1] + m[2], unit: m[2] });
+  }
+  // 兜底：宽度类词后紧跟数字但无单位 → 按米计
+  if (!items.length) {
+    var fm = /(宽|宽度|净宽|内径|外径)\s*[:：]?\s*(\d+(?:\.\d+)?)/.exec(text);
+    if (fm) items.push({ meters: parseFloat(fm[2]), display: round2(parseFloat(fm[2])) + 'm（按米计）', index: fm.index, raw: fm[2], unit: '' });
+  }
+  return items;
+}
+
+/* 将提取的尺寸与 DIM_RULES 按“就近关键词”匹配并比较，返回 {matches, hint} */
+function matchDims(text) {
+  var dims = parseDimensions(text);
+  if (!dims.length) {
+    var anyKw = DIM_RULES.some(function (r) { return r.qKeywords.some(function (k) { return text.indexOf(k) !== -1; }); });
+    return { matches: [], hint: anyKw ? '（提示：可补充实测尺寸如「宽1.2米」以做数值判定）' : null };
+  }
+  var matches = [];
+  var used = {}; // 每条尺寸每个区域只被一条规则消费，避免重复计数
+  Object.keys(state.regions).forEach(function (rg) {
+    if (!state.regions[rg]) return;
+    used[rg] = {};
+    DIM_RULES.forEach(function (rule) {
+      var min = rule.min[rg];
+      if (min == null) return;
+      var bestKwPos = -1;
+      rule.qKeywords.forEach(function (kw) {
+        var p = text.indexOf(kw);
+        if (p >= 0 && (bestKwPos < 0 || p < bestKwPos)) bestKwPos = p;
+      });
+      if (bestKwPos < 0) return;
+      var bestDim = null, bestDiff = 1e9;
+      dims.forEach(function (d, idx) {
+        if (used[rg][idx]) return;
+        var center = d.index + d.raw.length / 2;
+        var diff = Math.abs(center - (bestKwPos + 1));
+        if (diff < bestDiff) { bestDiff = diff; bestDim = d; bestDim._idx = idx; }
+      });
+      if (bestDim && bestDiff <= 20) {
+        used[rg][bestDim._idx] = true;
+        var ok = bestDim.meters >= min - 1e-6;
+        matches.push({
+          id: rule.id, label: rule.label, region: rg,
+          value: round2(bestDim.meters), display: bestDim.display,
+          min: min, ok: ok, diff: round2(min - bestDim.meters),
+          ref: rule.refs[rg], advice: rule.advice, severity: rule.severity
+        });
+      }
+    });
+  });
+  return { matches: matches, hint: null };
+}
+
 function analyzeOne(text) {
   var matched = matchRules(text);
   var pol = detectPolarity(text);
+  var dimRes = matchDims(text);
+  var dims = dimRes.matches;
+
   var verdict, reason;
+  var maxSev = matched.length ? matched.reduce(function (m, x) {
+    return SEVERITY_RANK[x.rule.severity] > SEVERITY_RANK[m] ? x.rule.severity : m;
+  }, 'low') : null;
+
   if (pol.pos && !pol.neg) {
     verdict = 'good';
     reason = '描述为已符合/已整改状态，所选区域未发现对应违规点。';
@@ -716,16 +862,30 @@ function analyzeOne(text) {
     reason = '描述包含不合规情形，命中以下法规条款要求。';
   } else if (matched.length > 0) {
     verdict = 'warn';
-    reason = '命中相关条款，但描述中未明确违规或合规状态，建议人工复核。';
+    reason = '命中相关法规条款，但描述中未明确违规或合规状态，建议人工复核。';
   } else {
     verdict = 'warn';
     reason = '未命中内置法规库关键词，建议人工复核或补充问题描述。';
   }
-  var maxSev = matched.reduce(function (m, x) {
-    return SEVERITY_RANK[x.rule.severity] > SEVERITY_RANK[m] ? x.rule.severity : m;
-  }, 'low');
-  if (matched.length === 0) maxSev = null;
-  return { text: text, verdict: verdict, reason: reason, matched: matched, severity: maxSev };
+
+  // 数值型判定叠加
+  if (dims.length) {
+    var fails = dims.filter(function (d) { return !d.ok; });
+    if (fails.length) {
+      var f = fails[0];
+      verdict = 'bad';
+      maxSev = 'high';
+      reason = '实测 ' + f.display + '（' + REGION_META[f.region].name + '·' + f.label + '），小于法规下限 ≥' + f.min + 'm（差 ' + (+f.diff).toFixed(2) + 'm），不符合：' + f.ref + '。';
+    } else if (!pol.neg) {
+      verdict = 'good';
+      maxSev = null;
+      reason = '所述尺寸 ' + dims.map(function (d) { return REGION_META[d.region].name + '·' + d.label + ' ' + d.display + ' ≥' + d.min + 'm'; }).join('；') + '，满足所选区域法规下限要求。';
+    }
+  }
+  if (!dims.length && dimRes.hint) {
+    reason += (reason ? ' ' : '') + dimRes.hint;
+  }
+  return { text: text, verdict: verdict, reason: reason, matched: matched, severity: maxSev, dims: dims };
 }
 
 function analyzeAll() {
@@ -829,6 +989,18 @@ function renderResults() {
         (r.severity ? '<span class="sev ' + r.severity + '">' + SEVERITY_LABEL[r.severity] + '</span>' : '') + '</div>' +
       '</div>' +
       '<div style="font-size:13px;color:var(--muted);margin-top:6px">' + esc(r.reason) + '</div>';
+    if (r.dims && r.dims.length) {
+      html += '<div class="dim-block">';
+      r.dims.forEach(function (d) {
+        html += '<div class="dim-row ' + (d.ok ? 'ok' : 'bad') + '">' +
+          '<span class="dim-ico">' + (d.ok ? '✓' : '✕') + '</span>' +
+          '<div class="dim-body"><div class="dim-line"><b>' + esc(d.label) + '</b> · ' + REGION_META[d.region].name +
+          '：实测 <b>' + esc(d.display) + '</b> / 法规下限 <b>≥' + d.min + 'm</b> ' +
+          '<span class="dim-tag ' + (d.ok ? 'ok' : 'bad') + '">' + (d.ok ? '✓ 满足' : '✕ 不满足') + '</span></div>' +
+          '<div class="dim-ref">依据：' + esc(d.ref) + (d.ok ? '' : ' · 差 ' + (+d.diff).toFixed(2) + 'm') + '</div></div></div>';
+      });
+      html += '</div>';
+    }
     if (r.matched.length) {
       html += '<ul class="rule-list">';
       r.matched.slice(0, 8).forEach(function (m) {
@@ -867,6 +1039,14 @@ function buildReportHTML() {
   d.results.forEach(function (r, i) {
     details += '<h3>问题 ' + (i + 1) + '：' + esc(r.text) + '</h3>' +
       '<p><b>判定：' + VERDICT_LABEL[r.verdict] + '</b>' + (r.severity ? '（' + SEVERITY_LABEL[r.severity] + '）' : '') + ' — ' + esc(r.reason) + '</p>';
+    if (r.dims && r.dims.length) {
+      details += '<p><b>数值判定：</b></p><ul>';
+      r.dims.forEach(function (d) {
+        details += '<li>' + esc(d.label) + '（' + REGION_META[d.region].name + '）：实测 ' + esc(d.display) + ' / 法规下限 ≥' + d.min + 'm → ' +
+          (d.ok ? '<b>满足</b>' : '<b>不满足（差 ' + (+d.diff).toFixed(2) + 'm）</b>') + '。依据：' + esc(d.ref) + '</li>';
+      });
+      details += '</ul>';
+    }
     if (r.matched.length) {
       details += '<p><b>命中法规条款：</b></p><ul>';
       r.matched.forEach(function (m) {
@@ -915,6 +1095,13 @@ function buildReportMD() {
   d.results.forEach(function (r, i) {
     md += '\n### 问题 ' + (i + 1) + '：' + r.text + '\n\n' +
       '**判定：' + VERDICT_LABEL[r.verdict] + '**' + (r.severity ? '（' + SEVERITY_LABEL[r.severity] + '）' : '') + ' — ' + r.reason + '\n\n';
+    if (r.dims && r.dims.length) {
+      md += '**数值判定：**\n\n';
+      r.dims.forEach(function (d) {
+        md += '- ' + d.label + '（' + REGION_META[d.region].name + '）：实测 ' + d.display + ' / 下限 ≥' + d.min + 'm → ' + (d.ok ? '满足' : '不满足（差 ' + (+d.diff).toFixed(2) + 'm）') + '。依据：' + d.ref + '\n';
+      });
+      md += '\n';
+    }
     if (r.matched.length) {
       md += '**命中法规条款：**\n\n';
       r.matched.forEach(function (m) {
@@ -986,6 +1173,7 @@ $('demoBtn').addEventListener('click', function () {
     '危险化学品混放、容器无标签、无MSDS\n' +
     '喷淋系统故障未检测\n' +
     '库房内有人吸烟\n' +
+    '疏散通道实测净宽仅1.2米\n' +
     '员工已全部完成安全培训并考核合格';
   state.regions = { CN: true, US: true, EU: true, VN: true };
   renderRegions();
