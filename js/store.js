@@ -995,6 +995,14 @@ const Store = (function () {
         builtin: true,
         src: 'tools/warehouse-safety-check.html',
       },
+      {
+        id: 'tool_vector',
+        name: '矢量图生成',
+        icon: '🧩',
+        description: '上传位图自动描摹成可缩放 SVG 矢量图，可调颜色/细节/描边，支持下载 SVG 与 PNG',
+        builtin: true,
+        src: 'tools/vector-generator.html',
+      },
     ];
 
     // 每次初始化都确保内置工具存在（按 id upsert），同时保留用户上传的工具。

@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>矢量图生成 · 位图转 SVG</title>
+<script src="imagetracer.js"></script>
+<style>
+  :root{
+    --bg:#0f1320; --panel:#171c2e; --panel2:#1f2740; --border:#2b3450;
+    --text:#e7ecf5; --muted:#93a0bd; --accent:#4f8cff; --accent2:#36d399;
+    --bad:#ff5d6c; --good:#36d399; --shadow:0 8px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:linear-gradient(160deg,#0c1020,#121a30);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;}
+  .wrap{max-width:1180px;margin:0 auto;padding:26px 18px 60px;}
+  header h1{font-size:24px;margin:0 0 4px;display:flex;align-items:center;gap:10px}
+  header p{margin:0 0 18px;color:var(--muted);font-size:14px}
+  .grid{display:grid;grid-template-columns:360px 1fr;gap:18px;align-items:start}
+  @media(max-width:880px){.grid{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px;box-shadow:var(--shadow)}
+  .panel h2{font-size:15px;margin:0 0 12px;color:var(--accent);letter-spacing:.5px}
+  /* 上传 */
+  #drop{border:2px dashed var(--border);border-radius:12px;padding:22px;text-align:center;cursor:pointer;
+    color:var(--muted);transition:.2s;background:var(--panel2)}
+  #drop.hover{border-color:var(--accent);color:var(--text);background:#1b2238}
+  #drop strong{color:var(--text)}
+  .orig-box{margin-top:12px;display:none}
+  .orig-box img{width:100%;border-radius:10px;border:1px solid var(--border);background:#fff}
+  .meta{font-size:12px;color:var(--muted);margin-top:6px}
+  /* 控件 */
+  .row{margin-bottom:14px}
+  label.lab{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  select,input[type=number]{width:100%;background:var(--panel2);color:var(--text);
+    border:1px solid var(--border);border-radius:9px;padding:9px 10px;font-size:14px}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .val{float:right;color:var(--accent);font-variant-numeric:tabular-nums}
+  .seg{display:flex;gap:8px;flex-wrap:wrap}
+  .seg button{flex:1;min-width:90px;background:var(--panel2);color:var(--muted);border:1px solid var(--border);
+    border-radius:9px;padding:9px 6px;cursor:pointer;font-size:13px;transition:.15s}
+  .seg button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .color-input{display:flex;align-items:center;gap:10px}
+  input[type=color]{width:42px;height:34px;border:1px solid var(--border);border-radius:8px;background:none;padding:2px;cursor:pointer}
+  .btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  .btn{flex:1;min-width:120px;border:none;border-radius:10px;padding:11px 12px;font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+  .btn-primary{background:var(--accent);color:#fff}
+  .btn-primary:disabled{opacity:.45;cursor:not-allowed}
+  .btn-ghost{background:var(--panel2);color:var(--text);border:1px solid var(--border)}
+  .btn-ghost:disabled{opacity:.45;cursor:not-allowed}
+  /* 输出 */
+  .status{font-size:13px;color:var(--muted);margin-bottom:10px;min-height:20px}
+  .status .ok{color:var(--good)} .status .err{color:var(--bad)}
+  .preview-box{background:#0b0f1a;border:1px solid var(--border);border-radius:12px;min-height:300px;
+    display:flex;align-items:center;justify-content:center;overflow:auto;padding:14px;position:relative}
+  .preview-box svg{max-width:100%;max-height:62vh;background:
+    linear-gradient(45deg,#1a2030 25%,transparent 25%) 0 0/20px 20px,
+    linear-gradient(-45deg,#1a2030 25%,transparent 25%) 0 10px/20px 20px,
+    linear-gradient(45deg,transparent 75%,#1a2030 75%) 10px -10px/20px 20px,
+    linear-gradient(-45deg,transparent 75%,#1a2030 75%) -10px 0/20px 20px;background-color:#0e1322}
+  .empty-hint{color:var(--muted);font-size:14px;text-align:center;line-height:1.7}
+  .stat{display:flex;gap:18px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:10px 2px 0}
+  .stat b{color:var(--text);font-variant-numeric:tabular-nums}
+  details{margin-top:14px}
+  summary{cursor:pointer;color:var(--accent);font-size:13px}
+  textarea{width:100%;height:150px;margin-top:8px;background:var(--panel2);color:var(--muted);
+    border:1px solid var(--border);border-radius:9px;padding:10px;font-family:ui-monospace,Consolas,monospace;font-size:12px;resize:vertical}
+  .tip{font-size:12px;color:var(--muted);line-height:1.6;margin-top:10px;padding:10px 12px;background:var(--panel2);border-radius:9px;border:1px solid var(--border)}
+  .disclaimer{font-size:12px;color:var(--muted);margin-top:18px;padding-top:12px;border-top:1px solid var(--border)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🧩 矢量图生成</h1>
+    <p>上传一张位图（PNG/JPG/GIF/WebP/BMP），按你的要求一键描摹成可缩放的 <b>SVG 矢量图</b>，支持下载 SVG / PNG 或复制代码。</p>
+  </header>
+
+  <div class="grid">
+    <!-- 左：上传 + 参数 -->
+    <div class="panel">
+      <h2>① 上传图片</h2>
+      <div id="drop">
+        <div style="font-size:30px;margin-bottom:6px">⬆️</div>
+        <strong>点击选择</strong> 或 拖拽图片到此处<br>
+        <span style="font-size:12px">建议最长边 ≤ 1500px，过大将自动缩放以保证速度</span>
+        <input id="file" type="file" accept="image/*" hidden>
+      </div>
+      <div class="orig-box" id="origBox">
+        <img id="origImg" alt="原图预览">
+        <div class="meta" id="origMeta"></div>
+      </div>
+
+      <h2 style="margin-top:20px">② 生成要求</h2>
+      <div class="row">
+        <label class="lab">生成模式</label>
+        <div class="seg" id="modeSeg">
+          <button data-mode="color" class="active">彩色填充</button>
+          <button data-mode="mono">单色描边</button>
+        </div>
+      </div>
+
+      <div class="row" id="colorRow">
+        <label class="lab">颜色数量 <span class="val" id="colorNumV">16</span></label>
+        <input type="range" id="colorNum" min="2" max="48" step="1" value="16">
+      </div>
+
+      <div class="row">
+        <label class="lab">细节程度 <span class="val" id="detailV">中</span></label>
+        <input type="range" id="detail" min="0" max="100" step="1" value="55">
+      </div>
+
+      <div class="row">
+        <label class="lab">平滑度 <span class="val" id="smoothV">中</span></label>
+        <input type="range" id="smooth" min="0" max="100" step="1" value="35">
+      </div>
+
+      <div class="row">
+        <label class="lab">描边粗细 <span class="val" id="swV">1.2</span></label>
+        <input type="range" id="strokeW" min="0" max="6" step="0.1" value="1.2">
+      </div>
+
+      <div class="row" id="strokeColorRow" style="display:none">
+        <label class="lab">线条颜色</label>
+        <div class="color-input">
+          <input type="color" id="strokeColor" value="#111111">
+          <span style="font-size:12px;color:var(--muted)">单色描边模式下生效</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <label class="lab">背景</label>
+        <select id="bg">
+          <option value="transparent">透明</option>
+          <option value="#ffffff">白色</option>
+          <option value="#000000">黑色</option>
+          <option value="custom">自定义颜色</option>
+        </select>
+      </div>
+      <div class="row" id="bgColorRow" style="display:none">
+        <div class="color-input">
+          <input type="color" id="bgColor" value="#36d399">
+          <span style="font-size:12px;color:var(--muted)">自定义背景色</span>
+        </div>
+      </div>
+
+      <div class="row">
+        <label class="lab">输出放大倍数 <span class="val" id="scaleV">1.0×</span></label>
+        <input type="range" id="scale" min="0.5" max="4" step="0.1" value="1">
+      </div>
+
+      <div class="btns">
+        <button class="btn btn-ghost" id="resetBtn">重置参数</button>
+      </div>
+
+      <div class="tip">💡 提示：<b>彩色填充</b>适合照片/图标转彩色矢量；<b>单色描边</b>把图转成线稿（logo 描边、印花图样常用）。细节越高、颜色越多，文件越大、耗时越长。</div>
+    </div>
+
+    <!-- 右：预览 + 输出 -->
+    <div class="panel">
+      <h2>③ 生成结果</h2>
+      <div class="status" id="status">尚未生成，请先上传图片。</div>
+      <div class="preview-box" id="preview">
+        <div class="empty-hint">上传图片后，<br>这里会实时显示生成的矢量图预览</div>
+      </div>
+      <div class="stat" id="stat" style="display:none">
+        <span>尺寸：<b id="stSize">—</b></span>
+        <span>路径数：<b id="stPaths">—</b></span>
+        <span>文件大小：<b id="stBytes">—</b></span>
+      </div>
+      <div class="btns" style="margin-top:14px">
+        <button class="btn btn-primary" id="dlSvg" disabled>⬇ 下载 SVG</button>
+        <button class="btn btn-ghost" id="dlPng" disabled>⬇ 下载 PNG</button>
+        <button class="btn btn-ghost" id="copyBtn" disabled>📋 复制代码</button>
+      </div>
+      <details>
+        <summary>查看 / 编辑 SVG 源码</summary>
+        <textarea id="svgCode" spellcheck="false" placeholder="生成后显示 SVG 源码，可手动修改后再复制/下载"></textarea>
+      </details>
+      <div class="disclaimer">说明：本工具完全在浏览器本地（你的设备）完成图像描摹，图片不会上传到任何服务器。SVG 由开源库 ImageTracer.js（公有领域）算法生成，复杂照片的矢量化结果为近似描摹，非 1:1 像素还原，正式商用前请核对。</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  if(typeof ImageTracer === 'undefined'){
+    document.getElementById('status').innerHTML =
+      '<span class="err">未能加载矢量追踪库 imagetracer.js，请确认同目录下存在该文件。</span>';
+    return;
+  }
+
+  // ---------- 元素 ----------
+  var fileInput = document.getElementById('file');
+  var drop = document.getElementById('drop');
+  var origBox = document.getElementById('origBox');
+  var origImg = document.getElementById('origImg');
+  var origMeta = document.getElementById('origMeta');
+  var statusEl = document.getElementById('status');
+  var preview = document.getElementById('preview');
+  var stat = document.getElementById('stat');
+  var svgCode = document.getElementById('svgCode');
+
+  var modeSeg = document.getElementById('modeSeg');
+  var colorRow = document.getElementById('colorRow');
+  var strokeColorRow = document.getElementById('strokeColorRow');
+  var bgColorRow = document.getElementById('bgColorRow');
+
+  var colorNum = document.getElementById('colorNum');
+  var detail = document.getElementById('detail');
+  var smooth = document.getElementById('smooth');
+  var strokeW = document.getElementById('strokeW');
+  var strokeColor = document.getElementById('strokeColor');
+  var bg = document.getElementById('bg');
+  var bgColor = document.getElementById('bgColor');
+  var scale = document.getElementById('scale');
+
+  var dlSvg = document.getElementById('dlSvg');
+  var dlPng = document.getElementById('dlPng');
+  var copyBtn = document.getElementById('copyBtn');
+  var resetBtn = document.getElementById('resetBtn');
+
+  // ---------- 状态 ----------
+  var sourceCanvas = null;     // 缩放后的源画布（用于描摹）
+  var sourceW = 0, sourceH = 0;
+  var lastSvg = '';            // 最终 SVG 字符串
+  var mode = 'color';
+  var MAX_TRACE = 1100;        // 描摹最长边上限
+
+  // ---------- 上传 ----------
+  drop.addEventListener('click', function(){ fileInput.click(); });
+  fileInput.addEventListener('change', function(e){ if(e.target.files[0]) loadFile(e.target.files[0]); });
+  ['dragenter','dragover'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add('hover'); });
+  });
+  ['dragleave','drop'].forEach(function(ev){
+    drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove('hover'); });
+  });
+  drop.addEventListener('drop', function(e){
+    var f = e.dataTransfer.files[0]; if(f && f.type.indexOf('image')===0) loadFile(f);
+  });
+
+  function loadFile(file){
+    var reader = new FileReader();
+    reader.onload = function(){
+      var img = new Image();
+      img.onload = function(){
+        var w = img.width, h = img.height;
+        // 等比缩放到描摹上限
+        var ratio = Math.min(1, MAX_TRACE / Math.max(w, h));
+        sourceW = Math.max(1, Math.round(w * ratio));
+        sourceH = Math.max(1, Math.round(h * ratio));
+        var cv = document.createElement('canvas');
+        cv.width = sourceW; cv.height = sourceH;
+        var cx = cv.getContext('2d');
+        cx.drawImage(img, 0, 0, sourceW, sourceH);
+        sourceCanvas = cv;
+
+        origImg.src = img.src;
+        origBox.style.display = 'block';
+        origMeta.textContent = '原图 ' + w + ' × ' + h + 'px' +
+          (ratio < 1 ? '（描摹按 ' + sourceW + ' × ' + sourceH + ' 处理）' : '');
+
+        statusEl.innerHTML = '<span class="ok">图片已就绪，正在生成…</span>';
+        generate();
+      };
+      img.onerror = function(){ statusEl.innerHTML = '<span class="err">图片解码失败，请换一张试试。</span>'; };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ---------- 参数读取 ----------
+  function readOptions(){
+    var d = +detail.value / 100;       // 0..1，越大越细
+    var s = +smooth.value / 100;       // 0..1，越大越平滑
+    // 细节：高 detail → pathomit 小、ltres/qtres 小（更精确）
+    var pathomit = Math.round((1 - d) * 24);          // 0..24
+    var ltres = 0.3 + (1 - d) * 3.7;                  // 0.3..4.0
+    var qtres = 0.3 + (1 - d) * 3.7;
+    // 平滑：blurradius + 控制点取整
+    var blurradius = Math.round(s * 6);               // 0..6
+    var lcpr = Math.round(s * 3);                     // 0..3
+    var qcpr = Math.round(s * 3);
+
+    var opts = {
+      pathomit: pathomit,
+      ltres: +ltres.toFixed(2),
+      qtres: +qtres.toFixed(2),
+      blurradius: blurradius,
+      lcpr: lcpr,
+      qcpr: qcpr,
+      strokewidth: +strokeW.value,
+      scale: +scale.value,
+      roundcoords: 1,
+      linefilter: false,
+      rightangleenhance: true,
+      desc: false,
+      viewbox: true            // 用 viewBox，缩放自适应
+    };
+
+    if(mode === 'mono'){
+      opts.colorsampling = 0;
+      opts.numberofcolors = 2;
+      opts.pal = [ {r:0,g:0,b:0,a:255}, {r:255,g:255,b:255,a:255} ];
+    }else{
+      opts.colorsampling = 2;
+      opts.numberofcolors = +colorNum.value;
+      opts.mincolorratio = 0.02;
+      opts.colorquantcycles = 3;
+    }
+    return opts;
+  }
+
+  // ---------- 生成 ----------
+  function generate(){
+    if(!sourceCanvas){ statusEl.textContent = '请先上传图片。'; return; }
+    dlSvg.disabled = dlPng.disabled = copyBtn.disabled = true;
+    statusEl.innerHTML = '<span>描摹中（矢量算法运行中）…</span>';
+
+    // 让浏览器先渲染状态再执行重计算
+    setTimeout(function(){
+      try{
+        var imgData = sourceCanvas.getContext('2d').getImageData(0,0,sourceW,sourceH);
+        var rawSvg = ImageTracer.imagedataToSVG(imgData, readOptions());
+        lastSvg = postProcess(rawSvg);
+        render();
+        statusEl.innerHTML = '<span class="ok">✓ 生成完成</span>';
+        dlSvg.disabled = dlPng.disabled = copyBtn.disabled = false;
+      }catch(err){
+        statusEl.innerHTML = '<span class="err">生成出错：' + (err && err.message ? err.message : err) + '</span>';
+        console.error(err);
+      }
+    }, 30);
+  }
+
+  // 背景 / 单色描边 / 描边样式 后处理
+  function postProcess(rawSvg){
+    var doc = new DOMParser().parseFromString(rawSvg, 'image/svg+xml');
+    var svg = doc.querySelector('svg');
+    if(!svg) return rawSvg;
+
+    // 背景
+    var bgVal = bg.value;
+    var bgFill = null;
+    if(bgVal === '#ffffff') bgFill = '#ffffff';
+    else if(bgVal === '#000000') bgFill = '#000000';
+    else if(bgVal === 'custom') bgFill = bgColor.value;
+    if(bgFill){
+      var rect = doc.createElementNS('http://www.w3.org/2000/svg','rect');
+      rect.setAttribute('x','0'); rect.setAttribute('y','0');
+      rect.setAttribute('width','100%'); rect.setAttribute('height','100%');
+      rect.setAttribute('fill', bgFill);
+      svg.insertBefore(rect, svg.firstChild);
+    }
+
+    // 单色描边：所有 path 改 fill=none + stroke=线条色
+    var paths = svg.querySelectorAll('path');
+    if(mode === 'mono'){
+      var c = strokeColor.value;
+      paths.forEach(function(p){
+        p.setAttribute('fill','none');
+        p.setAttribute('stroke', c);
+        p.setAttribute('stroke-width', strokeW.value);
+        p.setAttribute('stroke-linejoin','round');
+        p.setAttribute('stroke-linecap','round');
+        p.removeAttribute('opacity');
+      });
+    }
+    var xml = new XMLSerializer().serializeToString(svg);
+    return '<?xml version="1.0" encoding="UTF-8"?>\n' + xml;
+  }
+
+  function render(){
+    preview.innerHTML = lastSvg;
+    // 统计
+    var doc = new DOMParser().parseFromString(lastSvg, 'image/svg+xml');
+    var svg = doc.querySelector('svg');
+    var w = svg ? (svg.getAttribute('width') || (svg.getAttribute('viewBox')||'').split(' ')[2] || '?') : '?';
+    var h = svg ? (svg.getAttribute('height') || (svg.getAttribute('viewBox')||'').split(' ')[3] || '?') : '?';
+    document.getElementById('stSize').textContent = w + ' × ' + h + (bg.value!=='transparent' || mode==='mono' ? '' : '');
+    document.getElementById('stPaths').textContent = doc.querySelectorAll('path').length;
+    document.getElementById('stBytes').textContent = (new Blob([lastSvg]).size/1024).toFixed(1) + ' KB';
+    stat.style.display = 'flex';
+    svgCode.value = lastSvg;
+  }
+
+  // ---------- 下载 ----------
+  function download(filename, blob){
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); }, 100);
+  }
+
+  dlSvg.addEventListener('click', function(){
+    if(!lastSvg) return;
+    download('vector-' + Date.now() + '.svg', new Blob([lastSvg], {type:'image/svg+xml'}));
+  });
+
+  dlPng.addEventListener('click', function(){
+    if(!lastSvg) return;
+    var doc = new DOMParser().parseFromString(lastSvg, 'image/svg+xml');
+    var svg = doc.querySelector('svg');
+    var vb = (svg.getAttribute('viewBox')||'0 0 800 600').split(' ');
+    var W = Math.max(1, Math.round(parseFloat(vb[2]) || 800));
+    var H = Math.max(1, Math.round(parseFloat(vb[3]) || 600));
+    var scaleUp = 2; // PNG 输出清晰度
+    var img = new Image();
+    var svgBlob = new Blob([lastSvg], {type:'image/svg+xml;charset=utf-8'});
+    var url = URL.createObjectURL(svgBlob);
+    img.onload = function(){
+      var cv = document.createElement('canvas');
+      cv.width = W * scaleUp; cv.height = H * scaleUp;
+      var cx = cv.getContext('2d');
+      cx.drawImage(img, 0, 0, cv.width, cv.height);
+      cv.toBlob(function(b){
+        if(b) download('vector-' + Date.now() + '.png', b);
+        URL.revokeObjectURL(url);
+      }, 'image/png');
+    };
+    img.onerror = function(){ statusEl.innerHTML = '<span class="err">PNG 导出失败，请改用下载 SVG。</span>'; URL.revokeObjectURL(url); };
+    img.src = url;
+  });
+
+  copyBtn.addEventListener('click', function(){
+    if(!lastSvg) return;
+    var src = svgCode.value || lastSvg;
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(src).then(function(){
+        statusEl.innerHTML = '<span class="ok">✓ SVG 代码已复制到剪贴板</span>';
+      }, function(){ fallbackCopy(src); });
+    }else{ fallbackCopy(src); }
+  });
+  function fallbackCopy(text){
+    svgCode.value = text; svgCode.select();
+    try{ document.execCommand('copy'); statusEl.innerHTML = '<span class="ok">✓ SVG 代码已复制</span>'; }
+    catch(e){ statusEl.innerHTML = '<span class="err">复制失败，请手动选择文本复制。</span>'; }
+  }
+
+  // ---------- 参数交互 ----------
+  modeSeg.addEventListener('click', function(e){
+    var b = e.target.closest('button'); if(!b) return;
+    mode = b.getAttribute('data-mode');
+    [].forEach.call(modeSeg.children, function(x){ x.classList.toggle('active', x===b); });
+    colorRow.style.display = (mode==='color') ? '' : 'none';
+    strokeColorRow.style.display = (mode==='mono') ? '' : 'none';
+    if(sourceCanvas) generate();
+  });
+
+  function bindLive(el, fn){
+    el.addEventListener('input', function(){
+      fn(); if(sourceCanvas) generate();
+    });
+  }
+  bindLive(colorNum, function(){ document.getElementById('colorNumV').textContent = colorNum.value; });
+  bindLive(detail, function(){
+    var v = +detail.value;
+    document.getElementById('detailV').textContent = v<33?'低':(v<66?'中':'高');
+  });
+  bindLive(smooth, function(){
+    var v = +smooth.value;
+    document.getElementById('smoothV').textContent = v<33?'弱':(v<66?'中':'强');
+  });
+  bindLive(strokeW, function(){ document.getElementById('swV').textContent = (+strokeW.value).toFixed(1); });
+  bindLive(scale, function(){ document.getElementById('scaleV').textContent = (+scale.value).toFixed(1) + '×'; });
+  bindLive(strokeColor, function(){});
+  bindLive(bg, function(){ bgColorRow.style.display = (bg.value==='custom') ? '' : 'none'; });
+  bindLive(bgColor, function(){});
+
+  resetBtn.addEventListener('click', function(){
+    colorNum.value = 16; detail.value = 55; smooth.value = 35; strokeW.value = 1.2; scale.value = 1;
+    strokeColor.value = '#111111'; bg.value = 'transparent'; bgColor.value = '#36d399';
+    mode = 'color';
+    [].forEach.call(modeSeg.children, function(x){ x.classList.toggle('active', x.getAttribute('data-mode')==='color'); });
+    colorRow.style.display = ''; strokeColorRow.style.display = 'none'; bgColorRow.style.display = 'none';
+    document.getElementById('colorNumV').textContent = '16';
+    document.getElementById('detailV').textContent = '中';
+    document.getElementById('smoothV').textContent = '中';
+    document.getElementById('swV').textContent = '1.2';
+    document.getElementById('scaleV').textContent = '1.0×';
+    if(sourceCanvas) generate();
+  });
+})();
+</script>
+</body>
+</html>
