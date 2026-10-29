@@ -66,6 +66,7 @@
   textarea{width:100%;height:150px;margin-top:8px;background:var(--panel2);color:var(--muted);
     border:1px solid var(--border);border-radius:9px;padding:10px;font-family:ui-monospace,Consolas,monospace;font-size:12px;resize:vertical}
   .tip{font-size:12px;color:var(--muted);line-height:1.6;margin-top:10px;padding:10px 12px;background:var(--panel2);border-radius:9px;border:1px solid var(--border)}
+  .tip b{color:var(--text)}
   .disclaimer{font-size:12px;color:var(--muted);margin-top:18px;padding-top:12px;border-top:1px solid var(--border)}
 </style>
 </head>
@@ -96,13 +97,14 @@
         <label class="lab">生成模式</label>
         <div class="seg" id="modeSeg">
           <button data-mode="color" class="active">彩色填充</button>
-          <button data-mode="mono">单色描边</button>
+          <button data-mode="monofill">单色填充</button>
+          <button data-mode="monostroke">单色描边</button>
         </div>
       </div>
 
       <div class="row" id="colorRow">
-        <label class="lab">颜色数量 <span class="val" id="colorNumV">16</span></label>
-        <input type="range" id="colorNum" min="2" max="48" step="1" value="16">
+        <label class="lab">颜色数量 <span class="val" id="colorNumV">24</span></label>
+        <input type="range" id="colorNum" min="2" max="48" step="1" value="24">
       </div>
 
       <div class="row">
@@ -115,7 +117,7 @@
         <input type="range" id="smooth" min="0" max="100" step="1" value="35">
       </div>
 
-      <div class="row">
+      <div class="row" id="strokeWRow" style="display:none">
         <label class="lab">描边粗细 <span class="val" id="swV">1.2</span></label>
         <input type="range" id="strokeW" min="0" max="6" step="0.1" value="1.2">
       </div>
@@ -124,7 +126,7 @@
         <label class="lab">线条颜色</label>
         <div class="color-input">
           <input type="color" id="strokeColor" value="#111111">
-          <span style="font-size:12px;color:var(--muted)">单色描边模式下生效</span>
+          <span style="font-size:12px;color:var(--muted)">单色模式下生效（填充色 / 描边色）</span>
         </div>
       </div>
 
@@ -153,7 +155,7 @@
         <button class="btn btn-ghost" id="resetBtn">重置参数</button>
       </div>
 
-      <div class="tip">💡 提示：<b>彩色填充</b>适合照片/图标转彩色矢量；<b>单色描边</b>把图转成线稿（logo 描边、印花图样常用）。细节越高、颜色越多，文件越大、耗时越长。</div>
+      <div class="tip">💡 提示：<b>单色填充</b>最适合签名 / 文字 / 线稿——背景透明、笔画实心提取为矢量；<b>单色描边</b>只描轮廓（适合 logo 描边、印花图样）；<b>彩色填充</b>适合图标 / 插画。复杂照片为近似描摹，请调高「颜色数量」与「细节」、降低「平滑度」以保留更多细节，但无法 1:1 还原。</div>
     </div>
 
     <!-- 右：预览 + 输出 -->
@@ -177,7 +179,7 @@
         <summary>查看 / 编辑 SVG 源码</summary>
         <textarea id="svgCode" spellcheck="false" placeholder="生成后显示 SVG 源码，可手动修改后再复制/下载"></textarea>
       </details>
-      <div class="disclaimer">说明：本工具完全在浏览器本地（你的设备）完成图像描摹，图片不会上传到任何服务器。SVG 由开源库 ImageTracer.js（公有领域）算法生成，复杂照片的矢量化结果为近似描摹，非 1:1 像素还原，正式商用前请核对。</div>
+      <div class="disclaimer">说明：本工具完全在浏览器本地（你的设备）完成图像描摹，图片不会上传到任何服务器。SVG 由开源库 ImageTracer.js（公有领域）算法生成。上传签名 / 文字 / 线稿时会自动选用「单色填充」（透明背景 + 实心笔画）；复杂照片的矢量化结果为近似描摹，正式商用前请核对。</div>
     </div>
   </div>
 </div>
@@ -204,6 +206,7 @@
   var modeSeg = document.getElementById('modeSeg');
   var colorRow = document.getElementById('colorRow');
   var strokeColorRow = document.getElementById('strokeColorRow');
+  var strokeWRow = document.getElementById('strokeWRow');
   var bgColorRow = document.getElementById('bgColorRow');
 
   var colorNum = document.getElementById('colorNum');
@@ -225,6 +228,8 @@
   var sourceW = 0, sourceH = 0;
   var lastSvg = '';            // 最终 SVG 字符串
   var mode = 'color';
+  var inkIsDark = true;        // 笔画是否为深色（单色模式用于区分墨 / 底）
+  var userTouchedMode = false; // 用户手动切换过模式后不再自动选模式
   var MAX_TRACE = 1100;        // 描摹最长边上限
 
   // ---------- 上传 ----------
@@ -261,6 +266,12 @@
         origMeta.textContent = '原图 ' + w + ' × ' + h + 'px' +
           (ratio < 1 ? '（描摹按 ' + sourceW + ' × ' + sourceH + ' 处理）' : '');
 
+        // 智能选模式：线稿 / 文字 → 单色填充；照片 / 彩色图 → 彩色填充
+        if(!userTouchedMode){
+          var det = cx.getImageData(0, 0, sourceW, sourceH);
+          applyPreset(isLineArt(det) ? 'monofill' : 'color');
+        }
+
         statusEl.innerHTML = '<span class="ok">图片已就绪，正在生成…</span>';
         generate();
       };
@@ -270,27 +281,80 @@
     reader.readAsDataURL(file);
   }
 
+  // ---------- 模式与预设 ----------
+  function setMode(m){
+    mode = m;
+    [].forEach.call(modeSeg.children, function(x){ x.classList.toggle('active', x.getAttribute('data-mode') === m); });
+    colorRow.style.display = (m === 'color') ? '' : 'none';
+    strokeColorRow.style.display = (m === 'monofill' || m === 'monostroke') ? '' : 'none';
+    strokeWRow.style.display = (m === 'monostroke') ? '' : 'none';
+    updateLabels();
+  }
+
+  function applyPreset(kind){
+    if(kind === 'monofill'){
+      setMode('monofill');
+      detail.value = 82; smooth.value = 10; colorNum.value = 24;
+      bg.value = 'transparent'; bgColorRow.style.display = 'none';
+      strokeColor.value = '#111111';
+    }else{ // color（照片 / 彩色图）
+      setMode('color');
+      detail.value = 62; smooth.value = 22; colorNum.value = 24;
+      bg.value = 'transparent'; bgColorRow.style.display = 'none';
+    }
+    updateLabels();
+  }
+
+  function updateLabels(){
+    document.getElementById('colorNumV').textContent = colorNum.value;
+    var dv = +detail.value; document.getElementById('detailV').textContent = dv < 33 ? '低' : (dv < 66 ? '中' : '高');
+    var sv = +smooth.value; document.getElementById('smoothV').textContent = sv < 33 ? '弱' : (sv < 66 ? '中' : '强');
+    document.getElementById('swV').textContent = (+strokeW.value).toFixed(1);
+    document.getElementById('scaleV').textContent = (+scale.value).toFixed(1) + '×';
+  }
+
+  // 线稿 / 文字检测：低饱和 + 存在一定比例的暗像素（墨迹）
+  function isLineArt(imgData){
+    var d = imgData.data, dark = 0, gray = 0, samples = 0;
+    for(var i = 0; i < d.length; i += 16){
+      var r = d[i], g = d[i + 1], b = d[i + 2];
+      var lum = 0.299 * r + 0.587 * g + 0.114 * b;
+      if(lum < 90) dark++;
+      var mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+      if(mx - mn < 40) gray++;
+      samples++;
+    }
+    if(samples === 0) return false;
+    var rd = dark / samples, rg = gray / samples;
+    return (rd > 0.003 && rd < 0.8 && rg > 0.7);
+  }
+
   // ---------- 参数读取 ----------
   function readOptions(){
     var d = +detail.value / 100;       // 0..1，越大越细
     var s = +smooth.value / 100;       // 0..1，越大越平滑
-    // 细节：高 detail → pathomit 小、ltres/qtres 小（更精确）
-    var pathomit = Math.round((1 - d) * 24);          // 0..24
-    var ltres = 0.3 + (1 - d) * 3.7;                  // 0.3..4.0
-    var qtres = 0.3 + (1 - d) * 3.7;
-    // 平滑：blurradius + 控制点取整
-    var blurradius = Math.round(s * 6);               // 0..6
-    var lcpr = Math.round(s * 3);                     // 0..3
-    var qcpr = Math.round(s * 3);
-
+    var isMono = (mode === 'monofill' || mode === 'monostroke');
+    var pathomit, ltres, qtres, blurradius;
+    if(isMono){
+      // 笔画模式：不模糊、保留细笔画，转角更精确
+      blurradius = Math.round(s * 2);            // 0..2
+      pathomit   = Math.round((1 - d) * 6);      // 0..6
+      ltres = 0.3 + (1 - d) * 2.0;
+      qtres = 0.3 + (1 - d) * 2.0;
+    }else{
+      blurradius = Math.round(s * 5);            // 0..5
+      pathomit   = Math.round((1 - d) * 18);
+      ltres = 0.3 + (1 - d) * 3.7;
+      qtres = 0.3 + (1 - d) * 3.7;
+    }
     var opts = {
       pathomit: pathomit,
       ltres: +ltres.toFixed(2),
       qtres: +qtres.toFixed(2),
       blurradius: blurradius,
-      lcpr: lcpr,
-      qcpr: qcpr,
-      strokewidth: +strokeW.value,
+      lcpr: Math.round(s * 2),
+      qcpr: Math.round(s * 2),
+      strokewidth: (mode === 'monostroke') ? +strokeW.value : 0,
       scale: +scale.value,
       roundcoords: 1,
       linefilter: false,
@@ -298,8 +362,7 @@
       desc: false,
       viewbox: true            // 用 viewBox，缩放自适应
     };
-
-    if(mode === 'mono'){
+    if(isMono){
       opts.colorsampling = 0;
       opts.numberofcolors = 2;
       opts.pal = [ {r:0,g:0,b:0,a:255}, {r:255,g:255,b:255,a:255} ];
@@ -321,7 +384,9 @@
     // 让浏览器先渲染状态再执行重计算
     setTimeout(function(){
       try{
-        var imgData = sourceCanvas.getContext('2d').getImageData(0,0,sourceW,sourceH);
+        var ctx = sourceCanvas.getContext('2d');
+        var imgData = ctx.getImageData(0, 0, sourceW, sourceH);
+        computeInkIsDark(imgData);
         var rawSvg = ImageTracer.imagedataToSVG(imgData, readOptions());
         lastSvg = postProcess(rawSvg);
         render();
@@ -334,7 +399,27 @@
     }, 30);
   }
 
-  // 背景 / 单色描边 / 描边样式 后处理
+  // 判断笔画是深色还是浅色（处理反相签名：黑底白字）
+  function computeInkIsDark(imgData){
+    var d = imgData.data, sum = 0, cnt = 0;
+    for(var i = 0; i < d.length; i += 40){
+      var r = d[i], g = d[i + 1], b = d[i + 2];
+      sum += 0.299 * r + 0.587 * g + 0.114 * b; cnt++;
+    }
+    var avg = cnt ? sum / cnt : 255;
+    inkIsDark = avg >= 110;
+  }
+
+  function hexLum(hex){
+    hex = (hex || '').replace('#', '');
+    if(hex.length === 3) hex = hex.split('').map(function(c){ return c + c; }).join('');
+    var r = parseInt(hex.substr(0, 2), 16) || 0,
+        g = parseInt(hex.substr(2, 2), 16) || 0,
+        b = parseInt(hex.substr(4, 2), 16) || 0;
+    return 0.299 * r + 0.587 * g + 0.114 * b;
+  }
+
+  // 背景 / 单色填充 / 单色描边 后处理
   function postProcess(rawSvg){
     var doc = new DOMParser().parseFromString(rawSvg, 'image/svg+xml');
     var svg = doc.querySelector('svg');
@@ -347,26 +432,37 @@
     else if(bgVal === '#000000') bgFill = '#000000';
     else if(bgVal === 'custom') bgFill = bgColor.value;
     if(bgFill){
-      var rect = doc.createElementNS('http://www.w3.org/2000/svg','rect');
-      rect.setAttribute('x','0'); rect.setAttribute('y','0');
-      rect.setAttribute('width','100%'); rect.setAttribute('height','100%');
+      var rect = doc.createElementNS('http://www.w3.org/2000/svg', 'rect');
+      rect.setAttribute('x', '0'); rect.setAttribute('y', '0');
+      rect.setAttribute('width', '100%'); rect.setAttribute('height', '100%');
       rect.setAttribute('fill', bgFill);
       svg.insertBefore(rect, svg.firstChild);
     }
 
-    // 单色描边：所有 path 改 fill=none + stroke=线条色
+    // 区分墨迹路径与背景路径：单色调色板下，墨迹为深 / 浅之一
     var paths = svg.querySelectorAll('path');
-    if(mode === 'mono'){
-      var c = strokeColor.value;
-      paths.forEach(function(p){
-        p.setAttribute('fill','none');
-        p.setAttribute('stroke', c);
-        p.setAttribute('stroke-width', strokeW.value);
-        p.setAttribute('stroke-linejoin','round');
-        p.setAttribute('stroke-linecap','round');
-        p.removeAttribute('opacity');
-      });
-    }
+    var c = strokeColor.value;
+    paths.forEach(function(p){
+      var f = (p.getAttribute('fill') || '').toLowerCase();
+      var ink = (f === 'none' || f === '') ? false : (inkIsDark ? (hexLum(f) < 128) : (hexLum(f) > 128));
+      if(mode === 'monofill'){
+        if(ink){ p.setAttribute('fill', c); }
+        else { p.setAttribute('fill', bgFill || 'none'); }
+        p.removeAttribute('stroke'); p.removeAttribute('stroke-width');
+      }else if(mode === 'monostroke'){
+        if(ink){
+          p.setAttribute('fill', 'none');
+          p.setAttribute('stroke', c);
+          p.setAttribute('stroke-width', strokeW.value);
+          p.setAttribute('stroke-linejoin', 'round');
+          p.setAttribute('stroke-linecap', 'round');
+        }else{
+          p.setAttribute('fill', 'none'); p.removeAttribute('stroke');
+        }
+      }
+      p.removeAttribute('opacity');
+    });
+
     var xml = new XMLSerializer().serializeToString(svg);
     return '<?xml version="1.0" encoding="UTF-8"?>\n' + xml;
   }
@@ -376,11 +472,12 @@
     // 统计
     var doc = new DOMParser().parseFromString(lastSvg, 'image/svg+xml');
     var svg = doc.querySelector('svg');
-    var w = svg ? (svg.getAttribute('width') || (svg.getAttribute('viewBox')||'').split(' ')[2] || '?') : '?';
-    var h = svg ? (svg.getAttribute('height') || (svg.getAttribute('viewBox')||'').split(' ')[3] || '?') : '?';
-    document.getElementById('stSize').textContent = w + ' × ' + h + (bg.value!=='transparent' || mode==='mono' ? '' : '');
+    var vb = (svg && svg.getAttribute('viewBox') || '0 0 0 0').split(' ');
+    var w = svg ? (svg.getAttribute('width') || vb[2] || '?') : '?';
+    var h = svg ? (svg.getAttribute('height') || vb[3] || '?') : '?';
+    document.getElementById('stSize').textContent = w + ' × ' + h;
     document.getElementById('stPaths').textContent = doc.querySelectorAll('path').length;
-    document.getElementById('stBytes').textContent = (new Blob([lastSvg]).size/1024).toFixed(1) + ' KB';
+    document.getElementById('stBytes').textContent = (new Blob([lastSvg]).size / 1024).toFixed(1) + ' KB';
     stat.style.display = 'flex';
     svgCode.value = lastSvg;
   }
@@ -402,7 +499,7 @@
     if(!lastSvg) return;
     var doc = new DOMParser().parseFromString(lastSvg, 'image/svg+xml');
     var svg = doc.querySelector('svg');
-    var vb = (svg.getAttribute('viewBox')||'0 0 800 600').split(' ');
+    var vb = (svg.getAttribute('viewBox') || '0 0 800 600').split(' ');
     var W = Math.max(1, Math.round(parseFloat(vb[2]) || 800));
     var H = Math.max(1, Math.round(parseFloat(vb[3]) || 600));
     var scaleUp = 2; // PNG 输出清晰度
@@ -441,10 +538,8 @@
   // ---------- 参数交互 ----------
   modeSeg.addEventListener('click', function(e){
     var b = e.target.closest('button'); if(!b) return;
-    mode = b.getAttribute('data-mode');
-    [].forEach.call(modeSeg.children, function(x){ x.classList.toggle('active', x===b); });
-    colorRow.style.display = (mode==='color') ? '' : 'none';
-    strokeColorRow.style.display = (mode==='mono') ? '' : 'none';
+    userTouchedMode = true;
+    setMode(b.getAttribute('data-mode'));
     if(sourceCanvas) generate();
   });
 
@@ -456,31 +551,28 @@
   bindLive(colorNum, function(){ document.getElementById('colorNumV').textContent = colorNum.value; });
   bindLive(detail, function(){
     var v = +detail.value;
-    document.getElementById('detailV').textContent = v<33?'低':(v<66?'中':'高');
+    document.getElementById('detailV').textContent = v < 33 ? '低' : (v < 66 ? '中' : '高');
   });
   bindLive(smooth, function(){
     var v = +smooth.value;
-    document.getElementById('smoothV').textContent = v<33?'弱':(v<66?'中':'强');
+    document.getElementById('smoothV').textContent = v < 33 ? '弱' : (v < 66 ? '中' : '强');
   });
   bindLive(strokeW, function(){ document.getElementById('swV').textContent = (+strokeW.value).toFixed(1); });
   bindLive(scale, function(){ document.getElementById('scaleV').textContent = (+scale.value).toFixed(1) + '×'; });
   bindLive(strokeColor, function(){});
-  bindLive(bg, function(){ bgColorRow.style.display = (bg.value==='custom') ? '' : 'none'; });
+  bindLive(bg, function(){ bgColorRow.style.display = (bg.value === 'custom') ? '' : 'none'; });
   bindLive(bgColor, function(){});
 
   resetBtn.addEventListener('click', function(){
-    colorNum.value = 16; detail.value = 55; smooth.value = 35; strokeW.value = 1.2; scale.value = 1;
+    colorNum.value = 24; detail.value = 55; smooth.value = 35; strokeW.value = 1.2; scale.value = 1;
     strokeColor.value = '#111111'; bg.value = 'transparent'; bgColor.value = '#36d399';
-    mode = 'color';
-    [].forEach.call(modeSeg.children, function(x){ x.classList.toggle('active', x.getAttribute('data-mode')==='color'); });
-    colorRow.style.display = ''; strokeColorRow.style.display = 'none'; bgColorRow.style.display = 'none';
-    document.getElementById('colorNumV').textContent = '16';
-    document.getElementById('detailV').textContent = '中';
-    document.getElementById('smoothV').textContent = '中';
-    document.getElementById('swV').textContent = '1.2';
-    document.getElementById('scaleV').textContent = '1.0×';
+    userTouchedMode = false;
+    setMode('color');
+    bgColorRow.style.display = 'none';
     if(sourceCanvas) generate();
   });
+
+  updateLabels();
 })();
 </script>
 </body>
