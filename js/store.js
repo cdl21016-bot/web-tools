@@ -1003,6 +1003,14 @@ const Store = (function () {
         builtin: true,
         src: 'tools/vector-generator.html',
       },
+      {
+        id: 'tool_excel_fix',
+        name: 'Excel 函数修正',
+        icon: '📊',
+        description: '上传 Excel，自动检查并修正常见公式错误（拼写/大小写/括号/范围/引号/缺等号），可导出修正文件',
+        builtin: true,
+        src: 'tools/excel-formula-fix.html',
+      },
     ];
 
     // 每次初始化都确保内置工具存在（按 id upsert），同时保留用户上传的工具。
