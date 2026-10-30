@@ -100,17 +100,26 @@
         <button id="oneClick">⚡ 一键自动套用并下载</button>
         <button id="downloadBtn">应用并下载修正文件</button>
         <button class="ghost" id="reportBtn">下载修改说明（Markdown）</button>
+      </div>
+      <div class="btn-row">
         <button class="ghost" id="selAll">全选可应用项</button>
+        <button class="ghost" id="selAllUser">全选建议项</button>
+        <button class="ghost" id="lockLookup">🔒 一键锁定全部查找表</button>
         <span id="opMsg" class="note"></span>
       </div>
+    </div>
+    <div id="extCard" class="card hidden">
+      <div class="loc" style="margin-bottom:8px">⚠️ 跨工作簿链接 / 断链风险检测</div>
+      <div id="extBody"></div>
     </div>
     <div id="list"></div>
   </div>
 
   <div class="foot">
     说明：本工具通过启发式规则修正公式语法，覆盖：函数名拼写/大小写、括号配对、范围分隔符（含多余空格）、工作表引用加引号、多余/缺失逗号、缺少「=」、
-    数字千分位逗号误用、查找表绝对引用（$ 缺失）提醒、跨工作簿链接结构错误、AND/OR/NOT 误用为运算符、嵌套层数超 64 上限等。
-    可点击「⚡ 一键自动套用并下载」直接应用全部可自动修正项。它不保证公式在业务语义上一定正确；下载后的文件已清除公式旧缓存值，在 Excel 中打开时会自动重新计算，请核对结果。
+    数字千分位逗号误用、查找表绝对引用（$ 缺失）提醒、跨工作簿链接结构错误与断链风险检测、AND/OR/NOT 误用为运算符、嵌套层数超 64 上限等。
+    可点击「⚡ 一键自动套用并下载」应用全部可自动项；「🔒 一键锁定全部查找表」批量给所有 VLOOKUP/XLOOKUP 等查找区域加 $；「全选建议项」批量勾选需确认的修改。
+    它不保证公式在业务语义上一定正确；下载后的文件已清除公式旧缓存值，在 Excel 中打开时会自动重新计算，请核对结果。
   </div>
 </div>
 
@@ -243,6 +252,56 @@ function splitTopLevelArgs(str){
   return args;
 }
 
+/* 判断参数是否为单元格/区域引用（而非数字、字符串、嵌套函数） */
+function looksLikeRef(a){
+  const t=a.trim();
+  if(t==='')return false;
+  if(/^".*"$/.test(t))return false;             // 带引号的字符串
+  if(/^[0-9]/.test(t))return false;             // 纯数字（如列序号）
+  return /\b[A-Z]{1,3}\$?\d/.test(t) || /\b[A-Z]{1,3}:[A-Z]{1,3}\b/.test(t);
+}
+function lockOneRef(part){
+  const m=part.match(/^(\$?)([A-Z]{1,3})(\$?\d*)$/);
+  if(!m)return part;
+  const dig=m[3]||'';
+  return '$'+m[2]+(dig?('$'+dig):'');
+}
+function lockRangeRef(tbl){
+  const sh=tbl.match(/^(?:'[^']*'|[^!]+)!/);
+  const prefix=sh?sh[0]:'';
+  const body=sh?tbl.slice(sh[0].length):tbl;
+  return prefix+body.split(':').map(lockOneRef).join(':');
+}
+/* 查找/引用函数中，应锁定为绝对引用的「区域」参数下标（不含查找值本身） */
+const LOOKUP_RANGE_ARGS={
+  VLOOKUP:[1], HLOOKUP:[1], XLOOKUP:[1,2], LOOKUP:[1],
+  INDEX:[0], MATCH:[1], OFFSET:[0]
+};
+/* 把查找/引用函数的「区域」参数锁定为绝对引用 $（供「一键锁定全部查找表」批量使用） */
+function transformLookups(s){
+  const re=/\b(VLOOKUP|XLOOKUP|HLOOKUP|LOOKUP|INDEX|MATCH|OFFSET)\s*\(/gi;
+  let m,out='',last=0,changed=false; const locked=[];
+  while((m=re.exec(s))){
+    const name=m[1].toUpperCase();
+    let i=m.index+m[0].length-1,depth=0,end=-1;
+    for(;i<s.length;i++){const ch=s[i]; if(ch==='(')depth++; else if(ch===')'){depth--; if(depth===0){end=i;break;}}}
+    if(end<0){ out+=s.slice(last,re.lastIndex); last=re.lastIndex; continue; }
+    const openParen=m.index+s.slice(m.index).indexOf('(');
+    const inner=s.slice(openParen+1,end);
+    const args=splitTopLevelArgs(inner);
+    const idxs=LOOKUP_RANGE_ARGS[name]||[];
+    let anyChange=false;
+    const newArgs=args.map((a,ai)=>{
+      if(idxs.indexOf(ai)>=0 && looksLikeRef(a)){ const lk=lockRangeRef(a); if(lk!==a){ anyChange=true; if(locked.indexOf(a.trim())<0)locked.push(a.trim()); return lk; } }
+      return a;
+    });
+    if(anyChange){ changed=true; out+=s.slice(last,m.index)+m[1]+'('+newArgs.join(',')+')'; last=end+1; }
+    else { out+=s.slice(last,end+1); last=end+1; }
+  }
+  if(changed)out+=s.slice(last); else out=s;
+  return {s:out,changed,locked};
+}
+
 /* ===================== 各项修正规则 ===================== */
 function fixSheetQuotes(s,reasons){
   const re=/(^|[^'\w])([A-Za-z0-9_ ]+ [A-Za-z0-9_ ]*)!(\$?[A-Za-z]+\$?\d)/g;
@@ -369,33 +428,14 @@ function fixNumberSep(s,reasons){
   return {s:out,needsUser:changed};
 }
 
-/* 查找表未锁定绝对引用（$ 缺失）：VLOOKUP/XLOOKUP/HLOOKUP 第二参数（查找数组）建议加 $ */
+/* 查找表未锁定绝对引用（$ 缺失）：VLOOKUP/XLOOKUP 等区域建议加 $ */
 function suggestAbsRef(s,reasons){
-  const re=/\b(VLOOKUP|XLOOKUP|HLOOKUP)\s*\(/gi;
-  let m,last=0,out='',changed=false,needsUser=false;
-  while((m=re.exec(s))){
-    let i=m.index+m[0].length-1,depth=0,end=-1;
-    for(;i<s.length;i++){ const ch=s[i]; if(ch==='(')depth++; else if(ch===')'){depth--; if(depth===0){end=i;break;}} }
-    if(end<0){ out+=s.slice(last,re.lastIndex); last=re.lastIndex; continue; }
-    const inner=s.slice(m.index+ (s.slice(m.index).indexOf('(')+1) , end);
-    const args=splitTopLevelArgs(inner);
-    if(args.length>=2){
-      const tbl=args[1];
-      const hasRef=(/[A-Z]{1,3}\d/.test(tbl) || /[A-Z]{1,3}:[A-Z]{1,3}/.test(tbl)) && !/\$/.test(tbl);
-      if(hasRef){
-        const newTbl=tbl.replace(/([A-Z]{1,3})(\d*)/g,(mm,col,dig)=>'$'+col+(dig?('$'+dig):''));
-        if(newTbl!==tbl){
-          const newCall=m[1]+'('+args.map((a,ai)=>ai===1?newTbl:a).join(',')+')';
-          out+=s.slice(last,m.index)+newCall; last=end+1; changed=true;
-          reasons.push({sev:'low',msg:'查找表引用「'+tbl.trim()+'」未锁定绝对引用（$ 缺失）。下拉/右拉公式时表区域会错位，通常应改为「'+newTbl.trim()+'」。如确需相对引用可忽略此建议。'});
-          needsUser=true; continue;
-        }
-      }
-    }
-    out+=s.slice(last,end+1); last=end+1;
+  const r=transformLookups(s);
+  if(r.changed){
+    reasons.push({sev:'low',msg:'查找表引用「'+[...new Set(r.locked)].join('、')+'」未锁定绝对引用（$ 缺失）。下拉/右拉公式时表区域会错位，通常应改为绝对引用（如 $B:$C）。如确需相对引用可忽略此建议。'});
+    return {s:r.s,needsUser:true};
   }
-  if(changed)out+=s.slice(last); else out=s;
-  return {s:out,needsUser};
+  return {s,needsUser:false};
 }
 
 /* 跨工作簿链接：缺少 ! 自动补；方括号不配对标需确认；合法引用附离线校验提醒 */
@@ -528,6 +568,13 @@ function processWorkbook(wb){
     else if(rec.needsUser)stats.user++;
     else stats.auto++;
   });
+  // 跨工作簿链接 / 断链风险检测
+  const extLinks=[];
+  if(wb.Workbook&&Array.isArray(wb.Workbook.Links)){
+    wb.Workbook.Links.forEach(L=>{ if(L&&L.FileLink&&L.FileLink.FilePath!=null){ const p=String(L.FileLink.FilePath); if(extLinks.indexOf(p)<0)extLinks.push(p); } });
+  }
+  records.forEach(rec=>{ (rec.fText.match(/\[[^\]]+\]/g)||[]).forEach(x=>{ const n=x.slice(1,-1); if(extLinks.indexOf(n)<0)extLinks.push(n); }); });
+  renderExt(extLinks);
   render();
 }
 
@@ -555,7 +602,7 @@ function render(){
       ? '<div class="cands"><span class="lab">请选择想达成的函数：</span>'+
         r.candidates.map(c=>'<span class="chip" data-idx="'+idx+'" data-cand="'+c+'">'+c+'</span>').join('')+'</div>'
       : '';
-    const checked = r.needsUser?'':'checked';
+    const checked = (r.needsUser && !r.sticky)?'':'checked';
     return '<div class="item">'+
       '<div class="top"><span class="loc">'+r.sheet+'!'+r.addr+'</span>'+badge+'</div>'+
       '<div class="fcode orig">原始：'+(r.isFormula?'=':'')+r.orig+'</div>'+
@@ -565,7 +612,7 @@ function render(){
       '<label class="apply"><input type="checkbox" id="chk-'+idx+'" '+checked+'> 应用此修正</label>'+
     '</div>';
   }).join('');
-  // 绑定候选点击
+    // 绑定候选点击
   list.querySelectorAll('.chip').forEach(ch=>{
     ch.addEventListener('click',()=>{
       const idx=+ch.dataset.idx, cand=ch.dataset.cand, rec=records[idx];
@@ -573,11 +620,29 @@ function render(){
       if(rec.firstUnknown) newF=newF.replace(new RegExp('\\b'+escapeReg(rec.firstUnknown)+'\\b'),cand);
       else newF=cand+'('+(rec.fText.match(/\(([^)]*)\)/)?rec.fText.match(/\(([^)]*)\)/)[1]:'')+')';
       document.getElementById('inp-'+idx).value='='+newF;
-      const chk=document.getElementById('chk-'+idx); if(chk)chk.checked=true;
+      const chk=document.getElementById('chk-'+idx); if(chk){chk.checked=true; rec.sticky=true;}
     });
+  });
+  // 复选框状态与数据模型同步
+  list.querySelectorAll('input[type=checkbox]').forEach(chk=>{
+    const idx=+chk.id.slice(4);
+    chk.addEventListener('change',()=>{ if(records[idx])records[idx].sticky=chk.checked; });
   });
 }
 function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+/* 跨工作簿链接 / 断链风险：汇总所有外部工作簿引用并提示风险 */
+function renderExt(links){
+  const card=document.getElementById('extCard');
+  if(!links||!links.length){ card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+  const detail=links.map(l=>'<li class="sev-high">'+escapeHtml(l)+'</li>').join('');
+  document.getElementById('extBody').innerHTML=
+    '<div class="note">检测到 '+links.length+' 个外部工作簿引用。本工具离线运行，无法访问这些源文件；'+
+    '当源文件不在本机、或未随当前文件一起提供时，Excel 打开会提示「更新链接」或显示 #REF!（即断链）。'+
+    '请在 Excel 中用「数据 → 编辑链接」核对，或改用 INDIRECT / POWER QUERY 动态引用。建议：把被引用的源文件也一并上传后再重新修正。</div>'+
+    '<ul class="reasons">'+detail+'</ul>';
+}
 
 /* ===================== 下载 ===================== */
 function buildCorrected(){
@@ -685,7 +750,8 @@ function loadSample(){
   ws['A15']={t:'n',f:'[Book1.xlsx]Sheet1A1'};     // 跨工作簿缺 !
   ws['A16']={t:'n',f:'IF(A1>0 AND B1>0,1,0)'};    // AND 作运算符
   ws['A17']={t:'n',f:'XLOOKUP(A1,B:C,D:D)'};       // 查找数组未锁定 $
-  ws['!ref']='A1:C17';
+  ws['A18']={t:'n',f:'[Book1.xlsx]Sheet1!A1'};     // 跨工作簿链接（断链风险）
+  ws['!ref']='A1:C18';
   const ws2={}; for(let i=1;i<=10;i++){ws2['A'+i]={t:'n',v:i};ws2['B'+i]={t:'n',v:i*2};}
   ws2['!ref']='A1:B10';
   XLSX.utils.book_append_sheet(wb,ws,'Sheet1');
@@ -710,13 +776,36 @@ fileInput.addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target
 document.getElementById('sampleBtn').addEventListener('click',loadSample);
 document.getElementById('downloadBtn').addEventListener('click',download);
 document.getElementById('oneClick').addEventListener('click',()=>{
-  records.forEach((r,idx)=>{const chk=document.getElementById('chk-'+idx);if(chk)chk.checked=!!r.changed&&!r.needsUser;});
+  records.forEach((r,idx)=>{ r.sticky=!!r.changed&&!r.needsUser; });
+  render();
   document.getElementById('opMsg').textContent='已自动勾选全部可自动修正项，正在生成文件…';
   download();
 });
 document.getElementById('reportBtn').addEventListener('click',downloadReport);
 document.getElementById('selAll').addEventListener('click',()=>{
-  records.forEach((r,idx)=>{const chk=document.getElementById('chk-'+idx);if(chk&&r.changed)chk.checked=true;});
+  let c=0; records.forEach((r,idx)=>{ if(r.changed){ r.sticky=true; c++; } });
+  render(); document.getElementById('opMsg').textContent='已勾选 '+c+' 项可应用修正。';
+});
+document.getElementById('selAllUser').addEventListener('click',()=>{
+  let c=0; records.forEach((r,idx)=>{
+    if(r.needsUser && r.display!==('='+r.orig)){ r.sticky=true; c++; }
+  });
+  render(); document.getElementById('opMsg').textContent='已勾选 '+c+' 条建议项，下载前可逐个核对。';
+});
+document.getElementById('lockLookup').addEventListener('click',()=>{
+  let c=0;
+  records.forEach((r,idx)=>{
+    const t=transformLookups(r.fText);
+    if(t.changed){
+      r.fText=t.s; r.display='='+t.s; r.sticky=true; c++;
+      if(!r.reasons.some(x=>/绝对引用|批量锁定/.test(x.msg))) r.reasons.push({sev:'low',msg:'已通过「批量锁定查找表」将查找区域改为绝对引用（$）。'});
+      const inp=document.getElementById('inp-'+idx); if(inp)inp.value=r.display;
+    }else if(r.reasons.some(x=>/查找表引用|绝对引用/.test(x.msg))){
+      r.sticky=true; c++;
+    }
+  });
+  render();
+  document.getElementById('opMsg').textContent='已批量锁定 '+c+' 个公式的查找表为绝对引用，并勾选应用。';
 });
 document.getElementById('tabs').addEventListener('click',e=>{
   if(!e.target.classList.contains('tab'))return;
