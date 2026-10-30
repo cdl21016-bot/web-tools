@@ -73,11 +73,16 @@
   <div class="card">
     <div id="drop" class="drop">
       <div>把 <b>.xlsx / .xlsm / .xls</b> 文件拖到这里，或 <b>点击选择文件</b></div>
-      <div class="note">支持含公式的工作簿。复杂照片式内容不适用，本工具只处理「公式语法」级别的错误。</div>
-      <input id="file" type="file" accept=".xlsx,.xlsm,.xls" class="hidden">
+      <div class="note">支持含公式的工作簿。可一次拖入多个文件：第一个作为待修正的<b>主文件</b>，其余自动作为<b>被引用的源工作簿</b>，用于校验跨工作簿链接是否真实可达。</div>
+      <input id="file" type="file" accept=".xlsx,.xlsm,.xls" multiple class="hidden">
     </div>
     <div class="btn-row">
       <button class="ghost" id="sampleBtn">加载示例（含典型错误）</button>
+      <button class="ghost" id="srcBtn">📎 单独上传源工作簿（校验链接）</button>
+      <input id="srcFile" type="file" accept=".xlsx,.xlsm,.xls" multiple class="hidden">
+      <span id="srcNames" class="note"></span>
+    </div>
+    <div class="btn-row">
       <span id="fileName" class="note"></span>
     </div>
   </div>
@@ -109,7 +114,7 @@
       </div>
     </div>
     <div id="extCard" class="card hidden">
-      <div class="loc" style="margin-bottom:8px">⚠️ 跨工作簿链接 / 断链风险检测</div>
+      <div class="loc" id="extTitle" style="margin-bottom:8px">🔗 跨工作簿链接校验</div>
       <div id="extBody"></div>
     </div>
     <div id="list"></div>
@@ -117,7 +122,9 @@
 
   <div class="foot">
     说明：本工具通过启发式规则修正公式语法，覆盖：函数名拼写/大小写、括号配对、范围分隔符（含多余空格）、工作表引用加引号、多余/缺失逗号、缺少「=」、
-    数字千分位逗号误用、查找表绝对引用（$ 缺失）提醒、跨工作簿链接结构错误与断链风险检测、AND/OR/NOT 误用为运算符、嵌套层数超 64 上限等。
+    数字千分位逗号误用、查找表绝对引用（$ 缺失）提醒、跨工作簿链接结构错误与<b>可达性校验</b>、AND/OR/NOT 误用为运算符、嵌套层数超 64 上限等。
+    跨工作簿链接：把被引用的源工作簿（如 Book1.xlsx）与主文件<b>一起拖入</b>（或点「📎 单独上传源工作簿」），工具会按文件名自动匹配公式中的 [Book1.xlsx]，
+    并真正校验工作表/单元格是否存在 —— 已随附则标记「✅ 链接可达」，未提供则标记「❌ 未提供」并提示断链风险。
     可点击「⚡ 一键自动套用并下载」应用全部可自动项；「🔒 一键锁定全部查找表」批量给所有 VLOOKUP/XLOOKUP 等查找区域加 $；「全选建议项」批量勾选需确认的修改。
     它不保证公式在业务语义上一定正确；下载后的文件已清除公式旧缓存值，在 Excel 中打开时会自动重新计算，请核对结果。
   </div>
@@ -438,16 +445,20 @@ function suggestAbsRef(s,reasons){
   return {s,needsUser:false};
 }
 
-/* 跨工作簿链接：缺少 ! 自动补；方括号不配对标需确认；合法引用附离线校验提醒 */
+/* 跨工作簿链接：缺少 ! 自动补；方括号不配对标需确认；合法引用附校验说明（有源文件时改由下方卡片真实验证） */
 function fixExternalLinks(s,reasons){
   let out=s,changed=false,needsUser=false;
   const missBang=s.replace(/\]([A-Za-z_][A-Za-z0-9_ ]*?)(?=\$?[A-Z]+\$?\d)/g,(mm,sheet)=>']'+sheet.trim()+'!');
   if(missBang!==s){ out=missBang; changed=true; reasons.push({sev:'mid',msg:'跨工作簿引用中工作表与单元格之间缺少「!」，已补上（如 [Book.xlsx]Sheet1!A1）。'}); }
   const ob=(out.match(/\[/g)||[]).length, cb=(out.match(/\]/g)||[]).length;
   if(ob!==cb){ needsUser=true; reasons.push({sev:'high',msg:'跨工作簿引用的方括号 [ ] 不配对（左 '+ob+' 右 '+cb+'），无法自动判断缺失位置，请手动补全。'}); }
-  if(out!==s && /\[[^\]]+\]/.test(out)===false && ob===cb){
-    // 已修正且结构完整：附加离线校验提醒（note 不计入 changed/needsUser）
-    reasons.push({sev:'note',msg:'该公式含跨工作簿链接（如 [文件名]工作表!单元格）。本工具离线运行，无法确认链接指向的工作簿仍可用，下载后请在 Excel 中核对链接。'});
+  const hasExt=/\[[^\]]+\]/.test(out);
+  if(changed && hasExt){
+    if(Object.keys(sourceFiles).length===0){
+      reasons.push({sev:'note',msg:'该公式含跨工作簿链接（如 [文件名]工作表!单元格）。本工具当前未收到对应的源工作簿，无法确认链接是否可达；请在下方卡片上传源文件后再校验，或下载后在 Excel 中核对。'});
+    }else{
+      reasons.push({sev:'note',msg:'该公式含跨工作簿链接；已根据已上传的源工作簿在下方卡片进行可达性校验，请查看结果。'});
+    }
   }
   return {s:out,needsUser};
 }
@@ -523,14 +534,22 @@ function analyze(rawDisplay,isFormula){
 
 /* ===================== 读取与处理 ===================== */
 let workbookRaw=null;     // 原始 ArrayBuffer
+let loadedWb=null;        // 已解析的主工作簿（供跨工作簿链接校验读取内嵌 Links）
 let fileName='';
 let records=[];           // 全部分析结果
 let stats={total:0,auto:0,user:0,ok:0};
 let filter='all';
 
+/* 跨工作簿链接校验：随附的源工作簿 */
+let sourceFiles={};       // baseName(小写) -> {name}
+let sourceWBs={};         // baseName(小写) -> 已解析的 wb
+let lastExtLinks=[];      // 最近一次扫描到的外部文件名（小写）
+let lastExtResult=[];     // [{name,status}] 校验结果（供测试读取）
+
 const ERROR_VALUES=['#NAME?','#REF!','#DIV/0!','#VALUE!','#N/A','#NUM!','#NULL!','#SPILL!'];
 
 function processWorkbook(wb){
+  loadedWb=wb;
   records=[];
   const errCells=[];
   wb.SheetNames.forEach(sheet=>{
@@ -568,13 +587,8 @@ function processWorkbook(wb){
     else if(rec.needsUser)stats.user++;
     else stats.auto++;
   });
-  // 跨工作簿链接 / 断链风险检测
-  const extLinks=[];
-  if(wb.Workbook&&Array.isArray(wb.Workbook.Links)){
-    wb.Workbook.Links.forEach(L=>{ if(L&&L.FileLink&&L.FileLink.FilePath!=null){ const p=String(L.FileLink.FilePath); if(extLinks.indexOf(p)<0)extLinks.push(p); } });
-  }
-  records.forEach(rec=>{ (rec.fText.match(/\[[^\]]+\]/g)||[]).forEach(x=>{ const n=x.slice(1,-1); if(extLinks.indexOf(n)<0)extLinks.push(n); }); });
-  renderExt(extLinks);
+  // 跨工作簿链接：收集所有外部工作簿引用，再做可达性校验
+  refreshExt();
   render();
 }
 
@@ -631,17 +645,108 @@ function render(){
 }
 function escapeHtml(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
-/* 跨工作簿链接 / 断链风险：汇总所有外部工作簿引用并提示风险 */
-function renderExt(links){
+/* ===================== 跨工作簿链接可达性校验 ===================== */
+/* 从公式文本中解析单个外部引用：file / sheet / cell（引用形如 [Book.xlsx]'My Sheet'!A1 或 [Book.xlsx]Sheet1!A1:B2） */
+function parseExtRefAt(str,m){
+  const file=m[1];
+  let rest=str.slice(m.index+m[0].length);
+  let sheet='', cell='';
+  const bang=rest.indexOf('!');
+  if(rest.startsWith("'")){
+    const q=rest.indexOf("'",1);
+    if(q>0){ sheet=rest.slice(1,q); rest=rest.slice(q+1); }
+  }else if(bang>0){
+    sheet=rest.slice(0,bang); rest=rest.slice(bang+1);
+  }
+  if(rest.startsWith('!'))rest=rest.slice(1);
+  if(/^[A-Za-z]{1,3}\$?\d*(?::[A-Za-z]{1,3}\$?\d*)?/.test(rest)){
+    cell=rest.match(/^[A-Za-z]{1,3}\$?\d*(?::[A-Za-z]{1,3}\$?\d*)?/)[0];
+  }
+  return {file,sheet,cell};
+}
+/* 汇总所有外部工作簿引用：按文件名（小写）分组，记录每个引用请求的工作表/单元格 */
+function collectExtRefs(){
+  const byFile={}, names=[];
+  const add=(file,sheet,cell)=>{
+    const base=file.split(/[\\/]/).pop().toLowerCase();
+    if(names.indexOf(base)<0)names.push(base);
+    if(!byFile[base])byFile[base]={file,reqs:[]};
+    byFile[base].reqs.push({sheet,cell});
+  };
+  records.forEach(rec=>{
+    const re=/\[([^\]]+)\]/g; let m;
+    while((m=re.exec(rec.fText))){ const r=parseExtRefAt(rec.fText,m); add(r.file,r.sheet,r.cell); }
+  });
+  if(loadedWb&&loadedWb.Workbook&&Array.isArray(loadedWb.Workbook.Links)){
+    loadedWb.Workbook.Links.forEach(L=>{
+      if(L&&L.FileLink&&L.FileLink.FilePath!=null){
+        const f=String(L.FileLink.FilePath).split(/[\\/]/).pop();
+        if(f)add(f,'','');
+      }
+    });
+  }
+  return {byFile,names};
+}
+/* 校验某个外部文件是否可达：检查源文件是否随附，并进一步核对工作表/单元格是否真实存在 */
+function validateExt(base){
+  const f=sourceFiles[base];
+  if(!f)return {status:'missing'};
+  const wb=sourceWBs[base];
+  if(!wb||!wb.SheetNames)return {status:'unparsed'};
+  const sheets=wb.SheetNames;
+  const issues=[];
+  (collectExtRefs().byFile[base]?collectExtRefs().byFile[base].reqs:[]).forEach(req=>{
+    if(!req.sheet)return;
+    if(sheets.indexOf(req.sheet)<0){ issues.push('工作表「'+req.sheet+'」在源文件中不存在'); return; }
+    if(req.cell){
+      const ws=wb.Sheets[req.sheet];
+      if(ws&&ws['!ref']){
+        try{
+          const rng=XLSX.utils.decode_range(ws['!ref']);
+          const c=XLSX.utils.decode_cell(req.cell.split(':')[0]);
+          if(c.r>rng.e.r||c.c>rng.e.c) issues.push('单元格 '+req.cell+' 超出「'+req.sheet+'」的已用范围（'+ws['!ref']+'）');
+        }catch(e){ /* 单元格写法规格异常，忽略 */ }
+      }
+    }
+  });
+  if(issues.length)return {status:'warn',issues};
+  return {status:'ok'};
+}
+/* 刷新跨工作簿链接校验卡片 */
+function refreshExt(){
   const card=document.getElementById('extCard');
-  if(!links||!links.length){ card.classList.add('hidden'); return; }
+  if(!records.length){ card.classList.add('hidden'); lastExtLinks=[]; lastExtResult=[]; return; }
+  const {byFile,names}=collectExtRefs();
+  lastExtLinks=names;
+  if(!names.length){ card.classList.add('hidden'); lastExtResult=[]; return; }
   card.classList.remove('hidden');
-  const detail=links.map(l=>'<li class="sev-high">'+escapeHtml(l)+'</li>').join('');
-  document.getElementById('extBody').innerHTML=
-    '<div class="note">检测到 '+links.length+' 个外部工作簿引用。本工具离线运行，无法访问这些源文件；'+
-    '当源文件不在本机、或未随当前文件一起提供时，Excel 打开会提示「更新链接」或显示 #REF!（即断链）。'+
-    '请在 Excel 中用「数据 → 编辑链接」核对，或改用 INDIRECT / POWER QUERY 动态引用。建议：把被引用的源文件也一并上传后再重新修正。</div>'+
-    '<ul class="reasons">'+detail+'</ul>';
+  let ok=0, missing=0, warn=0, other=0;
+  const rows=names.map(base=>{
+    const info=byFile[base];
+    const v=validateExt(base);
+    let badge,detail;
+    if(v.status==='ok'){ ok++; badge='<span class="badge b-auto">✅ 链接可达</span>';
+      detail='已随附源文件「'+info.file+'」，且引用的工作表/单元格均存在，链接真实可达。'; }
+    else if(v.status==='missing'){ missing++; badge='<span class="badge b-user">❌ 未提供</span>';
+      detail='未上传名为「'+info.file+'」的源工作簿 —— Excel 打开时会提示「更新链接」或显示 #REF!（断链）。请把它一并上传后重新校验。'; }
+    else if(v.status==='warn'){ warn++; badge='<span class="badge b-user">⚠️ 引用缺失</span>';
+      detail='已找到源文件「'+info.file+'」，但：'+v.issues.join('；')+'。'; }
+    else { other++; badge='<span class="badge b-none">❓ 无法解析</span>';
+      detail='源文件「'+info.file+'」无法读取，未能完成校验。'; }
+    return '<div class="item" style="margin-bottom:8px"><div class="top"><span class="loc">'+escapeHtml(info.file)+'</span>'+badge+'</div><div class="reasons"><li>'+detail+'</li></div></div>';
+  }).join('');
+  const concern=missing+warn+other;
+  let summary='检测到 '+names.length+' 个跨工作簿引用：<b style="color:var(--ok)">'+ok+' 个可达</b>，'
+    +'<b style="color:var(--warn)">'+(concern)+' 个需关注</b>。';
+  if(concern>0) summary+=' 请在 Excel 中核对，或把缺失的源文件也一并上传后重新校验（按文件名自动匹配 [Book.xlsx]）。';
+  else summary+=' 已随附全部源文件并校验通过。';
+  document.getElementById('extTitle').textContent='🔗 跨工作簿链接校验（按文件名匹配已上传源文件）';
+  document.getElementById('extBody').innerHTML='<div class="note">'+summary+'</div>'+rows;
+  lastExtResult=names.map(base=>({name:byFile[base].file,status:validateExt(base).status}));
+}
+function updateSrcNames(){
+  const names=Object.values(sourceFiles).map(f=>f.name);
+  document.getElementById('srcNames').textContent=names.length?('已附源文件：'+names.join('、')):'';
 }
 
 /* ===================== 下载 ===================== */
@@ -714,7 +819,7 @@ function downloadReport(){
 function handleFile(file){
   if(!file)return;
   fileName=file.name;
-  document.getElementById('fileName').textContent='已选择：'+fileName;
+  document.getElementById('fileName').textContent='已选择主文件：'+fileName;
   const reader=new FileReader();
   reader.onload=e=>{
     try{
@@ -727,6 +832,33 @@ function handleFile(file){
     }
   };
   reader.readAsArrayBuffer(file);
+}
+/* 主文件 + 源工作簿：第一个作为主文件扫描，其余作为源文件用于链接校验 */
+function handleFiles(files){
+  files=Array.from(files||[]);
+  if(!files.length)return;
+  sourceFiles={}; sourceWBs={}; lastExtLinks=[]; lastExtResult=[];   // 新主文件 = 重新收集源
+  updateSrcNames();
+  handleFile(files[0]);
+  if(files.length>1)addSourceFiles(files.slice(1));
+}
+/* 追加源工作簿（用于跨工作簿链接可达性校验） */
+function addSourceFiles(files){
+  files=Array.from(files||[]); if(!files.length)return;
+  let pending=files.length;
+  files.forEach(file=>{
+    const base=file.name.split(/[\\/]/).pop().toLowerCase();
+    sourceFiles[base]={name:file.name};
+    const reader=new FileReader();
+    reader.onload=e=>{
+      try{ sourceWBs[base]=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellFormula:true,cellStyles:true,cellDates:true}); }
+      catch(err){ sourceWBs[base]=null; }
+      updateSrcNames();
+      if(--pending===0 && records.length)refreshExt();
+    };
+    reader.readAsArrayBuffer(file);
+  });
+  updateSrcNames();
 }
 
 /* 示例文件：用 SheetJS 造一批典型错误公式 */
@@ -760,6 +892,16 @@ function loadSample(){
   document.getElementById('fileName').textContent='已加载示例：'+fileName;
   const buf=XLSX.write(wb,{type:'array',bookType:'xlsx'});
   workbookRaw=buf;
+
+  /* 随附一个源工作簿 Book1.xlsx（含 Sheet1!A1），用于演示跨工作簿链接「可达」校验 */
+  const swb=XLSX.utils.book_new();
+  const sws={}; sws['A1']={t:'n',v:999}; sws['!ref']='A1';
+  XLSX.utils.book_append_sheet(swb,sws,'Sheet1');
+  const sbuf=XLSX.write(swb,{type:'array',bookType:'xlsx'});
+  sourceFiles={'book1.xlsx':{name:'Book1.xlsx'}};
+  sourceWBs['book1.xlsx']=XLSX.read(new Uint8Array(sbuf),{type:'array',cellFormula:true});
+  updateSrcNames();
+
   const wb2=XLSX.read(new Uint8Array(buf),{type:'array',cellFormula:true,cellStyles:true,cellDates:true});
   document.getElementById('result').classList.remove('hidden');
   processWorkbook(wb2);
@@ -771,9 +913,15 @@ drop.addEventListener('click',()=>fileInput.click());
 drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('over');});
 drop.addEventListener('dragleave',()=>drop.classList.remove('over'));
 drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');
-  if(e.dataTransfer.files&&e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);});
-fileInput.addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0]);});
+  if(e.dataTransfer.files&&e.dataTransfer.files.length)handleFiles(e.dataTransfer.files);});
+fileInput.addEventListener('change',e=>{if(e.target.files.length)handleFiles(e.target.files); e.target.value='';});
 document.getElementById('sampleBtn').addEventListener('click',loadSample);
+/* 单独上传源工作簿（校验跨工作簿链接） */
+document.getElementById('srcBtn').addEventListener('click',()=>document.getElementById('srcFile').click());
+document.getElementById('srcFile').addEventListener('change',e=>{
+  if(e.target.files.length)addSourceFiles(e.target.files);
+  e.target.value='';
+});
 document.getElementById('downloadBtn').addEventListener('click',download);
 document.getElementById('oneClick').addEventListener('click',()=>{
   records.forEach((r,idx)=>{ r.sticky=!!r.changed&&!r.needsUser; });
@@ -814,7 +962,23 @@ document.getElementById('tabs').addEventListener('click',e=>{
 });
 
 /* 测试钩子（无副作用，仅供自动化校验读取） */
-window.__TEST__={ getRecords:()=>records, getStats:()=>stats, getRaw:()=>workbookRaw };
+window.__TEST__={
+  getRecords:()=>records, getStats:()=>stats, getRaw:()=>workbookRaw,
+  getExtStatus:()=>lastExtResult, getExtLinks:()=>lastExtLinks, getSrcNames:()=>Object.values(sourceFiles).map(f=>f.name),
+  /* 直接以 {name,buf} 注入源工作簿（绕过 FileReader，便于自动化测试） */
+  loadSourcesFromBuffers:function(arr){
+    sourceFiles={}; sourceWBs={};
+    (arr||[]).forEach(o=>{
+      const base=String(o.name).split(/[\\/]/).pop().toLowerCase();
+      sourceFiles[base]={name:o.name};
+      sourceWBs[base]=XLSX.read(new Uint8Array(o.buf),{type:'array',cellFormula:true,cellStyles:true,cellDates:true});
+    });
+    updateSrcNames();
+    refreshExt();
+    return lastExtResult;
+  },
+  clearSources:function(){ sourceFiles={}; sourceWBs={}; updateSrcNames(); if(records.length)refreshExt(); }
+};
 
 </script>
 </body>
