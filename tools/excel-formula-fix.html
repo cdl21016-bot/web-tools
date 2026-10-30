@@ -97,6 +97,7 @@
         <div class="tab" data-f="none">无问题</div>
       </div>
       <div class="btn-row">
+        <button id="oneClick">⚡ 一键自动套用并下载</button>
         <button id="downloadBtn">应用并下载修正文件</button>
         <button class="ghost" id="reportBtn">下载修改说明（Markdown）</button>
         <button class="ghost" id="selAll">全选可应用项</button>
@@ -107,8 +108,9 @@
   </div>
 
   <div class="foot">
-    说明：本工具通过启发式规则（函数名拼写/大小写、括号配对、范围分隔符、工作表引用加引号、多余/缺失逗号、缺少「=」等）修正公式语法。
-    它不保证公式在业务语义上一定正确；下载后的文件已清除公式的旧缓存值，在 Excel 中打开时会自动重新计算，请核对结果。
+    说明：本工具通过启发式规则修正公式语法，覆盖：函数名拼写/大小写、括号配对、范围分隔符（含多余空格）、工作表引用加引号、多余/缺失逗号、缺少「=」、
+    数字千分位逗号误用、查找表绝对引用（$ 缺失）提醒、跨工作簿链接结构错误、AND/OR/NOT 误用为运算符、嵌套层数超 64 上限等。
+    可点击「⚡ 一键自动套用并下载」直接应用全部可自动修正项。它不保证公式在业务语义上一定正确；下载后的文件已清除公式旧缓存值，在 Excel 中打开时会自动重新计算，请核对结果。
   </div>
 </div>
 
@@ -227,6 +229,19 @@ function countParens(str){
   }
   return {open,close};
 }
+function splitTopLevelArgs(str){
+  const args=[]; let depth=0, cur='', inStr=false;
+  for(let i=0;i<str.length;i++){
+    const ch=str[i];
+    if(inStr){ cur+=ch; if(ch==='"')inStr=false; continue; }
+    if(ch==='"'){ inStr=true; cur+=ch; continue; }
+    if(ch==='(')depth++; else if(ch===')')depth--;
+    if(ch===','&&depth===0){ args.push(cur); cur=''; continue; }
+    cur+=ch;
+  }
+  if(cur.length)args.push(cur);
+  return args;
+}
 
 /* ===================== 各项修正规则 ===================== */
 function fixSheetQuotes(s,reasons){
@@ -241,8 +256,9 @@ function fixSheetQuotes(s,reasons){
 }
 function fixRangeSep(s,reasons){
   let out=s.replace(/\b([A-Z]+\d+)\.\.([A-Z]+\d+)\b/g,'$1:$2')
-           .replace(/\b([A-Z]+\d+)\.([A-Z]+\d+)\b/g,'$1:$2');
-  if(out!==s)reasons.push({sev:'mid',msg:'范围分隔符有误，已将「..」或「.」修正为「:」（如 A1:A10）。'});
+           .replace(/\b([A-Z]+\d+)\.([A-Z]+\d+)\b/g,'$1:$2')
+           .replace(/\b([A-Z]+\$?\d*)\s*:\s*([A-Z]+\$?\d*)\b/g,'$1:$2');
+  if(out!==s)reasons.push({sev:'mid',msg:'范围分隔符有误，已将「..」「.」或多余空格修正为「:」（如 A1:A10）。'});
   return out;
 }
 function fixCommas(s,reasons){
@@ -326,6 +342,108 @@ function fixMissingArgCommas(s,reasons){
   return out;
 }
 
+/* 数字千分位逗号：1,000 / 2,500 在 Excel 中会被当成参数分隔符，应去逗号（建议项，需确认） */
+function fixNumberSep(s,reasons){
+  const seg=s.split('"'); let changed=false; const fixes=[];
+  for(let i=0;i<seg.length;i++){
+    if(i%2===1)continue;                          // 引号内原样保留
+    const re=/\d{1,3}(?:,\d{3})+(?:\.\d+)?/g;
+    let m; const matches=[];
+    while((m=re.exec(seg[i]))){ matches.push({idx:m.index,len:m[0].length,raw:m[0],fixed:m[0].replace(/,/g,'')}); }
+    if(matches.length){
+      changed=true;
+      let t=seg[i];
+      for(let k=matches.length-1;k>=0;k--){       // 从后往前替换，避免索引错位
+        const L=matches[k];
+        t=t.slice(0,L.idx)+L.fixed+t.slice(L.idx+L.len);
+        fixes.push(L.raw);
+      }
+      seg[i]=t;
+    }
+  }
+  const out=seg.join('"');
+  if(changed){
+    const uniq=[...new Set(fixes)];
+    reasons.push({sev:'mid',msg:'公式中存在带千分位逗号的数字（'+uniq.join('、')+'）。在 Excel 中逗号是参数分隔符，会被拆成多个参数；若本意是「'+uniq.map(f=>f.replace(/,/g,'')).join('、')+'」（千位数），请勾选套用。若为多个参数请忽略。'});
+  }
+  return {s:out,needsUser:changed};
+}
+
+/* 查找表未锁定绝对引用（$ 缺失）：VLOOKUP/XLOOKUP/HLOOKUP 第二参数（查找数组）建议加 $ */
+function suggestAbsRef(s,reasons){
+  const re=/\b(VLOOKUP|XLOOKUP|HLOOKUP)\s*\(/gi;
+  let m,last=0,out='',changed=false,needsUser=false;
+  while((m=re.exec(s))){
+    let i=m.index+m[0].length-1,depth=0,end=-1;
+    for(;i<s.length;i++){ const ch=s[i]; if(ch==='(')depth++; else if(ch===')'){depth--; if(depth===0){end=i;break;}} }
+    if(end<0){ out+=s.slice(last,re.lastIndex); last=re.lastIndex; continue; }
+    const inner=s.slice(m.index+ (s.slice(m.index).indexOf('(')+1) , end);
+    const args=splitTopLevelArgs(inner);
+    if(args.length>=2){
+      const tbl=args[1];
+      const hasRef=(/[A-Z]{1,3}\d/.test(tbl) || /[A-Z]{1,3}:[A-Z]{1,3}/.test(tbl)) && !/\$/.test(tbl);
+      if(hasRef){
+        const newTbl=tbl.replace(/([A-Z]{1,3})(\d*)/g,(mm,col,dig)=>'$'+col+(dig?('$'+dig):''));
+        if(newTbl!==tbl){
+          const newCall=m[1]+'('+args.map((a,ai)=>ai===1?newTbl:a).join(',')+')';
+          out+=s.slice(last,m.index)+newCall; last=end+1; changed=true;
+          reasons.push({sev:'low',msg:'查找表引用「'+tbl.trim()+'」未锁定绝对引用（$ 缺失）。下拉/右拉公式时表区域会错位，通常应改为「'+newTbl.trim()+'」。如确需相对引用可忽略此建议。'});
+          needsUser=true; continue;
+        }
+      }
+    }
+    out+=s.slice(last,end+1); last=end+1;
+  }
+  if(changed)out+=s.slice(last); else out=s;
+  return {s:out,needsUser};
+}
+
+/* 跨工作簿链接：缺少 ! 自动补；方括号不配对标需确认；合法引用附离线校验提醒 */
+function fixExternalLinks(s,reasons){
+  let out=s,changed=false,needsUser=false;
+  const missBang=s.replace(/\]([A-Za-z_][A-Za-z0-9_ ]*?)(?=\$?[A-Z]+\$?\d)/g,(mm,sheet)=>']'+sheet.trim()+'!');
+  if(missBang!==s){ out=missBang; changed=true; reasons.push({sev:'mid',msg:'跨工作簿引用中工作表与单元格之间缺少「!」，已补上（如 [Book.xlsx]Sheet1!A1）。'}); }
+  const ob=(out.match(/\[/g)||[]).length, cb=(out.match(/\]/g)||[]).length;
+  if(ob!==cb){ needsUser=true; reasons.push({sev:'high',msg:'跨工作簿引用的方括号 [ ] 不配对（左 '+ob+' 右 '+cb+'），无法自动判断缺失位置，请手动补全。'}); }
+  if(out!==s && /\[[^\]]+\]/.test(out)===false && ob===cb){
+    // 已修正且结构完整：附加离线校验提醒（note 不计入 changed/needsUser）
+    reasons.push({sev:'note',msg:'该公式含跨工作簿链接（如 [文件名]工作表!单元格）。本工具离线运行，无法确认链接指向的工作簿仍可用，下载后请在 Excel 中核对链接。'});
+  }
+  return {s:out,needsUser};
+}
+
+/* AND/OR/NOT 被当作运算符使用（Excel 中必须是带括号的函数） */
+function fixLogicalOp(s,reasons){
+  const seg=s.split('"'); let hit=false; const found=new Set();
+  for(let i=0;i<seg.length;i++){
+    if(i%2===1)continue;
+    const re=/\b(AND|OR|NOT)\b(?!\s*\()/gi; let m;
+    while((m=re.exec(seg[i]))){ hit=true; found.add(m[1].toUpperCase()); }
+  }
+  if(hit){
+    reasons.push({sev:'high',msg:'检测到「'+( [...found].join('/') )+'」被当成运算符使用。Excel 中 AND/OR/NOT 必须是带括号的函数（如 AND(条件1,条件2)）。请手动改为函数写法，或在下方输入框直接写正确公式。'});
+    return {s,needsUser:true};
+  }
+  return {s,needsUser:false};
+}
+
+/* 嵌套层数超过 Excel 64 层上限 */
+function checkNesting(s,reasons){
+  let maxDepth=0,depth=0,inStr=false;
+  for(let i=0;i<s.length;i++){
+    const ch=s[i];
+    if(inStr){ if(ch==='"')inStr=false; continue; }
+    if(ch==='"'){inStr=true;continue;}
+    if(ch==='('){depth++; if(depth>maxDepth)maxDepth=depth;}
+    else if(ch===')')depth--;
+  }
+  if(maxDepth>64){
+    reasons.push({sev:'high',msg:'函数嵌套层数达到 '+maxDepth+' 层，超过 Excel 的 64 层上限，打开时会报错或无法计算。请拆分公式或使用辅助列。'});
+    return true;
+  }
+  return false;
+}
+
 /* ===================== 主分析 ===================== */
 function analyze(rawDisplay,isFormula){
   const reasons=[];
@@ -342,19 +460,25 @@ function analyze(rawDisplay,isFormula){
   s=fixSheetQuotes(s,reasons);
   s=fixRangeSep(s,reasons);
   s=fixCommas(s,reasons);
+  const num=fixNumberSep(s,reasons); s=num.s; if(num.needsUser)needsUser=true;
   const pf=fixParens(s,reasons); s=pf.s; if(pf.needsUser)needsUser=true;
   const fn=fixFunctions(s,reasons); s=fn.s; if(fn.needsUser)needsUser=true;
   if(fn.candidates)candidates=fn.candidates;
   if(fn.firstUnknown)firstUnknown=fn.firstUnknown;
   s=fixMissingArgCommas(s,reasons);
+  const abs=suggestAbsRef(s,reasons); s=abs.s; if(abs.needsUser)needsUser=true;
+  const ext=fixExternalLinks(s,reasons); s=ext.s; if(ext.needsUser)needsUser=true;
+  const log=fixLogicalOp(s,reasons); if(log.needsUser)needsUser=true;
+  if(checkNesting(s,reasons))needsUser=true;
 
   // 末并重算仍然存在的括号问题
   const recheck=fixParens(s,reasons); s=recheck.s; if(recheck.needsUser)needsUser=true;
 
   const fText=s;                       // 不含 =
   const display='='+s;                 // 含 =
-  const auto = reasons.length>0 && !needsUser;
-  return {orig,fText,display,reasons,needsUser,candidates,firstUnknown,auto,changed:reasons.length>0};
+  const changed=reasons.some(r=>r.sev!=='note');
+  const auto=changed && !needsUser;
+  return {orig,fText,display,reasons,needsUser,candidates,firstUnknown,auto,changed};
 }
 
 /* ===================== 读取与处理 ===================== */
@@ -545,7 +669,7 @@ function loadSample(){
   const wb=XLSX.utils.book_new();
   const ws={};
   ws['A1']={t:'n',v:10}; ws['B1']={t:'n',v:20}; ws['C1']={t:'n',v:30};
-  ws['A2']={t:'n',f:'VLOKUP(A1,B:C,2,FALSE)'};     // 拼写错误
+  ws['A2']={t:'n',f:'VLOKUP(A1,$B:$C,2,FALSE)'};  // 拼写错误（范围已锁定 $）
   ws['A3']={t:'n',f:'sum(a1:c1)'};                 // 小写
   ws['A4']={t:'n',f:'SUM(A1:C1'};                  // 缺右括号
   ws['A5']={t:'s',v:'SUMM(A1:C1)'};                // 缺 =
@@ -553,10 +677,15 @@ function loadSample(){
   ws['A7']={t:'n',f:'My Sheet!A1'};               // 工作表未加引号
   ws['A8']={t:'n',f:'SUM(A1 A2 A3)'};             // 缺逗号
   ws['A9']={t:'n',f:'COUNTIF(A1:A10,, ">5")'};    // 多余逗号
-  ws['A10']={t:'n',f:'XLOKUP(A1,B:C,2)'};         // 拼写错误(距离2)
+  ws['A10']={t:'n',f:'XLOKUP(A1,$B:$C,2)'};       // 拼写错误(距离2)
   ws['A11']={t:'n',f:'FNORD(A1)'};                // 未知函数
   ws['A12']={t:'n',f:'AVERAGE(Sheet2!B1:B10)'};   // 正常
-  ws['!ref']='A1:C12';
+  ws['A13']={t:'n',f:'VLOOKUP(A1,B:C,2,FALSE)'};  // 查找表未锁定 $
+  ws['A14']={t:'n',f:'SUM(1,000, 2,500)'};        // 千分位逗号
+  ws['A15']={t:'n',f:'[Book1.xlsx]Sheet1A1'};     // 跨工作簿缺 !
+  ws['A16']={t:'n',f:'IF(A1>0 AND B1>0,1,0)'};    // AND 作运算符
+  ws['A17']={t:'n',f:'XLOOKUP(A1,B:C,D:D)'};       // 查找数组未锁定 $
+  ws['!ref']='A1:C17';
   const ws2={}; for(let i=1;i<=10;i++){ws2['A'+i]={t:'n',v:i};ws2['B'+i]={t:'n',v:i*2};}
   ws2['!ref']='A1:B10';
   XLSX.utils.book_append_sheet(wb,ws,'Sheet1');
@@ -580,6 +709,11 @@ drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over'
 fileInput.addEventListener('change',e=>{if(e.target.files[0])handleFile(e.target.files[0]);});
 document.getElementById('sampleBtn').addEventListener('click',loadSample);
 document.getElementById('downloadBtn').addEventListener('click',download);
+document.getElementById('oneClick').addEventListener('click',()=>{
+  records.forEach((r,idx)=>{const chk=document.getElementById('chk-'+idx);if(chk)chk.checked=!!r.changed&&!r.needsUser;});
+  document.getElementById('opMsg').textContent='已自动勾选全部可自动修正项，正在生成文件…';
+  download();
+});
 document.getElementById('reportBtn').addEventListener('click',downloadReport);
 document.getElementById('selAll').addEventListener('click',()=>{
   records.forEach((r,idx)=>{const chk=document.getElementById('chk-'+idx);if(chk&&r.changed)chk.checked=true;});
