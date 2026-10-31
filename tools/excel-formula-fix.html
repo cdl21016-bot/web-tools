@@ -563,12 +563,12 @@ function processWorkbook(wb){
         if(!cell)continue;
         let rawDisplay,isFormula=false;
         if(typeof cell.f==='string'&&cell.f.length){
-          rawDisplay=cell.f; isFormula=true;
-        }else if(typeof cell.w==='string'&&looksLikeFormula(cell.w)){
-          rawDisplay=cell.w; isFormula=false;
-        }else if(typeof cell.v==='string'&&looksLikeFormula(cell.v)){
+          rawDisplay=cell.f; isFormula=true;                 // 真正的公式单元格
+        }else if(typeof cell.w==='string'&&cell.w.trim().startsWith('=')&&looksLikeFormula(cell.w)){
+          rawDisplay=cell.w; isFormula=false;               // 文本形式但带 =（未参与计算），补 =
+        }else if(typeof cell.v==='string'&&cell.v.trim().startsWith('=')&&looksLikeFormula(cell.v)){
           rawDisplay=cell.v; isFormula=false;
-        }else continue;
+        }else continue;                                      // 其余纯文本（开头无 =）不计算在内
         const res=analyze(rawDisplay,isFormula);
         // 若公式当前返回错误值，补充说明
         if(isFormula && typeof cell.w==='string' && ERROR_VALUES.some(e=>cell.w.indexOf(e)===0)){
@@ -869,7 +869,7 @@ function loadSample(){
   ws['A2']={t:'n',f:'VLOKUP(A1,$B:$C,2,FALSE)'};  // 拼写错误（范围已锁定 $）
   ws['A3']={t:'n',f:'sum(a1:c1)'};                 // 小写
   ws['A4']={t:'n',f:'SUM(A1:C1'};                  // 缺右括号
-  ws['A5']={t:'s',v:'SUMM(A1:C1)'};                // 缺 =
+  ws['A5']={t:'s',v:'=SUMM(A1:C1)'};              // 文本形式但带 =（未参与计算），应补 = 并修正
   ws['A6']={t:'n',f:'SUM(A1..C1)'};                // 双点
   ws['A7']={t:'n',f:'My Sheet!A1'};               // 工作表未加引号
   ws['A8']={t:'n',f:'SUM(A1 A2 A3)'};             // 缺逗号
@@ -883,7 +883,8 @@ function loadSample(){
   ws['A16']={t:'n',f:'IF(A1>0 AND B1>0,1,0)'};    // AND 作运算符
   ws['A17']={t:'n',f:'XLOOKUP(A1,B:C,D:D)'};       // 查找数组未锁定 $
   ws['A18']={t:'n',f:'[Book1.xlsx]Sheet1!A1'};     // 跨工作簿链接（断链风险）
-  ws['!ref']='A1:C18';
+  ws['A19']={t:'s',v:'纯文本备注：本单元格没有=号，不应被当成公式'};  // 验证纯文本(无=)不被计入
+  ws['!ref']='A1:C19';
   const ws2={}; for(let i=1;i<=10;i++){ws2['A'+i]={t:'n',v:i};ws2['B'+i]={t:'n',v:i*2};}
   ws2['!ref']='A1:B10';
   XLSX.utils.book_append_sheet(wb,ws,'Sheet1');
